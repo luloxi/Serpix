@@ -11,8 +11,8 @@
     "minimal-ui"
   ],
   "orientation": "portrait",
-  "background_color": "#f7c5dc",
-  "theme_color": "#f7c5dc",
+  "background_color": "#b9e8f8",
+  "theme_color": "#b9e8f8",
   "lang": "es-AR",
   "categories": [
     "business",
@@ -23,13 +23,13 @@
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/favicon.svg",
+      "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
