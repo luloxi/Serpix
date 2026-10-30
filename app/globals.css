@@ -274,3 +274,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .main-area{padding-top:16px}
 }
 @media(prefers-reduced-motion:reduce){.toast{animation:none}}
+
+
+/* Colores de estado: rosa, amarillo patito y celeste cielo */
+:root:not([data-theme="dark"]) .welcome{background:linear-gradient(115deg,#fff 10%,#fff0f6 100%);border-color:#f3d6e4}
+:root:not([data-theme="dark"]) .nav-item.active{background:#fde8f1;color:#a52f68;box-shadow:inset 3px 0 #d94f91}
+:root:not([data-theme="dark"]) .status-paused,:root:not([data-theme="dark"]) .status-in_progress{background:#fff3b8;color:#735700}
+:root:not([data-theme="dark"]) .priority-normal{background:#dff4fc;color:#17617d}
+:root:not([data-theme="dark"]) .task-dot.normal{background:#5ab5d8;box-shadow:0 0 0 4px #e5f7fd}
+:root[data-theme="dark"] .status-paused,:root[data-theme="dark"] .status-in_progress{background:#4b411d;color:#ffe78a}
+:root[data-theme="dark"] .priority-normal{background:#193b4b;color:#a9e6fb}
+:root[data-theme="dark"] .nav-item.active{background:#43283a;color:#ffc2dc;box-shadow:inset 3px 0 #ed78ad}
