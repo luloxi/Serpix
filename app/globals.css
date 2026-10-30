@@ -559,3 +559,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .add-menu-wrap{bottom:calc(154px + env(safe-area-inset-bottom))!important}
   .profile-menu{width:min(290px,calc(100vw - 28px))}
 }
+
+
+/* Login: una marca, un título y una sola descripción */
+.auth-card{width:min(100%,420px);padding:38px 34px}
+.auth-brand-icon{display:block;width:88px;height:88px;object-fit:contain;margin:0 auto 24px;filter:none}
+.auth-card h1{margin:0 0 10px;font-size:30px;letter-spacing:-1px}
+.auth-copy{margin:0 0 28px;font-size:14px;line-height:1.55}
+.auth-footnote{margin:20px 0 0;font-size:11px;line-height:1.5}
+@media(max-width:480px){
+  .auth-screen{padding:18px}
+  .auth-card{padding:34px 24px;border-radius:22px}
+  .auth-brand-icon{width:82px;height:82px;margin-bottom:22px}
+}
