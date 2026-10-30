@@ -63,6 +63,7 @@ npm run deploy
 - Navegación: Resumen · Contactos · Agenda · Finanzas + avatar de perfil (tema oscuro, administración, cerrar sesión).
 - CRM: contactos con relación (cliente, cliente potencial, socio, socio potencial, proveedor, prospecto), filtro por relación, ficha expandible con tareas, eventos y notas vinculadas. Teléfono con `+54` sugerido y editable; X, Instagram, Telegram, WhatsApp y LinkedIn opcionales (aceptan `@usuario` o enlace); notas libres.
 - Resumen: primera pantalla compacta (saludo, fecha corta, 4 indicadores con ícono y tooltip clickeables, próximas tareas con casilla para completarlas).
+- Relaciones: un contacto puede ser a la vez cliente, socio y/o proveedor, cada uno potencial o confirmado (columna `contacts.relations`, JSON; si es NULL se deriva del `role` viejo sin modificar filas: client/partner/supplier → confirmado, client_potential/partner_potential → potencial, `potential` ("prospecto") → sin relación). Al guardar se escribe `relations` y se mantiene `role` coherente. Filtros por relación y estado en Contactos.
 - Agenda: pestañas General (Atrasadas/Hoy/Próximo), Calendario (mes con puntos por tipo) y Lista (filtro por tipo). Tareas en checklist con fecha y contacto; eventos; notas en Markdown con lectura y edición a pantalla completa y vista previa.
 
 ## Functional status (English)
@@ -71,4 +72,5 @@ npm run deploy
 - CRM: contacts with a relationship (client, potential client, partner, potential partner, supplier, prospect), relationship filter, expandable card with linked tasks, events and notes. Phone suggests `+54` but accepts any number; X, Instagram, Telegram, WhatsApp and LinkedIn are optional (`@handle` or URL); free-form notes.
 - Agenda: General (Overdue/Today/Upcoming), Calendar (month view with per-type dots) and List (type filter) tabs. Checklist tasks with due date and contact; events; Markdown notes with full-screen read/edit and preview.
 - Overview: compact first screen (one-line greeting, short date, 4 icon KPIs with tooltips that link to their section, upcoming tasks with status/date/contact icons and a complete checkbox).
+- Relations: a contact can be client, partner and/or supplier at once, each potential or confirmed (`contacts.relations` JSON column; when NULL it is derived from the legacy `role` without touching rows: client/partner/supplier → confirmed, client_potential/partner_potential → potential, `potential` ("prospect") → no relation). Saving writes `relations` and keeps `role` coherent. Relation and state filters in Contacts.
 - Money is stored in integer minor units (ARS/USD); data is isolated per user; no demo data.

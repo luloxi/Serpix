@@ -29,6 +29,8 @@ const p2 = (n) => String(n).padStart(2, "0");
 const parseDay = (s) => { const m = /(\d{1,2})\s+([A-Za-z]{3})[a-z]*,?\s*(\d{4})?/.exec(s || ""); return m ? `${m[3] || 2026}-${p2(MONTHS[m[2].toLowerCase()])}-${p2(m[1])}` : null; };
 const parseDateTime = (s) => { const m = /(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(s || ""); if (!m) return null; let h = Number(m[4]) % 12; if (/pm/i.test(m[6])) h += 12; return { day: `${m[3]}-${p2(MONTHS[m[2].toLowerCase()])}-${p2(m[1])}`, time: `${p2(h)}:${m[5]}` }; };
 const ROLE = { customer: "client", partner: "partner", lead: "potential" };
+// New relations model: Customer -> client confirmed, Partner -> partner confirmed, Lead/none -> no relation marked.
+const RELATIONS = { customer: { client: "confirmed" }, partner: { partner: "confirmed" } };
 const now = Date.now();
 const sql = [];
 const counts = { contacts: 0, tasks: 0, events: 0, notes: 0 };
@@ -37,7 +39,7 @@ const contactId = (name) => `(SELECT id FROM contacts WHERE user_id=${q(userId)}
 for (const c of data.contacts || []) {
   const phone = (c.phones || []).map((p) => p.number).join(", ") || null;
   const noteLines = [c.description, c.website ? `Web: ${c.website}` : null].filter(Boolean);
-  sql.push(`INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,created_at,updated_at) SELECT ${q(uuid("contact", c.name))},${q(userId)},'person',${q(c.name)},${q(c.company)},${q(c.email)},${q(phone)},${q(noteLines.join("\n") || null)},0,${q(ROLE[(c.type || "").toLowerCase()] || "potential")},${now},${now} WHERE NOT EXISTS (SELECT 1 FROM contacts WHERE user_id=${q(userId)} AND name=${q(c.name)} COLLATE NOCASE);`);
+  sql.push(`INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,relations,created_at,updated_at) SELECT ${q(uuid("contact", c.name))},${q(userId)},'person',${q(c.name)},${q(c.company)},${q(c.email)},${q(phone)},${q(noteLines.join("\n") || null)},0,${q(ROLE[(c.type || "").toLowerCase()] || "potential")},${q(JSON.stringify(RELATIONS[(c.type || "").toLowerCase()] || {}))},${now},${now} WHERE NOT EXISTS (SELECT 1 FROM contacts WHERE user_id=${q(userId)} AND name=${q(c.name)} COLLATE NOCASE);`);
   counts.contacts++;
 }
 for (const t of data.tasks || []) {
