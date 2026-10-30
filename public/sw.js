@@ -11,6 +11,7 @@ self.addEventListener("push", (event) => {
       body: data.body || "Tenés una novedad en tu espacio de trabajo.",
       icon: "/icons/icon-192.v3.png",
       badge: "/icons/serpix-48.v3.png",
+      tag: data.tag || undefined,
       data: { url: data.url || "/" },
     })
   );
@@ -21,8 +22,8 @@ self.addEventListener("notificationclick", (event) => {
   const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      const existing = windows.find((window) => window.url === target);
-      if (existing) return existing.focus();
+      const existing = windows.find((window) => window.url === target) || windows.find((window) => new URL(window.url).origin === self.location.origin);
+      if (existing) return (existing.url === target ? existing.focus() : existing.navigate(target).then((w) => (w || existing).focus()));
       return clients.openWindow(target);
     })
   );

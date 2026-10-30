@@ -17,7 +17,10 @@
     }
   ],
   "vars": {
-    "GOOGLE_CLIENT_ID": "106402432160-i1q0lfebt170j48q29gtdn3irlk82j3u.apps.googleusercontent.com"
+    "GOOGLE_CLIENT_ID": "106402432160-i1q0lfebt170j48q29gtdn3irlk82j3u.apps.googleusercontent.com",
+    // Web Push (public VAPID key is public by design; the private one is the VAPID_PRIVATE_KEY secret).
+    "VAPID_PUBLIC_KEY": "BFUYqMDu8-xW7U64g_TaoIRf-dxjWybTTuIW0F4H-44QLVecap-EcYKwVQkYQ6n-U2DOtevfT4Fsdg1rWrf541o",
+    // Secrets (wrangler secret put, never here): BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, PORTFOLIO_INBOUND_SECRET, VAPID_PRIVATE_KEY
   },
   "observability": { "enabled": true }
 }

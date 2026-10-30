@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const APP_URL = "https://erp.lulox.com.ar";
-const ADMIN_EMAIL = "lucianoolivabianco@gmail.com";
+export const ADMIN_EMAIL = "lucianoolivabianco@gmail.com";
 
 export async function getAuth() {
   const { env } = await getCloudflareContext({ async: true });
