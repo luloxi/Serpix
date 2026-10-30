@@ -877,3 +877,6 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
  .workspace-actions .add-trigger{width:54px!important;height:54px!important;border-radius:50%!important}
  .workspace-actions .add-menu{right:0;top:auto;bottom:calc(100% + 12px)}
 }
+
+/* Enforce exactly four section links plus the profile menu in the mobile bar. */
+@media(max-width:700px){.sidebar nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}.sidebar nav>.nav-item:not(.profile-nav-item){min-width:0}}
