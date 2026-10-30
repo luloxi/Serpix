@@ -5,10 +5,10 @@ export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
   description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
   applicationName: "Serpix",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest-v2.webmanifest",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon.svg",
+    icon: [{ url: "/serpix-mark-v2.svg", type: "image/svg+xml" }],
+    shortcut: "/serpix-mark-v2.svg",
   },
   appleWebApp: {
     capable: true,
