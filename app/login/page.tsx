@@ -24,7 +24,7 @@ export default function LoginPage() {
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <div className="brand-mark">S</div>
+        <img className="auth-brand-icon" src="/icon.svg" alt="Serpix" width="112" height="112" />
         <p className="eyebrow">GESTIÓN PERSONAL</p>
         <h1>Serpix</h1>
         <p className="auth-copy">Tu espacio de trabajo, relaciones y finanzas.</p>
