@@ -16,5 +16,8 @@
       "migrations_dir": "migrations"
     }
   ],
-  "vars": {\n    "GOOGLE_CLIENT_ID": "106402432160-i1q0lfebt170j48q29gtdn3irlk82j3u.apps.googleusercontent.com"\n  },\n  "observability": { "enabled": true }
+  "vars": {
+    "GOOGLE_CLIENT_ID": "106402432160-i1q0lfebt170j48q29gtdn3irlk82j3u.apps.googleusercontent.com"
+  },
+  "observability": { "enabled": true }
 }
