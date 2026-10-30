@@ -31,19 +31,22 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   const [theme,setTheme]=useState<"light"|"dark">("light");
   const [addMenuOpen,setAddMenuOpen]=useState(false);
   const [profileMenuOpen,setProfileMenuOpen]=useState(false);
-  const profileMenuRef=useRef<HTMLDivElement>(null);\n  const pollingRef=useRef(false);
+  const profileMenuRef=useRef<HTMLDivElement>(null);
+  const pollingRef=useRef(false);\n  const pollingRef=useRef(false);
   const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]),[activities,setActivities]=useState<Item[]>([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [editor,setEditor]=useState<{resource:string;item?:Item}|null>(null),[saving,setSaving]=useState(false),[values,setValues]=useState<Record<string,string>>(empty);
-  const load=useCallback(async()=>{
-    setLoading(true);setError("");
+  const load=useCallback(async(silent=false)=>{
+    if(pollingRef.current)return;pollingRef.current=true;
+    if(!silent){setLoading(true);setError("");}
     try{
       const names=["contacts","projects","tasks","accounts","transactions","activities"];
       const results=await Promise.all(names.map(async n=>{const r=await fetch("/api/data/"+n,{cache:"no-store"});if(!r.ok)throw new Error("No se pudieron cargar los datos");return (await r.json() as {items:Item[]}).items;}));
       setContacts(results[0]);setProjects(results[1]);setTasks(results[2]);setAccounts(results[3]);setTransactions(results[4]);setActivities(results[5]);
-    }catch(e){setError(e instanceof Error?e.message:"Error cargando datos");}finally{setLoading(false);}
+    }catch(e){if(!silent)setError(e instanceof Error?e.message:"Error cargando datos");}finally{if(!silent)setLoading(false);pollingRef.current=false;}
   },[]);
   useEffect(()=>{void load();},[load]);
+  useEffect(()=>{const refresh=()=>{if(document.visibilityState==="visible")void load(true);};const timer=window.setInterval(refresh,10000);document.addEventListener("visibilitychange",refresh);return()=>{window.clearInterval(timer);document.removeEventListener("visibilitychange",refresh);};},[load]);
   useEffect(()=>{const saved=window.localStorage.getItem("serpix-theme");const initial=saved==="dark"?"dark":"light";setTheme(initial);document.documentElement.dataset.theme=initial;document.documentElement.style.colorScheme=initial;},[]);
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(""),3200);return()=>window.clearTimeout(timer);},[notice]);
   useEffect(()=>{if(!error)return;const timer=window.setTimeout(()=>setError(""),4500);return()=>window.clearTimeout(timer);},[error]);
