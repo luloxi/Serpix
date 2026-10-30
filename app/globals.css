@@ -880,3 +880,55 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 
 /* Enforce exactly four section links plus the profile menu in the mobile bar. */
 @media(max-width:700px){.sidebar nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}.sidebar nav>.nav-item:not(.profile-nav-item){min-width:0}}
+
+/* Agenda (General / Calendario / Lista) */
+.agenda{display:grid;gap:14px}
+.agenda-tabs,.agenda-filter{margin:0}
+.agenda-group{padding:6px 16px 10px}
+.agenda-group h3{margin:10px 0 4px;font-size:13px;font-weight:700;color:var(--muted);text-transform:capitalize}
+.agenda-row{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);min-width:0;flex:1}
+.agenda-group>.agenda-row:last-child,.agenda-list-item:last-child .agenda-row{border-bottom:0}
+.agenda-main{flex:1;min-width:0;display:grid;gap:2px;text-align:left;background:transparent;border:0;padding:8px 2px;min-height:44px;color:var(--ink);cursor:pointer}
+.agenda-main strong{font-size:14px;overflow-wrap:anywhere}
+.agenda-main small{font-size:12px;color:var(--muted)}
+.agenda-row.is-done .agenda-main strong{text-decoration:line-through;color:var(--muted)}
+.agenda-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+.agenda-dot.kind-task{background:#e25a9c}.agenda-dot.kind-event{background:#2f93c9}.agenda-dot.kind-note{background:#d9a400}
+.agenda-row>.agenda-dot{margin:0 9px}
+.agenda-list-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.agenda-list-item .agenda-row{border-bottom:0;flex:1 1 220px}
+.agenda-when{color:var(--muted);font-size:12px}
+.calendar{padding:14px 12px}
+.calendar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;text-transform:capitalize}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calendar-dow{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:4px 0}
+.calendar-day{min-height:46px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;align-content:center;gap:3px;padding:2px;font-size:14px}
+.calendar-day:hover{background:var(--bg)}
+.calendar-day.is-today{border-color:#e25a9c;font-weight:800}
+.calendar-day.is-selected{background:var(--ink);color:var(--surface)}
+.calendar-dots{display:flex;gap:3px;min-height:8px}
+.calendar-dots .agenda-dot{width:6px;height:6px}
+.calendar-legend{display:flex;gap:14px;justify-content:center;margin-top:10px;font-size:12px;color:var(--muted)}
+.calendar-legend span{display:inline-flex;align-items:center;gap:6px}
+.note-reader-backdrop{align-items:stretch;padding:0}
+.note-reader{background:var(--surface);color:var(--ink);width:min(100%,860px);margin:0 auto;height:100svh;overflow:auto;padding:20px 22px 40px}
+.note-reader header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px;position:sticky;top:0;background:var(--surface);padding-bottom:10px}
+.note-reader h2{margin:0 0 4px;font:800 22px Manrope,sans-serif;overflow-wrap:anywhere}
+.note-reader small{color:var(--muted)}
+.note-reader-actions{display:flex;gap:8px;align-items:center}
+.markdown{line-height:1.65;font-size:15px;overflow-wrap:anywhere}
+.markdown h3,.markdown h4,.markdown h5{margin:18px 0 6px}
+.markdown p{margin:0 0 10px}.markdown ul,.markdown ol{margin:0 0 10px;padding-left:22px}
+.markdown code{background:var(--bg);padding:1px 5px;border-radius:5px}
+.markdown a{color:var(--accent);text-decoration:underline}
+.note-editor-tabs{margin:0 0 10px}
+.note-preview{min-height:280px;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--bg)}
+.segmented-field.wrap{flex-wrap:wrap}
+.segmented-field.wrap button{flex:1 1 auto}
+.calendar-day,.agenda-main,.agenda-tabs button,.agenda-filter button{cursor:pointer}
+.checklist-toggle:disabled,.agenda-main:disabled{cursor:not-allowed}
+@media (max-width:640px){.note-reader{padding:14px 14px 40px}.agenda-group{padding:4px 10px 8px}}
+.editor-modal.is-note{width:100vw!important;max-width:none!important;height:100svh!important;max-height:none!important;border-radius:0!important;border:0!important}
+.editor-modal.is-note .form-grid textarea{min-height:48svh!important}
+.contact-filter{margin:0 0 12px}
+.contact-filter button{padding:6px 10px;font-size:13px}

@@ -60,3 +60,13 @@ npm run deploy
 - Logo e íconos: ouroboros rosa/celeste con S amarilla sobre negro. El original está en `brand/serpix-logo-master.jpg`; `python3 scripts/make-icons.py` genera los PNG/ICO livianos de `public/icons` (favicon, Apple Touch, PWA 192/512, logo de la barra lateral). Los nombres llevan versión (`.v3`) para evitar cachés viejas; el manifiesto es `manifest-v3.webmanifest`.
 - Almacén canónico del logo: bucket R2 `serpix-assets` (plan gratuito), publicado en https://assets.lulox.com.ar/logo/v1/ (`serpix-logo-master.jpg`, `serpix-32.png`, `serpix-48.png`, `apple-touch-icon-180.png`, `icon-192.png`, `icon-512.png`, `logo-128.png`, `favicon.ico`; `Cache-Control: public, max-age=31536000, immutable`). La app sigue sirviendo favicon, Apple Touch, manifiesto y logo de la interfaz desde su propio origen (`public/icons`), porque los navegadores y la instalación de la PWA manejan mal los íconos de otro origen.
 - No se incluye información ficticia ni datos de demostración.
+- Navegación: Resumen · Contactos · Agenda · Finanzas + avatar de perfil (tema oscuro, administración, cerrar sesión).
+- CRM: contactos con relación (cliente, cliente potencial, socio, socio potencial, proveedor, prospecto), filtro por relación, ficha expandible con tareas, eventos y notas vinculadas. Teléfono con `+54` sugerido y editable; X, Instagram, Telegram, WhatsApp y LinkedIn opcionales (aceptan `@usuario` o enlace); notas libres.
+- Agenda: pestañas General (Atrasadas/Hoy/Próximo), Calendario (mes con puntos por tipo) y Lista (filtro por tipo). Tareas en checklist con fecha y contacto; eventos; notas en Markdown con lectura y edición a pantalla completa y vista previa.
+
+## Functional status (English)
+
+- Navigation: Overview · Contacts · Agenda · Finance + profile avatar (dark mode, admin, sign out).
+- CRM: contacts with a relationship (client, potential client, partner, potential partner, supplier, prospect), relationship filter, expandable card with linked tasks, events and notes. Phone suggests `+54` but accepts any number; X, Instagram, Telegram, WhatsApp and LinkedIn are optional (`@handle` or URL); free-form notes.
+- Agenda: General (Overdue/Today/Upcoming), Calendar (month view with per-type dots) and List (type filter) tabs. Checklist tasks with due date and contact; events; Markdown notes with full-screen read/edit and preview.
+- Money is stored in integer minor units (ARS/USD); data is isolated per user; no demo data.
