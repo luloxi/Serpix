@@ -572,3 +572,112 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .auth-card{padding:34px 24px;border-radius:22px}
   .auth-brand-icon{width:82px;height:82px;margin-bottom:22px}
 }
+
+
+/* Theme palettes: explicit contrast, independent of legacy component defaults. */
+:root[data-theme="light"] {
+  color-scheme: light !important;
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --ink: #172033;
+  --muted: #596579;
+  --line: #dce2eb;
+  --shadow: 0 8px 24px rgba(25, 39, 65, .07);
+}
+:root[data-theme="light"] body,
+:root[data-theme="light"] .app-shell,
+:root[data-theme="light"] .main-area { background: #f4f6fa !important; color: #172033 !important; }
+:root[data-theme="light"] .sidebar { background: rgba(255,255,255,.98) !important; border-color: #dce2eb !important; }
+:root[data-theme="light"] .topbar { border-color: #dce2eb !important; }
+:root[data-theme="light"] .topbar h1,
+:root[data-theme="light"] .welcome h2,
+:root[data-theme="light"] .panel-title h2,
+:root[data-theme="light"] .section-intro h2,
+:root[data-theme="light"] .project-card h3,
+:root[data-theme="light"] .task-card > strong,
+:root[data-theme="light"] .table-row strong,
+:root[data-theme="light"] .list-line strong,
+:root[data-theme="light"] .account-line strong,
+:root[data-theme="light"] .stat-card strong { color: #172033 !important; }
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .stat-card,
+:root[data-theme="light"] .task-card,
+:root[data-theme="light"] .editor-modal { background: #fff !important; color: #172033 !important; border-color: #dce2eb !important; }
+:root[data-theme="light"] .stat-card:after { background: #e8f5fb !important; }
+:root[data-theme="light"] .stat-card small,
+:root[data-theme="light"] .finance-summary small,
+:root[data-theme="light"] .stat-card span,
+:root[data-theme="light"] .welcome p:not(.eyebrow),
+:root[data-theme="light"] .empty-copy,
+:root[data-theme="light"] .list-line small,
+:root[data-theme="light"] .table-row,
+:root[data-theme="light"] .account-line small,
+:root[data-theme="light"] .project-card p,
+:root[data-theme="light"] .task-card p { color: #596579 !important; }
+:root[data-theme="light"] .welcome { background: linear-gradient(120deg,#fff 15%,#fff0f6 100%) !important; border-color: #f0cddd !important; }
+:root[data-theme="light"] .today,
+:root[data-theme="light"] .icon-button,
+:root[data-theme="light"] .column-heading span { background: #fff !important; color: #344054 !important; border-color: #dce2eb !important; }
+:root[data-theme="light"] .task-column { background: #edf1f6 !important; border-color: #dce2eb !important; }
+:root[data-theme="light"] .form-grid input,
+:root[data-theme="light"] .form-grid select,
+:root[data-theme="light"] .form-grid textarea { background: #fff !important; color: #172033 !important; border-color: #cbd4e1 !important; }
+:root[data-theme="light"] .nav-item { color: #46536a !important; }
+:root[data-theme="light"] .nav-item.active { background: #fce5ef !important; color: #a32662 !important; box-shadow: inset 3px 0 #d94f91 !important; }
+:root[data-theme="light"] .sidebar { box-shadow: none !important; }
+:root[data-theme="light"] .add-menu { background: #fff !important; color: #172033 !important; }
+:root[data-theme="light"] .add-menu-item { background: #f4f6fa !important; color: #172033 !important; }
+:root[data-theme="light"] .profile-menu { background: #fff !important; color: #172033 !important; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark !important;
+  --bg: #0c1018;
+  --surface: #171e2b;
+  --ink: #f2f5fb;
+  --muted: #b1bdcf;
+  --line: #303b4e;
+  --shadow: 0 10px 30px rgba(0,0,0,.28);
+}
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-shell,
+:root[data-theme="dark"] .main-area { background: #0c1018 !important; color: #f2f5fb !important; }
+:root[data-theme="dark"] .sidebar { background: rgba(17,23,34,.98) !important; border-color: #303b4e !important; }
+:root[data-theme="dark"] .topbar { border-color: #303b4e !important; }
+:root[data-theme="dark"] .topbar h1,
+:root[data-theme="dark"] .welcome h2,
+:root[data-theme="dark"] .panel-title h2,
+:root[data-theme="dark"] .section-intro h2,
+:root[data-theme="dark"] .project-card h3,
+:root[data-theme="dark"] .task-card > strong,
+:root[data-theme="dark"] .table-row strong,
+:root[data-theme="dark"] .list-line strong,
+:root[data-theme="dark"] .account-line strong,
+:root[data-theme="dark"] .stat-card strong { color: #f2f5fb !important; }
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .editor-modal { background: #171e2b !important; color: #f2f5fb !important; border-color: #303b4e !important; }
+:root[data-theme="dark"] .stat-card:after { background: #263247 !important; }
+:root[data-theme="dark"] .stat-card small,
+:root[data-theme="dark"] .finance-summary small,
+:root[data-theme="dark"] .stat-card span,
+:root[data-theme="dark"] .welcome p:not(.eyebrow),
+:root[data-theme="dark"] .empty-copy,
+:root[data-theme="dark"] .list-line small,
+:root[data-theme="dark"] .table-row,
+:root[data-theme="dark"] .account-line small,
+:root[data-theme="dark"] .project-card p,
+:root[data-theme="dark"] .task-card p { color: #b1bdcf !important; }
+:root[data-theme="dark"] .welcome { background: linear-gradient(120deg,#171e2b,#292033) !important; border-color: #50364e !important; }
+:root[data-theme="dark"] .today,
+:root[data-theme="dark"] .icon-button,
+:root[data-theme="dark"] .column-heading span { background: #202a3a !important; color: #e7edf7 !important; border-color: #3a465b !important; }
+:root[data-theme="dark"] .task-column { background: #111824 !important; border-color: #303b4e !important; }
+:root[data-theme="dark"] .form-grid input,
+:root[data-theme="dark"] .form-grid select,
+:root[data-theme="dark"] .form-grid textarea { background: #101722 !important; color: #f2f5fb !important; border-color: #46536a !important; }
+:root[data-theme="dark"] .nav-item { color: #b9c4d5 !important; }
+:root[data-theme="dark"] .nav-item.active { background: #382536 !important; color: #ffc1dd !important; box-shadow: inset 3px 0 #ed78ad !important; }
+:root[data-theme="dark"] .add-menu { background: #171e2b !important; color: #f2f5fb !important; }
+:root[data-theme="dark"] .add-menu-item { background: #202a3a !important; color: #f2f5fb !important; }
+:root[data-theme="dark"] .profile-menu { background: #171e2b !important; color: #f2f5fb !important; }
