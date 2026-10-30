@@ -60,7 +60,7 @@ export default function AdminUsers() {
               <div>
                 <strong>{user.name || "Sin nombre"}</strong>
                 <p>{user.email}</p>
-                <span className={`status status-${user.approvalStatus}`}>{user.approvalStatus}</span>
+                <span className={`status status-${user.approvalStatus}`}>{({ pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado" } as const)[user.approvalStatus]}</span>
               </div>
               <div className="user-actions">
                 {user.approvalStatus !== "approved" && <button className="primary-button compact" onClick={() => void setStatus(user.id, "approved")}>Aprobar</button>}

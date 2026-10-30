@@ -56,5 +56,6 @@ npm run deploy
 
 - Google OAuth y sesiones: configurados en código; requieren los secrets y el despliegue.
 - Aprobación de usuarios: flujo inicial, estados y endpoints administrativos implementados.
-- CRM, trabajo y finanzas: esquema persistente creado; las pantallas y operaciones CRUD todavía deben implementarse.
+- CRM, proyectos, tareas y finanzas: esquema persistente y operaciones CRUD (crear, editar, eliminar) implementados en `/dashboard`, aislados por usuario.
+- Logo e íconos definitivos: pendientes de la imagen aprobada. Los íconos actuales (`app/icon.tsx`, `app/apple-icon.tsx`, `public/*.svg`) son provisionales.
 - No se incluye información ficticia ni datos de demostración.

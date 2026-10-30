@@ -63,7 +63,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
     setValues(initial);setEditor({resource,item});
   };
   const save=async()=>{
-    if(!editor)return;setSaving(true);setError("");
+    if(!editor)return;setSaving(true);setError("");setNotice("");
     const payload:Record<string,unknown>={...values};
     if(editor.resource==="contacts")payload.isPotential=values.isPotential==="true";
     if(editor.resource==="accounts")payload.openingBalanceMinor=Math.round(Number(values.openingBalance||0)*100);
@@ -79,7 +79,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   };
   const remove=async(resource:string,item:Item)=>{
     if(!window.confirm("¿Eliminar este registro? Esta acción no se puede deshacer."))return;
-    const r=await fetch("/api/data/"+resource+"/"+encodeURIComponent(item.id),{method:"DELETE"});
+    setError("");setNotice("");const r=await fetch("/api/data/"+resource+"/"+encodeURIComponent(item.id),{method:"DELETE"});
     if(!r.ok){const body=await r.json() as {error?:string};setError(body.error||"No se pudo eliminar");return;}
     setNotice("Registro eliminado");await load();
   };
