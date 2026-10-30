@@ -7,8 +7,9 @@ export const metadata: Metadata = {
   applicationName: "Serpix",
   manifest: "/manifest-v2.webmanifest",
   icons: {
-    icon: [{ url: "/serpix-mark-v2.svg", type: "image/svg+xml" }],
-    shortcut: "/serpix-mark-v2.svg",
+    icon: [{ url: "/icon", type: "image/png", sizes: "512x512" }],
+    shortcut: "/icon",
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080A12",
+  themeColor: "#B9E8F8",
   width: "device-width",
   initialScale: 1,
 };
