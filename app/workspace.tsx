@@ -93,7 +93,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
     setNotice("Registro eliminado");await load();
   };
   const fields=editor?(editor.resource==="contacts"?contactFields:editor.resource==="projects"?projectFields:editor.resource==="tasks"?taskFields:editor.resource==="accounts"?accountFields:editor.resource==="activities"?activityFields:transactionFields):[];
-  const visibleSections=sections.filter(s=>s.id!=="admin");
+  const visibleSections=sections.filter(s=>["home","contacts","activity","finance"].includes(s.id));
   const activeAddType=({contacts:"contacts",projects:"projects",tasks:"tasks",activity:"activities-event",finance:"transactions"} as Partial<Record<Section,string>>)[section];
   const addOptions=[
     {id:"contacts",label:"Contacto",icon:ContactRound},
