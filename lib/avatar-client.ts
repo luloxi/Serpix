@@ -60,13 +60,63 @@ export async function toSmallWebp(blob: Blob, size = 256): Promise<string> {
   throw new Error("La imagen es demasiado pesada");
 }
 
-/** Download a source photo (CORS) and return it as a small WebP data URL; throws if the source has no photo. */
+export class AvatarError extends Error {
+  constructor(public code: "none" | "limited" | "network", message: string) { super(message); }
+}
+export const MSG_NONE = "Esa red no tiene foto disponible";
+const RASTER = /^image\/(jpeg|png|webp|gif|avif)$/i;
+
+/** Download a source photo (CORS) and return it as a small WebP data URL. Throws AvatarError with a Spanish message. */
 export async function fetchAvatar(source: AvatarSource, value: string | undefined): Promise<string> {
   const url = await avatarUrl(source, value);
-  if (!url) throw new Error("Falta un usuario o email válido");
-  const res = await fetch(url, { cache: "force-cache" });
-  if (!res.ok) throw new Error(res.status === 429 ? "Límite diario del servicio de fotos, probá mañana" : "No hay foto pública para este perfil");
+  if (!url) throw new AvatarError("none", "Falta un usuario o email válido");
+  let res: Response;
+  try { res = await fetch(url, { cache: "force-cache" }); } catch { throw new AvatarError("network", "No se pudo conectar. Probá de nuevo"); }
+  if (res.status === 429) throw new AvatarError("limited", "Límite diario del servicio de fotos, probá mañana");
+  if (!res.ok) throw new AvatarError("none", MSG_NONE);
+  const type = (res.headers.get("content-type") || "").split(";")[0].trim();
+  // unavatar answers 200 with a generic SVG silhouette when it cannot read a profile (LinkedIn does this a lot): not a photo.
+  if (!RASTER.test(type)) throw new AvatarError("none", MSG_NONE);
   const blob = await res.blob();
-  if (!blob.type.startsWith("image/")) throw new Error("No hay foto pública para este perfil");
-  return toSmallWebp(blob);
+  if (blob.size < 200 || blob.size > 4_000_000) throw new AvatarError("none", MSG_NONE);
+  try { return await toSmallWebp(blob); } catch { throw new AvatarError("none", MSG_NONE); }
+}
+
+export const AUTO_ORDER: { id: AvatarSource; field: string }[] = [
+  { id: "github", field: "githubUrl" }, { id: "x", field: "xUrl" }, { id: "telegram", field: "telegramUrl" }, { id: "linkedin", field: "linkedinUrl" }, { id: "email", field: "email" },
+];
+
+/** Stable fingerprint of the networks/email available, used to avoid retrying the same failed lookup. */
+export async function sourcesKey(values: Record<string, unknown>): Promise<string> {
+  const parts: string[] = [];
+  for (const o of AUTO_ORDER) {
+    const raw = String(values[o.field] ?? "");
+    if (o.id === "email") { if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw.trim())) parts.push("email:" + raw.trim().toLowerCase()); }
+    else { const h = handleOf(o.id, raw); if (h) parts.push(o.id + ":" + h.toLowerCase()); }
+  }
+  return parts.join("|");
+}
+
+/** Whether an automatic lookup should run for this contact (never over a chosen/uploaded photo, never repeating a recent failure). */
+export function autoEligible(c: Record<string, unknown>, key: string): boolean {
+  if (!key) return false;
+  if (Number(c.hasAvatar) === 1) return false;
+  if (c.avatarTriedKey === key && Date.now() - Number(c.avatarTriedAt || 0) < 7 * 864e5) return false;
+  return true;
+}
+
+export type AutoResult = { source: AvatarSource; data: string } | "none" | "limited" | "network";
+
+/** Try GitHub, X, Telegram, LinkedIn, then the email's Gravatar; the first valid photo wins. */
+export async function autoAvatar(values: Record<string, unknown>): Promise<AutoResult> {
+  let network = false;
+  for (const o of AUTO_ORDER) {
+    const raw = String(values[o.field] ?? "");
+    if (!(await avatarUrl(o.id, raw))) continue;
+    try { return { source: o.id, data: await fetchAvatar(o.id, raw) }; }
+    catch (e) {
+      if (e instanceof AvatarError) { if (e.code === "limited") return "limited"; if (e.code === "network") network = true; }
+    }
+  }
+  return network ? "network" : "none";
 }

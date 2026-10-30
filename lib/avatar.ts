@@ -8,6 +8,7 @@ export function avatarChange(body: Record<string, unknown>): AvatarChange {
   if (!body.avatarData) return null;
   const data = typeof body.avatarData === "string" ? body.avatarData : "";
   if (data.length > 90000 || !AVATAR_RE.test(data)) return undefined;
-  const source = (AVATAR_SOURCES as readonly string[]).includes(String(body.avatarSource)) ? String(body.avatarSource) : "custom";
+  const raw = String(body.avatarSource);
+  const source = (AVATAR_SOURCES as readonly string[]).includes(raw) || /^auto:(x|telegram|github|linkedin|email)$/.test(raw) ? raw : "custom";
   return { data, source };
 }
