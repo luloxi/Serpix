@@ -9,8 +9,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Serpix", {
       body: data.body || "Tenés una novedad en tu espacio de trabajo.",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      icon: "/icons/icon-192.v3.png",
+      badge: "/icons/serpix-48.v3.png",
       data: { url: data.url || "/" },
     })
   );

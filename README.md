@@ -57,5 +57,5 @@ npm run deploy
 - Google OAuth y sesiones: configurados en código; requieren los secrets y el despliegue.
 - Aprobación de usuarios: flujo inicial, estados y endpoints administrativos implementados.
 - CRM, proyectos, tareas y finanzas: esquema persistente y operaciones CRUD (crear, editar, eliminar) implementados en `/dashboard`, aislados por usuario.
-- Logo e íconos definitivos: pendientes de la imagen aprobada. Los íconos actuales (`app/icon.tsx`, `app/apple-icon.tsx`, `public/*.svg`) son provisionales.
+- Logo e íconos: ouroboros rosa/celeste con S amarilla sobre negro. El original está en `brand/serpix-logo-master.jpg`; `python3 scripts/make-icons.py` genera los PNG/ICO livianos de `public/icons` (favicon, Apple Touch, PWA 192/512, logo de la barra lateral). Los nombres llevan versión (`.v3`) para evitar cachés viejas; el manifiesto es `manifest-v3.webmanifest`.
 - No se incluye información ficticia ni datos de demostración.

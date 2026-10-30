@@ -5,11 +5,16 @@ export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
   description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
   applicationName: "Serpix",
-  manifest: "/manifest-v2.webmanifest",
+  manifest: "/manifest-v3.webmanifest",
   icons: {
-    icon: [{ url: "/icon", type: "image/png", sizes: "512x512" }],
-    shortcut: "/icon",
-    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
+    icon: [
+      { url: "/icons/favicon.v3.ico", sizes: "any" },
+      { url: "/icons/serpix-32.v3.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/serpix-48.v3.png", type: "image/png", sizes: "48x48" },
+      { url: "/icons/icon-192.v3.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: "/icons/favicon.v3.ico",
+    apple: [{ url: "/icons/apple-touch-icon-180.v3.png", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
@@ -19,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#B9E8F8",
+  themeColor: "#080A12",
   width: "device-width",
   initialScale: 1,
 };

@@ -11,7 +11,7 @@ export default function PendingPage() {
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <div className="brand-mark">S</div>
+        <img className="auth-brand-icon" src="/icons/icon-192.v3.png" alt="" width="88" height="88" />
         <p className="eyebrow">SERPIX</p>
         <h1>{status === "rejected" ? "Solicitud rechazada" : "Acceso pendiente"}</h1>
         <p className="auth-copy">

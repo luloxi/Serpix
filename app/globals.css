@@ -785,3 +785,5 @@ button:disabled,select:disabled,input:disabled{cursor:not-allowed}
 .editor-modal{max-height:calc(100svh - 36px)}
 .toast{z-index:120}
 body:has(.modal-backdrop) .add-menu-wrap{display:none!important}
+.auth-brand-icon{border-radius:22px}
+.logo>span:last-child:after{font-size:12px;letter-spacing:1.2px}
