@@ -40,7 +40,7 @@ export default function Workspace({name,isAdmin}:{name:string;isAdmin:boolean}) 
   const openEditor=(resource:string,item?:Item)=>{
     const fields=resource==="contacts"?contactFields:resource==="projects"?projectFields:resource==="tasks"?taskFields:resource==="accounts"?accountFields:transactionFields;
     const initial:Record<string,string>={};
-    for(const f of fields){const v=item?.[f.key];initial[f.key]=v===undefined||v===null?"":String(v);}
+    for(const f of fields){const v=item?.[f.key];initial[f.key]=v===undefined||v===null?"":String(v);}\n    if(resource==="contacts"&&item)initial.isPotential=String(Boolean(item.isPotential));\n    if(resource==="transactions"&&item)initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);
     if(resource==="contacts"&&!item){initial.kind="person";initial.isPotential="false";}
     if(resource==="projects"&&!item)initial.status="active";
     if(resource==="tasks"&&!item){initial.status="todo";initial.priority="normal";}
