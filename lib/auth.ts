@@ -1,14 +1,17 @@
 import { betterAuth } from "better-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+const APP_URL = "https://erp.lulox.com.ar";
+const ADMIN_EMAIL = "lucianoolivabianco@gmail.com";
+
 export async function getAuth() {
   const { env } = await getCloudflareContext({ async: true });
 
   return betterAuth({
     appName: "Serpix",
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: APP_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.BETTER_AUTH_URL],
+    trustedOrigins: [APP_URL],
     database: env.DB,
     socialProviders: {
       google: {
@@ -36,7 +39,7 @@ export async function getAuth() {
       user: {
         create: {
           before: async (user) => {
-            const isAdmin = user.email.trim().toLowerCase() === env.ADMIN_EMAIL.toLowerCase();
+            const isAdmin = user.email.trim().toLowerCase() === ADMIN_EMAIL;
             return {
               data: {
                 ...user,

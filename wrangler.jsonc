@@ -16,10 +16,5 @@
       "migrations_dir": "migrations"
     }
   ],
-  "vars": {
-    "BETTER_AUTH_URL": "https://erp.lulox.com.ar",
-    "ADMIN_EMAIL": "lucianoolivabianco@gmail.com",
-    "GOOGLE_CLIENT_ID": "SET_IN_CLOUDFLARE_DASHBOARD"
-  },
   "observability": { "enabled": true }
 }
