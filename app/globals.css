@@ -345,9 +345,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 
 /* Serpix add menu and compact brand icon */
-.brand-mark{overflow:hidden;display:grid;place-items:center;background:transparent}
-.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
-.brand-mark.small{width:38px;height:38px;border-radius:12px;box-shadow:none}
+.logo .brand-mark{overflow:hidden;display:grid;place-items:center;background:transparent}
+.logo .brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.logo .brand-mark.small{width:38px;height:38px;border-radius:12px;box-shadow:none}
 .topbar-actions{gap:10px}
 .add-menu-wrap{position:relative}
 .add-trigger{
