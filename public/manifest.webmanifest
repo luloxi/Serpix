@@ -6,18 +6,56 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
-  "background_color": "#f5f7fb",
-  "theme_color": "#5b5ce2",
+  "background_color": "#f7c5dc",
+  "theme_color": "#f7c5dc",
   "lang": "es-AR",
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ],
   "shortcuts": [
-    { "name": "Nuevo contacto", "short_name": "Contacto", "url": "/dashboard?section=contacts", "icons": [{ "src": "/icon.svg", "sizes": "any" }] },
-    { "name": "Ver tareas", "short_name": "Tareas", "url": "/dashboard?section=tasks", "icons": [{ "src": "/icon.svg", "sizes": "any" }] }
+    {
+      "name": "Nuevo contacto",
+      "short_name": "Contacto",
+      "url": "/dashboard?section=contacts",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Ver tareas",
+      "short_name": "Tareas",
+      "url": "/dashboard?section=tasks",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
   ]
 }
