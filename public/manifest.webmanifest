@@ -1,13 +1,23 @@
 {
-  "name": "Serpix",
+  "id": "/",
+  "name": "Serpix — Tu espacio de trabajo",
   "short_name": "Serpix",
-  "description": "Gestión simple de tu actividad profesional.",
-  "start_url": "/",
+  "description": "CRM, proyectos, tareas y finanzas en un solo espacio.",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f8fa",
-  "theme_color": "#f7f8fa",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#f5f7fb",
+  "theme_color": "#5b5ce2",
   "lang": "es-AR",
+  "categories": ["business", "productivity"],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nuevo contacto", "short_name": "Contacto", "url": "/dashboard?section=contacts", "icons": [{ "src": "/icon.svg", "sizes": "any" }] },
+    { "name": "Ver tareas", "short_name": "Tareas", "url": "/dashboard?section=tasks", "icons": [{ "src": "/icon.svg", "sizes": "any" }] }
   ]
 }
