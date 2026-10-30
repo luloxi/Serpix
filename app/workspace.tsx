@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminUsers from "@/app/admin/users";
 import { House, Users, FolderKanban, ListTodo, Wallet, ShieldCheck, RefreshCw, Sun, Moon, Plus, ContactRound, FolderPlus, ListPlus, WalletCards, ArrowLeftRight } from "lucide-react";
 
@@ -25,10 +25,10 @@ const money=(minor:number,currency:string)=>new Intl.NumberFormat("es-AR",{style
 const dateLabel=(value:unknown)=>typeof value==="string"&&value?new Date(value+"T12:00:00").toLocaleDateString("es-AR"):"Sin fecha";
 const labelStatus=(value:unknown)=>({active:"Activo",paused:"Pausado",completed:"Completado",archived:"Archivado",todo:"Pendiente",in_progress:"En curso",done:"Hecha",cancelled:"Cancelada",low:"Baja",normal:"Normal",high:"Alta",urgent:"Urgente"} as Record<string,string>)[String(value)]??String(value??"—");
 
-export default function Workspace({name,isAdmin}:{name:string;isAdmin:boolean}) {
+export default function Workspace({name,email,image,isAdmin}:{name:string;email:string;image:string|null;isAdmin:boolean}) {
   const [section,setSection]=useState<Section>("home");
   const [theme,setTheme]=useState<"light"|"dark">("light");
-  const [addMenuOpen,setAddMenuOpen]=useState(false);
+  const [addMenuOpen,setAddMenuOpen]=useState(false);\n  const [profileMenuOpen,setProfileMenuOpen]=useState(false);\n  const profileMenuRef=useRef<HTMLDivElement>(null);
   const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [editor,setEditor]=useState<{resource:string;item?:Item}|null>(null),[saving,setSaving]=useState(false),[values,setValues]=useState<Record<string,string>>(empty);
@@ -44,7 +44,7 @@ export default function Workspace({name,isAdmin}:{name:string;isAdmin:boolean}) 
   useEffect(()=>{const saved=window.localStorage.getItem("serpix-theme");const initial=saved==="dark"?"dark":"light";setTheme(initial);document.documentElement.dataset.theme=initial;document.documentElement.style.colorScheme=initial;},[]);
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(""),3200);return()=>window.clearTimeout(timer);},[notice]);
   useEffect(()=>{if(!error)return;const timer=window.setTimeout(()=>setError(""),4500);return()=>window.clearTimeout(timer);},[error]);
-  useEffect(()=>{if(!addMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setAddMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);return()=>window.removeEventListener("keydown",closeOnEscape);},[addMenuOpen]);
+  useEffect(()=>{if(!addMenuOpen&&!profileMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape"){setAddMenuOpen(false);setProfileMenuOpen(false);}};const closeOnOutside=(event:PointerEvent)=>{if(profileMenuOpen&&profileMenuRef.current&&!profileMenuRef.current.contains(event.target as Node))setProfileMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);document.addEventListener("pointerdown",closeOnOutside);return()=>{window.removeEventListener("keydown",closeOnEscape);document.removeEventListener("pointerdown",closeOnOutside);};},[addMenuOpen,profileMenuOpen]);
   const toggleTheme=()=>{const next=theme==="light"?"dark":"light";setTheme(next);document.documentElement.dataset.theme=next;document.documentElement.style.colorScheme=next;window.localStorage.setItem("serpix-theme",next);};
   const totals=useMemo(()=>({openTasks:tasks.filter(t=>t.status!=="done"&&t.status!=="cancelled").length,activeProjects:projects.filter(p=>p.status==="active").length,income:transactions.filter(t=>t.kind==="income"),expense:transactions.filter(t=>t.kind==="expense")}),[tasks,projects,transactions]);
   const openEditor=(resource:string,item?:Item)=>{
@@ -94,7 +94,7 @@ export default function Workspace({name,isAdmin}:{name:string;isAdmin:boolean}) 
   const chooseAdd=(resource:string)=>{setAddMenuOpen(false);openEditor(resource);};
   const currencyTotals=(kind:"income"|"expense",currency:"ARS"|"USD")=>transactions.filter(t=>t.kind===kind&&t.currency===currency).reduce((sum,t)=>sum+Number(t.amountMinor||0),0);
   return <main className="app-shell">
-    <aside className="sidebar"><a className="logo" href="/dashboard"><span className="brand-mark small"><img src="/serpix-mark-v2.svg" alt="" /></span><span>serpix</span></a><div className="side-caption">ESPACIO DE TRABAJO</div><nav aria-label="Secciones principales">{visibleSections.map(s=>{const Icon=NavIcons[s.id];return <button key={s.id} className={"nav-item "+(section===s.id?"active":"")} aria-current={section===s.id?"page":undefined} aria-label={s.label} title={s.label} onClick={()=>{setSection(s.id);setEditor(null);setError("");setAddMenuOpen(false);}}><span className="nav-symbol"><Icon size={17} strokeWidth={1.9}/></span>{s.label}</button>;})}</nav><div className="sidebar-bottom"><div className="user-chip"><span className="avatar">{name.slice(0,1).toUpperCase()}</span><div><strong>{name}</strong><small>{isAdmin?"Administrador":"Usuario"}</small></div></div><SignOutButton/></div></aside>
+    <aside className="sidebar"><a className="logo" href="/dashboard"><span className="brand-mark small"><img src="/serpix-mark-v2.svg" alt="" /></span><span>serpix</span></a><div className="side-caption">ESPACIO DE TRABAJO</div><nav aria-label="Secciones principales">{visibleSections.map(s=>{const Icon=NavIcons[s.id];return <button key={s.id} className={"nav-item "+(section===s.id?"active":"")} aria-current={section===s.id?"page":undefined} aria-label={s.label} title={s.label} onClick={()=>{setSection(s.id);setEditor(null);setError("");setAddMenuOpen(false);}}><span className="nav-symbol"><Icon size={17} strokeWidth={1.9}/></span>{s.label}</button>;})}</nav></aside>
     <section className="main-area" aria-busy={loading}><header className="topbar"><div><span className="eyebrow">SERPIX</span><h1>{section==="home"?"Resumen general":sections.find(s=>s.id===section)?.label}</h1></div><div className="topbar-actions"><div className="add-menu-wrap"><button className={"add-trigger "+(addMenuOpen?"is-open":"")} onClick={()=>setAddMenuOpen(v=>!v)} aria-label="Agregar" aria-controls="serpix-add-options" aria-expanded={addMenuOpen} title="Agregar"><Plus size={23} strokeWidth={2.7}/></button>{addMenuOpen&&<div className="add-menu" id="serpix-add-options" role="group" aria-label="Qué querés agregar">{addOptions.map(option=>{const Icon=option.icon;const active=activeAddType===option.id;return <button key={option.id} type="button" className={"add-menu-item "+(active?"context-active":"")} aria-pressed={active} onClick={()=>chooseAdd(option.id)}><Icon size={18} strokeWidth={2}/><span>Agregar {option.label.toLowerCase()}</span>{active&&<span className="context-indicator">En esta sección</span>}</button>;})}</div>}</div><button className="icon-button" onClick={toggleTheme} aria-label={theme==="light"?"Activar tema oscuro":"Activar tema claro"} aria-pressed={theme==="dark"} title={theme==="light"?"Tema oscuro":"Tema claro"}>{theme==="light"?<Moon size={17}/>:<Sun size={17}/>}</button><button className="icon-button" onClick={()=>void load()} aria-label="Actualizar datos" title="Actualizar"><RefreshCw size={16}/></button></div></header>
       {error&&<div className="toast error" role="alert" aria-live="assertive">{error}<button onClick={()=>setError("")} aria-label="Cerrar notificación">×</button></div>}{notice&&<div className="toast success" role="status" aria-live="polite">{notice}<button onClick={()=>setNotice("")} aria-label="Cerrar notificación">×</button></div>}
       {loading?<div className="loading" role="status" aria-live="polite">Cargando tu espacio…</div>:<>
@@ -106,6 +106,18 @@ export default function Workspace({name,isAdmin}:{name:string;isAdmin:boolean}) 
       {section==="admin"&&isAdmin&&<><SectionIntro title="Administración" description="Aprobá o rechazá solicitudes de acceso al espacio."/><AdminUsers/></>}
       </>}
     </section>
+    <div className="profile-menu-wrap" ref={profileMenuRef}>
+      {profileMenuOpen&&<div className="profile-menu" id="serpix-profile-menu" role="group" aria-label="Menú de cuenta">
+        <div className="profile-menu-heading"><strong>{name}</strong><small>{email}</small><span>{isAdmin?"Administrador":"Usuario"}</span></div>
+        {isAdmin&&<button type="button" className="profile-menu-item" onClick={()=>{setSection("admin");setEditor(null);setProfileMenuOpen(false);window.scrollTo({top:0,behavior:"smooth"});}}><ShieldCheck size={17}/> Administración</button>}
+        <div className="profile-menu-divider"/>
+        <SignOutButton/>
+      </div>}
+      <button type="button" className="profile-avatar-button" aria-label="Abrir menú de cuenta" aria-controls="serpix-profile-menu" aria-expanded={profileMenuOpen} title="Cuenta" onClick={()=>setProfileMenuOpen(v=>!v)}>
+        <span className="profile-avatar-fallback">{name.trim().slice(0,1).toUpperCase()}</span>
+        {image&&<img src={image} alt="" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/>}
+      </button>
+    </div>
     {editor&&<div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setEditor(null);}}><section className="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title"><div className="panel-title"><div><p className="eyebrow">{editor.item?"EDITAR REGISTRO":"NUEVO REGISTRO"}</p><h2 id="editor-title">{editor.resource==="contacts"?"Contacto":editor.resource==="projects"?"Proyecto":editor.resource==="tasks"?"Tarea":editor.resource==="accounts"?"Cuenta":"Movimiento financiero"}</h2></div><button className="icon-button" onClick={()=>setEditor(null)} aria-label="Cerrar">×</button></div><div className="form-grid">{fields.map(f=><label className={f.type==="textarea"?"span-2":""} key={f.key}>{f.label}{f.type==="textarea"?<textarea required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>:f.type==="select"?<select required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}><option value="">— Seleccionar —</option>{(f.options||(f.key==="projectId"?projects.map(p=>({value:String(p.id),label:String(p.name)})):f.key==="contactId"?contacts.map(c=>({value:String(c.id),label:String(c.name)})):f.key==="accountId"?accounts.map(a=>({value:String(a.id),label:String(a.name)+" ("+String(a.currency)+")"})):[])).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>:<input type={f.type||"text"} required={f.required} min={f.type==="number"?"0":undefined} step={f.type==="number"?"0.01":undefined} placeholder={f.placeholder} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>}</label>)}</div><div className="modal-actions"><button className="secondary-button" onClick={()=>setEditor(null)}>Cancelar</button><button className="primary-button" disabled={saving} onClick={()=>void save()}>{saving?"Guardando…":"Guardar"}</button></div></section></div>}
   </main>;
 }
