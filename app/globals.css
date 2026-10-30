@@ -725,7 +725,7 @@ html,body{font-size:16px} body{line-height:1.5}
  .table-row{font-size:12px}.table-row strong{font-size:13px}.table-row small{font-size:11px}
  .project-card{padding:13px}.project-card h3{font-size:16px}.task-column{padding:9px}.task-card{padding:9px}.task-card>strong{font-size:13px}
  .finance-summary{gap:7px}.finance-summary>.panel{padding:10px}.finance-summary strong{font-size:16px}.form-grid label{font-size:13px}
- .sidebar nav{grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch}
+ .sidebar nav{grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch}
  .profile-nav-wrap{min-width:0}.profile-nav-item{min-height:54px;padding:5px 1px 4px;display:flex;flex-direction:column;justify-content:center;gap:3px;text-align:center;font-size:11px;border-radius:9px}
  .profile-nav-avatar{width:25px;height:25px}.profile-menu{left:auto;right:0;bottom:calc(100% + 11px)}
 }
