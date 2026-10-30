@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowDownLeft,
@@ -59,6 +59,7 @@ function initials(name: string) {
 
 export default function Home() {
   const [section, setSection] = useState("Inicio");
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
   const [search, setSearch] = useState("");
   const [relationship, setRelationship] = useState("Todos");
@@ -107,6 +108,29 @@ export default function Home() {
 
   const isContacts = section === "Contactos";
 
+  useEffect(() => {
+    if ("Notification" in window) setNotificationPermission(Notification.permission);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    const saved = window.localStorage.getItem("serpix:contacts");
+    if (saved) {
+      try { setContacts(JSON.parse(saved) as Contact[]); } catch { window.localStorage.removeItem("serpix:contacts"); }
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("serpix:contacts", JSON.stringify(contacts));
+  }, [contacts]);
+
+  async function enableNotifications() {
+    if (!("Notification" in window)) { setNotificationPermission("unsupported"); return; }
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    if (permission === "granted" && "serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification("Serpix", { body: "Las notificaciones están habilitadas en este dispositivo.", icon: "/icon.svg" });
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -139,7 +163,7 @@ export default function Home() {
           <div className="breadcrumb">Mi espacio <span>/</span> {section}</div>
           <div className="top-actions">
             <span className="local-badge"><span /> Datos de ejemplo</span>
-            <button className="icon-button" aria-label="Notificaciones"><Bell size={18} /></button>
+            <button className="icon-button" onClick={enableNotifications} aria-label="Activar notificaciones" title={notificationPermission === "granted" ? "Notificaciones activadas" : "Activar notificaciones"}><Bell size={18} /></button>
             <button className="help-button"><CircleHelp size={17} /><span>Ayuda</span></button>
           </div>
         </header>
