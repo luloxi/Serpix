@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/auth";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
+import { avatarChange } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
 const resources = ["contacts", "projects", "tasks", "accounts", "transactions", "activities"] as const;
@@ -27,7 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ res
   const { db, userId } = ctx;
   let query: string;
   switch (resource) {
-    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, relations, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
+    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, relations, github_url AS githubUrl, CASE WHEN avatar_data IS NOT NULL THEN 1 ELSE 0 END AS hasAvatar, avatar_source AS avatarSource, updated_at AS updatedAt, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
     case "projects": query = "SELECT id, name, description, status, start_date AS startDate, due_date AS dueDate, created_at AS createdAt FROM projects WHERE user_id = ? ORDER BY updated_at DESC"; break;
     case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
     case "accounts": query = "SELECT a.id, a.name, a.currency, a.opening_balance_minor AS openingBalanceMinor, a.opening_balance_minor + COALESCE((SELECT SUM(CASE WHEN t.kind = 'income' THEN t.amount_minor ELSE -t.amount_minor END) FROM financial_transactions t WHERE t.account_id = a.id AND t.user_id = a.user_id), 0) AS balanceMinor FROM financial_accounts a WHERE a.user_id = ? ORDER BY a.name"; break;
@@ -51,7 +52,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
       case "contacts": {
         const name = str(body.name, 160); if (!name) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
         const rel = sanitizeRelations(body.relations);
-        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,relations,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),body.isPotential ? 1 : 0,legacyRole(rel),JSON.stringify(rel),nullable(body.xUrl,500),nullable(body.instagramUrl,500),nullable(body.telegramUrl,500),nullable(body.whatsappUrl,500),nullable(body.linkedinUrl,500),now,now).run();
+        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,relations,github_url,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),body.isPotential ? 1 : 0,legacyRole(rel),JSON.stringify(rel),nullable(body.githubUrl,500),nullable(body.xUrl,500),nullable(body.instagramUrl,500),nullable(body.telegramUrl,500),nullable(body.whatsappUrl,500),nullable(body.linkedinUrl,500),now,now).run();
+        { const av = avatarChange(body); if (av) await db.prepare("UPDATE contacts SET avatar_data=?, avatar_source=? WHERE id=? AND user_id=?").bind(av.data, av.source, id, userId).run(); }
         break;
       }
       case "projects": {

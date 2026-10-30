@@ -1,4 +1,5 @@
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
+import { avatarChange } from "@/lib/avatar";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -30,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
       case "contacts": {
         const name=str(b.name,160); if(!name) return NextResponse.json({error:"El nombre es obligatorio"},{status:400});
         const rel=sanitizeRelations(b.relations);
-        result=await db.prepare("UPDATE contacts SET kind=?,name=?,company_name=?,email=?,phone=?,notes=?,is_potential=?,role=?,relations=?,x_url=?,instagram_url=?,telegram_url=?,whatsapp_url=?,linkedin_url=?,updated_at=? WHERE id=? AND user_id=?").bind(pick(b.kind,["person","company"] as const,"person"),name,nullable(b.companyName,160),nullable(b.email,254),nullable(b.phone,80),nullable(b.notes),b.isPotential?1:0,legacyRole(rel),JSON.stringify(rel),nullable(b.xUrl,500),nullable(b.instagramUrl,500),nullable(b.telegramUrl,500),nullable(b.whatsappUrl,500),nullable(b.linkedinUrl,500),now,id,userId).run(); break;
+        result=await db.prepare("UPDATE contacts SET kind=?,name=?,company_name=?,email=?,phone=?,notes=?,is_potential=?,role=?,relations=?,github_url=?,x_url=?,instagram_url=?,telegram_url=?,whatsapp_url=?,linkedin_url=?,updated_at=? WHERE id=? AND user_id=?").bind(pick(b.kind,["person","company"] as const,"person"),name,nullable(b.companyName,160),nullable(b.email,254),nullable(b.phone,80),nullable(b.notes),b.isPotential?1:0,legacyRole(rel),JSON.stringify(rel),nullable(b.githubUrl,500),nullable(b.xUrl,500),nullable(b.instagramUrl,500),nullable(b.telegramUrl,500),nullable(b.whatsappUrl,500),nullable(b.linkedinUrl,500),now,id,userId).run(); { const av=avatarChange(b); if(av!==undefined) await db.prepare("UPDATE contacts SET avatar_data=?, avatar_source=? WHERE id=? AND user_id=?").bind(av?av.data:null,av?av.source:null,id,userId).run(); } break;
       }
       case "projects": {
         const name=str(b.name,160); if(!name) return NextResponse.json({error:"El nombre es obligatorio"},{status:400});

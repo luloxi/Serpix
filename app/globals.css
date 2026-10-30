@@ -1000,3 +1000,18 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .contact-filters .contact-filter{margin:0}
 .state-filter button:disabled{cursor:not-allowed;opacity:.5}
 .contact-card>summary{flex-wrap:wrap}
+
+/* Contact avatars */
+.contact-avatar{overflow:hidden}
+.contact-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-field{display:grid;gap:8px}
+.avatar-row{display:flex;align-items:center;gap:14px}
+.avatar-preview{width:64px;height:64px;flex:none;border-radius:18px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(145deg,#d94f91,#6b79d8);color:#fff;font:800 26px Manrope,sans-serif}
+.avatar-preview img{width:100%;height:100%;object-fit:cover}
+.avatar-options{display:flex;flex-wrap:wrap;gap:6px}
+.avatar-chip{min-height:36px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.avatar-chip:hover:not(:disabled){border-color:var(--accent)}
+.avatar-chip.selected{border-color:#2f93c9;background:color-mix(in srgb,#2f93c9 20%,transparent)}
+.avatar-chip.danger{color:#e16a60}
+.avatar-chip:disabled{cursor:not-allowed;opacity:.55}
+.contact-avatar.big{width:64px;height:64px}
