@@ -24,7 +24,7 @@ export default function LoginPage() {
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <div className="auth-brand-lockup"><img className="auth-brand-icon" src="/icon.svg" alt="" width="112" height="112" /><span>Serpix</span></div>
+        <div className="auth-brand-lockup"><img className="auth-brand-icon" src="/serpix-mark-v2.svg" alt="" width="112" height="112" /><span>Serpix</span></div>
         <p className="eyebrow">GESTIÓN PERSONAL</p>
         <h1>Serpix</h1>
         <p className="auth-copy">Tu espacio de trabajo, relaciones y finanzas.</p>
