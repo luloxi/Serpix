@@ -285,3 +285,60 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 :root[data-theme="dark"] .status-paused,:root[data-theme="dark"] .status-in_progress{background:#4b411d;color:#ffe78a}
 :root[data-theme="dark"] .priority-normal{background:#193b4b;color:#a9e6fb}
 :root[data-theme="dark"] .nav-item.active{background:#43283a;color:#ffc2dc;box-shadow:inset 3px 0 #ed78ad}
+
+
+/* Theme correction: explicitly define both palettes and prevent mobile dark bleed */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f7f8fc;
+  --surface:#ffffff;
+  --ink:#202b3d;
+  --muted:#667085;
+  --line:#e4e8f0;
+  --shadow:0 12px 35px rgba(30,45,80,.055);
+  --accent:#d94f91;
+  --accent-dark:#b93476;
+}
+:root[data-theme="light"] body{background:#f7f8fc;color:#202b3d}
+:root[data-theme="light"] .sidebar{background:rgba(255,255,255,.96);border-color:#e4e8f0}
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .stat-card,
+:root[data-theme="light"] .task-card,
+:root[data-theme="light"] .editor-modal{background:#fff;color:#202b3d;border-color:#e4e8f0}
+:root[data-theme="light"] .topbar h1,
+:root[data-theme="light"] .welcome h2,
+:root[data-theme="light"] .panel-title h2,
+:root[data-theme="light"] .section-intro h2,
+:root[data-theme="light"] .project-card h3,
+:root[data-theme="light"] .task-card>strong,
+:root[data-theme="light"] .table-row strong,
+:root[data-theme="light"] .list-line strong,
+:root[data-theme="light"] .account-line strong{color:#202b3d}
+:root[data-theme="light"] .task-column{background:#f0f3f8;border-color:#e2e7ef}
+:root[data-theme="light"] .column-heading span{background:#fff;color:#667085}
+:root[data-theme="light"] .form-grid input,
+:root[data-theme="light"] .form-grid select,
+:root[data-theme="light"] .form-grid textarea{background:#fff;color:#202b3d;border-color:#dfe5ec}
+:root[data-theme="light"] .icon-button{background:#fff;color:#526078;border-color:#e4e8f0}
+:root[data-theme="light"] .welcome{background:linear-gradient(115deg,#fff 10%,#fff0f6 100%);border-color:#f3d6e4}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11131b;--surface:#1b1e29;--ink:#edf0f7;--muted:#a2aabd;--line:#303545;
+  --accent:#ed78ad;--accent-dark:#d85b96;--shadow:0 12px 35px rgba(0,0,0,.22);
+}
+:root[data-theme="dark"] body{background:#11131b;color:#edf0f7}
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .editor-modal{background:#1b1e29;color:#edf0f7;border-color:#303545}
+:root[data-theme="dark"] .task-column{background:#171a24;border-color:#303545}
+:root[data-theme="dark"] .column-heading span{background:#252a38;color:#c2c9d8}
+:root[data-theme="dark"] .form-grid input,
+:root[data-theme="dark"] .form-grid select,
+:root[data-theme="dark"] .form-grid textarea{background:#141722;color:#edf0f7;border-color:#41485b}
+:root[data-theme="dark"] .icon-button{background:#1b1e29;color:#e8ebf3;border-color:#303545}
+:root[data-theme="dark"] .welcome{background:linear-gradient(115deg,#1b1e29,#292333);border-color:#493047}
+@media(max-width:700px){
+  :root[data-theme="light"] .sidebar{background:rgba(255,255,255,.97);border-color:#e4e8f0}
+  :root[data-theme="dark"] .sidebar{background:rgba(27,30,41,.97);border-color:#303545}
+}
