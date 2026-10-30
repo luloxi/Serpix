@@ -70,5 +70,5 @@ npm run deploy
 - Navigation: Overview · Contacts · Agenda · Finance + profile avatar (dark mode, admin, sign out).
 - CRM: contacts with a relationship (client, potential client, partner, potential partner, supplier, prospect), relationship filter, expandable card with linked tasks, events and notes. Phone suggests `+54` but accepts any number; X, Instagram, Telegram, WhatsApp and LinkedIn are optional (`@handle` or URL); free-form notes.
 - Agenda: General (Overdue/Today/Upcoming), Calendar (month view with per-type dots) and List (type filter) tabs. Checklist tasks with due date and contact; events; Markdown notes with full-screen read/edit and preview.
-- Resumen: primera pantalla compacta (saludo + fecha corta, 4 indicadores con ícono y tooltip que llevan a su sección, próximas tareas con ícono de estado/fecha/contacto y casilla para completar).
+- Overview: compact first screen (one-line greeting, short date, 4 icon KPIs with tooltips that link to their section, upcoming tasks with status/date/contact icons and a complete checkbox).
 - Money is stored in integer minor units (ARS/USD); data is isolated per user; no demo data.
