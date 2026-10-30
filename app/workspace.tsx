@@ -28,7 +28,9 @@ const labelStatus=(value:unknown)=>({active:"Activo",paused:"Pausado",completed:
 export default function Workspace({name,email,image,isAdmin}:{name:string;email:string;image:string|null;isAdmin:boolean}) {
   const [section,setSection]=useState<Section>("home");
   const [theme,setTheme]=useState<"light"|"dark">("light");
-  const [addMenuOpen,setAddMenuOpen]=useState(false);\n  const [profileMenuOpen,setProfileMenuOpen]=useState(false);\n  const profileMenuRef=useRef<HTMLDivElement>(null);
+  const [addMenuOpen,setAddMenuOpen]=useState(false);
+  const [profileMenuOpen,setProfileMenuOpen]=useState(false);
+  const profileMenuRef=useRef<HTMLDivElement>(null);
   const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [editor,setEditor]=useState<{resource:string;item?:Item}|null>(null),[saving,setSaving]=useState(false),[values,setValues]=useState<Record<string,string>>(empty);
