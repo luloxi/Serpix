@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ res
   const { db, userId } = ctx;
   let query: string;
   switch (resource) {
-    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
+    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
     case "projects": query = "SELECT id, name, description, status, start_date AS startDate, due_date AS dueDate, created_at AS createdAt FROM projects WHERE user_id = ? ORDER BY updated_at DESC"; break;
     case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
     case "accounts": query = "SELECT a.id, a.name, a.currency, a.opening_balance_minor AS openingBalanceMinor, a.opening_balance_minor + COALESCE((SELECT SUM(CASE WHEN t.kind = 'income' THEN t.amount_minor ELSE -t.amount_minor END) FROM financial_transactions t WHERE t.account_id = a.id AND t.user_id = a.user_id), 0) AS balanceMinor FROM financial_accounts a WHERE a.user_id = ? ORDER BY a.name"; break;
@@ -48,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
     switch (resource) {
       case "contacts": {
         const name = str(body.name, 160); if (!name) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
-        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),body.isPotential ? 1 : 0,now,now).run();
+        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),body.isPotential ? 1 : 0,oneOf(body.role,["client","client_potential","partner","partner_potential","supplier","potential"] as const,"potential"),nullable(body.xUrl,500),nullable(body.instagramUrl,500),nullable(body.telegramUrl,500),nullable(body.whatsappUrl,500),nullable(body.linkedinUrl,500),now,now).run();
         break;
       }
       case "projects": {
