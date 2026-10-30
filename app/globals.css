@@ -858,3 +858,22 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 }
 
 .activity-type-switch{display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--bg);margin:8px 0 16px}.activity-type-switch button{flex:1;min-height:40px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:14px;font-weight:700}.activity-type-switch button.selected{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px rgba(0,0,0,.12)}
+
+
+/* Workspace without title bar: persistent quick-add and account theme switch. */
+.topbar{display:none!important}
+.workspace-actions{position:fixed;z-index:35;right:24px;bottom:24px}
+.workspace-actions .add-menu-wrap{position:relative}
+.theme-menu-toggle{width:100%;display:flex;align-items:center;gap:10px}
+.theme-menu-toggle>span:nth-child(2){flex:1;text-align:left}
+.theme-switch{width:42px;height:24px;border-radius:99px;padding:3px;background:#cbd2df;display:flex;align-items:center;transition:background .18s}
+.theme-switch>span{width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .18s}
+.theme-switch.on{background:#d94f91}
+.theme-switch.on>span{transform:translateX(18px)}
+:root[data-theme="dark"] .theme-switch{background:#49546a}
+:root[data-theme="dark"] .theme-switch.on{background:#ed78ad}
+@media(max-width:700px){
+ .workspace-actions{right:18px;bottom:calc(88px + env(safe-area-inset-bottom))}
+ .workspace-actions .add-trigger{width:54px!important;height:54px!important;border-radius:50%!important}
+ .workspace-actions .add-menu{right:0;top:auto;bottom:calc(100% + 12px)}
+}
