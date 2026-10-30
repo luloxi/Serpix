@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "serpix",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "serpix-production",
+      "database_id": "f0ff89b6-5cb3-41f7-8fa8-37e3a94621ad",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "BETTER_AUTH_URL": "https://erp.lulox.com.ar",
+    "ADMIN_EMAIL": "lucianoolivabianco@gmail.com",
+    "GOOGLE_CLIENT_ID": "SET_IN_CLOUDFLARE_DASHBOARD"
+  },
+  "observability": { "enabled": true }
+}

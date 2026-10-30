@@ -1,26 +1,34 @@
 {
   "name": "serpix",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "build": "next build",
     "start": "next start",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "latest",
+    "better-auth": "^1.7.3",
     "lucide-react": "^0.468.0",
-    "next": "^15.1.6",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.1.6",
+    "eslint-config-next": "^16.0.0",
     "typescript": "^5.7.3",
-    "@eslint/eslintrc": "^3.2.0"
+    "@eslint/eslintrc": "^3.2.0",
+    "wrangler": "latest"
   }
 }
