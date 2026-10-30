@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminUsers from "@/app/admin/users";
-import { House, Users, FolderKanban, ListTodo, Wallet, ShieldCheck, RefreshCw, Sun, Moon, Plus, ContactRound, FolderPlus, ListPlus, WalletCards, ArrowLeftRight } from "lucide-react";
+import { House, Users, FolderKanban, ListTodo, Wallet, ShieldCheck, RefreshCw, Sun, Moon, Plus, ContactRound, FolderPlus, ListPlus, WalletCards, ArrowLeftRight, CalendarDays, NotebookPen, Check } from "lucide-react";
 
-const NavIcons = { home: House, contacts: Users, projects: FolderKanban, tasks: ListTodo, finance: Wallet, admin: ShieldCheck };
+const NavIcons = { home: House, contacts: Users, projects: FolderKanban, tasks: ListTodo, activity: CalendarDays, finance: Wallet, admin: ShieldCheck };
 import SignOutButton from "@/app/sign-out-button";
 
 type Item = Record<string, string | number | boolean | null | undefined> & { id: string };
-type Section = "home" | "contacts" | "projects" | "tasks" | "finance" | "admin";
+type Section = "home" | "contacts" | "projects" | "tasks" | "activity" | "finance" | "admin";
 type Field = { key:string; label:string; type?:"text"|"textarea"|"select"|"segmented"|"date"|"number"|"email"|"tel"; required?:boolean; options?:{value:string;label:string}[]; placeholder?:string };
 const sections:{id:Section;label:string;short:string}[]=[
   {id:"home",label:"Resumen",short:"Inicio"},{id:"contacts",label:"Contactos",short:"CRM"},
-  {id:"projects",label:"Proyectos",short:"Proyectos"},{id:"tasks",label:"Tareas",short:"Tareas"},
+  {id:"projects",label:"Proyectos",short:"Proyectos"},{id:"tasks",label:"Tareas",short:"Tareas"},{id:"activity",label:"Agenda",short:"Agenda"},
   {id:"finance",label:"Finanzas",short:"Finanzas"},{id:"admin",label:"Accesos",short:"Admin"}
 ];
 const empty:Record<string,string>={};
@@ -20,6 +20,7 @@ const contactFields:Field[]=[{key:"name",label:"Nombre",required:true},{key:"kin
 const projectFields:Field[]=[{key:"name",label:"Nombre",required:true},{key:"description",label:"Descripción",type:"textarea"},{key:"status",label:"Estado",type:"select",options:[{value:"active",label:"Activo"},{value:"paused",label:"Pausado"},{value:"completed",label:"Completado"},{value:"archived",label:"Archivado"}]},{key:"startDate",label:"Inicio",type:"date"},{key:"dueDate",label:"Fecha límite",type:"date"}];
 const taskFields:Field[]=[{key:"title",label:"Tarea",required:true},{key:"description",label:"Descripción",type:"textarea"},{key:"status",label:"Estado",type:"select",options:[{value:"todo",label:"Pendiente"},{value:"in_progress",label:"En curso"},{value:"done",label:"Hecha"},{value:"cancelled",label:"Cancelada"}]},{key:"priority",label:"Prioridad",type:"select",options:[{value:"low",label:"Baja"},{value:"normal",label:"Normal"},{value:"high",label:"Alta"},{value:"urgent",label:"Urgente"}]},{key:"projectId",label:"Proyecto",type:"select"},{key:"contactId",label:"Contacto",type:"select"},{key:"dueDate",label:"Vencimiento",type:"date"}];
 const accountFields:Field[]=[{key:"name",label:"Nombre de la cuenta",required:true},{key:"currency",label:"Moneda",type:"segmented",options:[{value:"ARS",label:"ARS"},{value:"USD",label:"USD"}]},{key:"openingBalance",label:"Saldo inicial",type:"number",placeholder:"0,00"}];
+const activityFields:Field[]=[{key:"title",label:"Título",required:true},{key:"occurredAt",label:"Fecha y hora",type:"text",required:true},{key:"contactIds",label:"Contactos relacionados",type:"textarea",placeholder:""},{key:"body",label:"Contenido / notas",type:"textarea"}];
 const transactionFields:Field[]=[{key:"kind",label:"Tipo",type:"segmented",options:[{value:"expense",label:"Gasto"},{value:"income",label:"Ingreso"}]},{key:"amount",label:"Importe",type:"number",required:true,placeholder:"0,00"},{key:"category",label:"Categoría",required:true,placeholder:"Ej. Servicios, ventas, alquiler"},{key:"accountId",label:"Cuenta",type:"select",required:true},{key:"contactId",label:"Contacto",type:"select"},{key:"occurredAt",label:"Fecha",type:"date"},{key:"description",label:"Detalle",type:"textarea"}];
 const money=(minor:number,currency:string)=>new Intl.NumberFormat("es-AR",{style:"currency",currency,maximumFractionDigits:2}).format(minor/100);
 const dateLabel=(value:unknown)=>typeof value==="string"&&value?new Date(value+"T12:00:00").toLocaleDateString("es-AR"):"Sin fecha";
@@ -31,15 +32,15 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   const [addMenuOpen,setAddMenuOpen]=useState(false);
   const [profileMenuOpen,setProfileMenuOpen]=useState(false);
   const profileMenuRef=useRef<HTMLDivElement>(null);
-  const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]);
+  const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]),[activities,setActivities]=useState<Item[]>([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [editor,setEditor]=useState<{resource:string;item?:Item}|null>(null),[saving,setSaving]=useState(false),[values,setValues]=useState<Record<string,string>>(empty);
   const load=useCallback(async()=>{
     setLoading(true);setError("");
     try{
-      const names=["contacts","projects","tasks","accounts","transactions"];
+      const names=["contacts","projects","tasks","accounts","transactions","activities"];
       const results=await Promise.all(names.map(async n=>{const r=await fetch("/api/data/"+n,{cache:"no-store"});if(!r.ok)throw new Error("No se pudieron cargar los datos");return (await r.json() as {items:Item[]}).items;}));
-      setContacts(results[0]);setProjects(results[1]);setTasks(results[2]);setAccounts(results[3]);setTransactions(results[4]);
+      setContacts(results[0]);setProjects(results[1]);setTasks(results[2]);setAccounts(results[3]);setTransactions(results[4]);setActivities(results[5]);
     }catch(e){setError(e instanceof Error?e.message:"Error cargando datos");}finally{setLoading(false);}
   },[]);
   useEffect(()=>{void load();},[load]);
@@ -49,23 +50,27 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   useEffect(()=>{if(!addMenuOpen&&!profileMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape"){setAddMenuOpen(false);setProfileMenuOpen(false);}};const closeOnOutside=(event:PointerEvent)=>{if(profileMenuOpen&&profileMenuRef.current&&!profileMenuRef.current.contains(event.target as Node))setProfileMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);document.addEventListener("pointerdown",closeOnOutside);return()=>{window.removeEventListener("keydown",closeOnEscape);document.removeEventListener("pointerdown",closeOnOutside);};},[addMenuOpen,profileMenuOpen]);
   const toggleTheme=()=>{const next=theme==="light"?"dark":"light";setTheme(next);document.documentElement.dataset.theme=next;document.documentElement.style.colorScheme=next;window.localStorage.setItem("serpix-theme",next);};
   const totals=useMemo(()=>({openTasks:tasks.filter(t=>t.status!=="done"&&t.status!=="cancelled").length,activeProjects:projects.filter(p=>p.status==="active").length,income:transactions.filter(t=>t.kind==="income"),expense:transactions.filter(t=>t.kind==="expense")}),[tasks,projects,transactions]);
+  const [activityKind,setActivityKind]=useState<"event"|"note">("event");
   const openEditor=(resource:string,item?:Item)=>{
-    const fields=resource==="contacts"?contactFields:resource==="projects"?projectFields:resource==="tasks"?taskFields:resource==="accounts"?accountFields:transactionFields;
+    const fields=resource==="contacts"?contactFields:resource==="projects"?projectFields:resource==="tasks"?taskFields:resource==="accounts"?accountFields:resource==="activities"?activityFields:transactionFields;
     const initial:Record<string,string>={};
     for(const f of fields){const v=item?.[f.key];initial[f.key]=v===undefined||v===null?"":String(v);}
     if(resource==="contacts"&&item)initial.isPotential=String(Boolean(item.isPotential));
     if(resource==="contacts"&&!item)initial.role="potential";
+    if(resource==="activities"&&item){initial.contactIds=String(item.contactIds||"").split(",").filter(Boolean).join(",");initial.occurredAt=String(item.occurredAt||"").replace(" ","T").slice(0,16);}
     if(resource==="transactions"&&item)initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);
     if(resource==="contacts"&&!item){initial.kind="person";initial.isPotential="false";}
     if(resource==="projects"&&!item)initial.status="active";
     if(resource==="tasks"&&!item){initial.status="todo";initial.priority="normal";}
     if(resource==="accounts"&&!item){initial.currency="ARS";initial.openingBalance="0";}
     if(resource==="transactions"&&!item){initial.kind="expense";initial.occurredAt=new Date().toISOString().slice(0,10);initial.accountId=String(accounts[0]?.id??"");}
+    if(resource==="activities"&&!item){initial.occurredAt=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);initial.contactIds="";}
     setValues(initial);setEditor({resource,item});
   };
   const save=async()=>{
     if(!editor)return;setSaving(true);setError("");setNotice("");
     const payload:Record<string,unknown>={...values};
+    if(editor.resource==="activities"){payload.kind=activityKind;payload.contactIds=values.contactIds?values.contactIds.split(",").filter(Boolean):[];}
     if(editor.resource==="contacts")payload.isPotential=values.isPotential==="true";
     if(editor.resource==="accounts")payload.openingBalanceMinor=Math.round(Number(values.openingBalance||0)*100);
     if(editor.resource==="transactions")payload.amountMinor=Math.round(Number(values.amount||0)*100);
@@ -84,17 +89,20 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
     if(!r.ok){const body=await r.json() as {error?:string};setError(body.error||"No se pudo eliminar");return;}
     setNotice("Registro eliminado");await load();
   };
-  const fields=editor?(editor.resource==="contacts"?contactFields:editor.resource==="projects"?projectFields:editor.resource==="tasks"?taskFields:editor.resource==="accounts"?accountFields:transactionFields):[];
+  const fields=editor?(editor.resource==="contacts"?contactFields:editor.resource==="projects"?projectFields:editor.resource==="tasks"?taskFields:editor.resource==="accounts"?accountFields:editor.resource==="activities"?activityFields:transactionFields):[];
   const visibleSections=sections.filter(s=>s.id!=="admin");
   const activeAddType=({contacts:"contacts",projects:"projects",tasks:"tasks",finance:"transactions"} as Partial<Record<Section,string>>)[section];
   const addOptions=[
     {id:"contacts",label:"Contacto",icon:ContactRound},
     {id:"projects",label:"Proyecto",icon:FolderPlus},
     {id:"tasks",label:"Tarea",icon:ListPlus},
+    {id:"activities-event",label:"Evento",icon:CalendarDays},
+    {id:"activities-note",label:"Nota",icon:NotebookPen},
     {id:"accounts",label:"Cuenta",icon:WalletCards},
     {id:"transactions",label:"Movimiento",icon:ArrowLeftRight},
   ];
-  const chooseAdd=(resource:string)=>{setAddMenuOpen(false);openEditor(resource);};
+  const chooseAdd=(resource:string)=>{setAddMenuOpen(false);if(resource==="activities-event"||resource==="activities-note"){setActivityKind(resource==="activities-event"?"event":"note");openEditor("activities");}else openEditor(resource);};
+  const toggleTask=async(task:Item)=>{const status=task.status==="done"?"todo":"done";const r=await fetch("/api/data/tasks/"+encodeURIComponent(task.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:task.title,description:task.description,status,priority:task.priority,projectId:task.projectId||null,contactId:task.contactId||null,dueDate:task.dueDate||null})});if(!r.ok){setError("No se pudo actualizar la tarea");return;}await load();};
   const createTaskForContact=(contact:Item)=>{openEditor("tasks");setValues(v=>({...v,contactId:contact.id,title:"",description:""}));};
   const currencyTotals=(kind:"income"|"expense",currency:"ARS"|"USD")=>transactions.filter(t=>t.kind===kind&&t.currency===currency).reduce((sum,t)=>sum+Number(t.amountMinor||0),0);
   return <main className="app-shell">
