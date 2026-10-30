@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
     switch(resource as Resource) {
       case "contacts": {
         const name=str(b.name,160); if(!name) return NextResponse.json({error:"El nombre es obligatorio"},{status:400});
-        result=await db.prepare("UPDATE contacts SET kind=?,name=?,company_name=?,email=?,phone=?,notes=?,is_potential=?,updated_at=? WHERE id=? AND user_id=?").bind(pick(b.kind,["person","company"] as const,"person"),name,nullable(b.companyName,160),nullable(b.email,254),nullable(b.phone,80),nullable(b.notes),b.isPotential?1:0,now,id,userId).run(); break;
+        result=await db.prepare("UPDATE contacts SET kind=?,name=?,company_name=?,email=?,phone=?,notes=?,is_potential=?,role=?,x_url=?,instagram_url=?,telegram_url=?,whatsapp_url=?,linkedin_url=?,updated_at=? WHERE id=? AND user_id=?").bind(pick(b.kind,["person","company"] as const,"person"),name,nullable(b.companyName,160),nullable(b.email,254),nullable(b.phone,80),nullable(b.notes),b.isPotential?1:0,pick(b.role,["client","client_potential","partner","partner_potential","supplier","potential"] as const,"potential"),nullable(b.xUrl,500),nullable(b.instagramUrl,500),nullable(b.telegramUrl,500),nullable(b.whatsappUrl,500),nullable(b.linkedinUrl,500),now,id,userId).run(); break;
       }
       case "projects": {
         const name=str(b.name,160); if(!name) return NextResponse.json({error:"El nombre es obligatorio"},{status:400});
