@@ -1052,3 +1052,32 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .inq-btn:disabled{opacity:.5;cursor:not-allowed}
 .profile-menu-item:disabled{opacity:.55;cursor:not-allowed}
 .push-unsupported{opacity:.6;cursor:not-allowed}
+
+/* Logo tones (lib/palette.ts). --tone = bar/accent color, --tone-text = readable text color on the surface. */
+.tone-pink{--tone:#e25a9c;--tone-text:#b93476}
+.tone-sky{--tone:#2f93c9;--tone-text:#1d6a93}
+.tone-yellow{--tone:#e0b000;--tone-text:#7a5c00}
+.tone-gradient{--tone:linear-gradient(90deg,#e25a9c,#2f93c9);--tone-text:#8f4a9e}
+:root[data-theme="dark"] .tone-pink{--tone-text:#ff8fc0}
+:root[data-theme="dark"] .tone-sky{--tone-text:#74c9f2}
+:root[data-theme="dark"] .tone-yellow{--tone:#ffd43b;--tone-text:#ffd84a}
+:root[data-theme="dark"] .tone-gradient{--tone-text:#c99be0}
+.month-head{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:8px 0 6px;font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--tone-text);background:var(--surface);cursor:default}
+.month-head::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--tone);flex:none}
+.month-head.sticky{position:sticky;top:0;z-index:3}
+.agenda-group h3.month-head{font-size:15px;font-weight:800;color:var(--tone-text);text-transform:none}
+.agenda-day{margin:10px 0 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:none;letter-spacing:.2px}
+.agenda-day.is-today{color:var(--tone-text)}
+.agenda-overdue-head{color:#d34f68 !important;display:flex;align-items:center;gap:8px}
+:root[data-theme="dark"] .agenda-overdue-head{color:#ff7a90 !important}
+.agenda-group.is-overdue{border-color:color-mix(in srgb,#d34f68 45%,var(--line))}
+.agenda-kind{display:grid;place-items:center;width:22px;flex:none;color:#e25a9c;cursor:help}
+.agenda-kind.kind-event{color:#2f93c9}.agenda-kind.kind-note{color:#c79500}
+:root[data-theme="dark"] .agenda-kind.kind-note{color:#ffd43b}
+.agenda-time{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:2px}
+.agenda-time.is-overdue{color:#d34f68}
+.calendar-head strong.tone-text,.calendar-head .tone-text{color:var(--tone-text)}
+.calendar.tone-pink .calendar-day.is-today,.calendar.tone-sky .calendar-day.is-today,.calendar.tone-yellow .calendar-day.is-today,.calendar.tone-gradient .calendar-day.is-today{border-color:var(--tone-text)}
+.calendar[class*="tone-"] .calendar-day.is-selected{background:var(--ink);color:var(--surface);box-shadow:0 0 0 2px var(--tone-text)}
+.tx-month{margin:6px 0 0}
+.month-head.loose{background:transparent;padding:6px 2px 2px;margin:4px 0 0}

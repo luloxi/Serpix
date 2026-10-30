@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { CalendarClock, Check, ChevronLeft, ChevronRight, Maximize2, NotebookPen } from "lucide-react";
+import MonthHeading from "@/app/month-heading";
+import { dayChip, shortDate, todayBA } from "@/lib/agenda-dates";
+import { toneClass } from "@/lib/palette";
 
 export type AgendaItem = Record<string, string | number | boolean | null | undefined> & { id: string };
 type Tab = "general" | "calendar" | "list";
@@ -65,9 +68,9 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
   const [tab, setTab] = useState<Tab>("general");
   const [filter, setFilter] = useState<"all" | Kind>("all");
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [selected, setSelected] = useState(() => toDay(new Date()));
+  const [selected, setSelected] = useState(() => todayBA());
   const [reading, setReading] = useState<AgendaItem | null>(null);
-  const today = toDay(new Date());
+  const today = todayBA();
 
   const entries = useMemo<Entry[]>(() => {
     const e: Entry[] = [];
@@ -82,23 +85,36 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
   const byDay = useMemo(() => { const m = new Map<string, Entry[]>(); for (const e of entries) if (e.day) m.set(e.day, [...(m.get(e.day) || []), e]); return m; }, [entries]);
   const isOpenTask = (e: Entry) => e.kind === "task" && e.source.status !== "done" && e.source.status !== "cancelled";
 
-  const renderRow = (e: Entry) => {
+  const renderRow = (e: Entry, overdueDate?: string) => {
     const done = e.kind === "task" && e.source.status === "done";
     return <div className={"agenda-row kind-" + e.kind + (done ? " is-done" : "")}>
       {e.kind === "task"
         ? <button type="button" className="checklist-toggle" aria-label={done ? "Marcar pendiente" : "Marcar como hecha"} title={done ? "Marcar pendiente" : "Marcar como hecha"} aria-pressed={done} disabled={taskPending === e.source.id} onClick={() => onToggleTask(e.source)}>{done ? <Check size={16} /> : null}</button>
-        : <span className={"agenda-dot kind-" + e.kind} aria-hidden="true" />}
+        : <span className={"agenda-kind kind-" + e.kind} title={KIND_LABEL[e.kind]} role="img" aria-label={KIND_LABEL[e.kind]}>{e.kind === "event" ? <CalendarClock size={17} /> : <NotebookPen size={17} />}</span>}
       <button type="button" className="agenda-main" title={e.kind === "note" ? "Abrir nota" : "Editar"} onClick={() => e.kind === "note" ? setReading(e.source) : e.kind === "task" ? onEditTask(e.source) : onEditActivity(e.source)}>
         <strong>{e.title}</strong>
-        <small>{KIND_LABEL[e.kind]}{e.time ? " · " + e.time : ""}{e.sub ? " · " + e.sub : ""}</small>
+        {e.sub && <small>{e.sub}</small>}
       </button>
+      {e.time && <time className="agenda-time" title="Hora">{e.time}</time>}
+      {overdueDate && <time className="agenda-time is-overdue" title="Venció el">{overdueDate}</time>}
     </div>;
   }
 
   const sortAsc = (a: Entry, b: Entry) => (a.day + a.time).localeCompare(b.day + b.time);
   const overdue = entries.filter(e => isOpenTask(e) && e.day && e.day < today).sort(sortAsc);
-  const todayList = (byDay.get(today) || []).filter(e => e.kind !== "task" || e.source.status !== "cancelled").sort(sortAsc);
-  const upcoming = entries.filter(e => e.day > today && (e.kind !== "task" || isOpenTask(e))).sort(sortAsc).slice(0, 30);
+  // Today and later, chronological: open tasks, events and notes (done tasks only show on their own day). Cancelled never.
+  const upcoming = entries.filter(e => e.day >= today && (e.kind !== "task" || (e.source.status !== "cancelled" && (e.day === today || isOpenTask(e))))).sort(sortAsc).slice(0, 150);
+  const months = (() => {
+    const out: { month: string; days: { day: string; list: Entry[] }[] }[] = [];
+    for (const e of upcoming) {
+      let m = out[out.length - 1];
+      if (!m || m.month !== e.day.slice(0, 7)) { m = { month: e.day.slice(0, 7), days: [] }; out.push(m); }
+      let d = m.days[m.days.length - 1];
+      if (!d || d.day !== e.day) { d = { day: e.day, list: [] }; m.days.push(d); }
+      d.list.push(e);
+    }
+    return out;
+  })();
   const undated = entries.filter(e => e.kind === "task" && !e.day && isOpenTask(e));
 
   const renderGroup = (title: string, list: Entry[]) => {
@@ -122,18 +138,20 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
 
     {tab === "general" && <>
       {empty && <div className="panel"><p className="empty-copy">Todavía no hay tareas, eventos ni notas. Usá el + para agregar la primera.</p></div>}
-      {renderGroup("Atrasadas", overdue)}
-      {renderGroup("Hoy", todayList)}
-      {renderGroup("Próximo", upcoming)}
+      {overdue.length > 0 && <section className="panel agenda-group is-overdue"><h3 className="agenda-overdue-head">Vencidas</h3>{overdue.map(e => <div key={e.key} className="agenda-row-wrap">{renderRow(e, shortDate(e.day))}</div>)}</section>}
+      {months.map(m => <section key={m.month} className={"panel agenda-group " + toneClass(m.month)}>
+        <MonthHeading day={m.month + "-01"} sticky />
+        {m.days.map(d => <div key={d.day} className="agenda-day-block"><h4 className={"agenda-day" + (d.day === today ? " is-today" : "")}>{dayChip(d.day, today)}</h4>{d.list.map(e => <div key={e.key} className="agenda-row-wrap">{renderRow(e)}</div>)}</div>)}
+      </section>)}
       {renderGroup("Sin fecha", undated)}
-      {!empty && !overdue.length && !todayList.length && !upcoming.length && !undated.length && <div className="panel"><p className="empty-copy">Nada pendiente. Revisá el calendario o la lista para ver lo anterior.</p></div>}
+      {!empty && !overdue.length && !upcoming.length && !undated.length && <div className="panel"><p className="empty-copy">Nada pendiente. Revisá el calendario o la lista para ver lo anterior.</p></div>}
     </>}
 
     {tab === "calendar" && <>
-      <section className="panel calendar">
+      <section className={"panel calendar " + toneClass(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)}>
         <div className="calendar-head">
           <button type="button" className="icon-button" aria-label="Mes anterior" title="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={18} /></button>
-          <strong>{month.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</strong>
+          <strong className="tone-text">{month.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</strong>
           <button type="button" className="icon-button" aria-label="Mes siguiente" title="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={18} /></button>
         </div>
         <div className="calendar-grid" role="grid">
@@ -150,7 +168,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
         </div>
         <div className="calendar-legend" aria-hidden="true"><span><i className="agenda-dot kind-task" />Tarea</span><span><i className="agenda-dot kind-event" />Evento</span><span><i className="agenda-dot kind-note" />Nota</span></div>
       </section>
-      <section className="panel agenda-group"><h3>{dayLabel(selected)}</h3>
+      <section className={"panel agenda-group " + toneClass(selected)}><h3 className="month-head"><span className="month-text">{dayLabel(selected)}</span></h3>
         {(byDay.get(selected) || []).sort(sortAsc).map(e => <div key={e.key} className="agenda-row-wrap">{renderRow(e)}</div>)}
         {!(byDay.get(selected) || []).length && <p className="empty-copy">Sin registros este día.</p>}
       </section>
@@ -162,8 +180,10 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
           <button key={id} type="button" aria-pressed={filter === id} className={filter === id ? "selected" : ""} onClick={() => setFilter(id)}>{label}</button>)}
       </div>
       <section className="panel agenda-group">
-        {listEntries.map(e => <div key={e.key} className="agenda-list-item">{renderRow(e)}<small className="agenda-when">{e.day ? new Date(e.day + "T12:00:00").toLocaleDateString("es-AR") : "Sin fecha"}</small>
-          <span className="row-actions"><button type="button" onClick={() => e.kind === "task" ? onDeleteTask(e.source) : onDeleteActivity(e.source)} aria-label="Eliminar" title="Eliminar">Eliminar</button></span></div>)}
+        {listEntries.map((e, i) => <div key={e.key} className={e.day ? toneClass(e.day) : ""}>
+          {(i === 0 || listEntries[i - 1].day.slice(0, 7) !== e.day.slice(0, 7)) && (e.day ? <MonthHeading day={e.day} sticky /> : <h3 className="month-head"><span className="month-text">Sin fecha</span></h3>)}
+          <div className="agenda-list-item">{renderRow(e)}<small className="agenda-when">{e.day ? new Date(e.day + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "numeric" }) : ""}</small>
+          <span className="row-actions"><button type="button" onClick={() => e.kind === "task" ? onDeleteTask(e.source) : onDeleteActivity(e.source)} aria-label="Eliminar" title="Eliminar">Eliminar</button></span></div></div>)}
         {!listEntries.length && <p className="empty-copy">No hay registros de este tipo.</p>}
       </section>
     </>}

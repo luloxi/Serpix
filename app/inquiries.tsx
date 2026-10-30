@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import MonthHeading from "@/app/month-heading";
 import { Archive, ArchiveRestore, Mail, MailOpen, Reply, UserCheck, UserPlus, Inbox } from "lucide-react";
 
 export type Inquiry = { id: string; name: string; email: string; message: string; budgetJson: string | null; refCode: string | null; status: "new" | "read" | "archived"; contactId: string | null; createdAt: number };
@@ -12,6 +13,7 @@ const fmt = (ts: number) => {
   if (d.toDateString() === now.toDateString()) return `hoy ${time}`;
   return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" }).replace(".", "") + ` ${time}`;
 };
+const monthKey = (ts: number) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Buenos_Aires" }).format(new Date(ts)).slice(0, 7);
 const budgetChip = (json: string | null) => {
   if (!json) return null;
   try {
@@ -33,9 +35,10 @@ export default function Inquiries({ items, openId, onAction, onViewContact }: { 
   return <div className="inq">
     <div className="segmented-field inq-filter" role="group" aria-label="Filtrar solicitudes">{tabs.map(([id, label, tip]) => <button type="button" key={id} title={tip} className={filter === id ? "selected" : ""} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>)}</div>
     {shown.length === 0 ? <div className="panel inq-empty"><Inbox size={22} aria-hidden="true" /><p className="empty-copy">{filter === "new" ? "No hay solicitudes sin leer." : filter === "archived" ? "No hay solicitudes archivadas." : "Todavía no llegó ninguna solicitud desde el portfolio."}</p></div> : <div className="inq-list">
-      {shown.map(i => {
+      {shown.map((i, idx) => {
+        const mk = monthKey(i.createdAt), newMonth = idx === 0 || monthKey(shown[idx - 1].createdAt) !== mk;
         const isOpen = open === i.id, chip = budgetChip(i.budgetJson), disabled = busy === i.id;
-        return <article key={i.id} id={"inq-" + i.id} className={"panel inq-card " + (i.status === "new" ? "unread " : "") + (isOpen ? "open" : "")}>
+        return <Fragment key={i.id}>{newMonth && <MonthHeading day={mk + "-01"} loose />}<article id={"inq-" + i.id} className={"panel inq-card " + (i.status === "new" ? "unread " : "") + (isOpen ? "open" : "")}>
           <button type="button" className="inq-head" aria-expanded={isOpen} title={isOpen ? "Cerrar" : "Abrir"} onClick={() => toggle(i)}>
             <span className="inq-dot" aria-hidden="true" title={i.status === "new" ? "Sin leer" : ""} />
             <span className="inq-main"><strong>{i.name}</strong><small>{i.message.replace(/\s+/g, " ")}</small></span>
@@ -52,7 +55,7 @@ export default function Inquiries({ items, openId, onAction, onViewContact }: { 
               {i.status === "archived" ? <button type="button" className="inq-btn icon" disabled={disabled} title="Desarchivar" aria-label="Desarchivar" onClick={() => void run(i.id, "unarchive")}><ArchiveRestore size={16} aria-hidden="true" /></button> : <button type="button" className="inq-btn icon" disabled={disabled} title="Archivar" aria-label="Archivar" onClick={() => void run(i.id, "archive")}><Archive size={16} aria-hidden="true" /></button>}
             </div>
           </div>}
-        </article>;
+        </article></Fragment>;
       })}
     </div>}
   </div>;
