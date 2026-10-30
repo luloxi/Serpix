@@ -146,7 +146,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .app-shell{display:block;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
  .sidebar{position:fixed;z-index:20;top:auto;bottom:0;left:0;right:0;width:100%;height:auto;min-height:0;padding:8px 6px calc(8px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid #e4e7f0;background:rgba(255,255,255,.96);backdrop-filter:blur(20px);display:block;box-shadow:0 -8px 25px rgba(25,35,65,.06)}
  .logo,.side-caption,.sidebar-bottom{display:none}
- .sidebar nav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}
+ .sidebar nav{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
  .nav-item{padding:7px 1px 6px;display:flex;flex-direction:column;gap:4px;justify-content:center;text-align:center;font-size:9px;border-radius:9px;min-width:0}
  .nav-item.active{box-shadow:inset 0 -2px #6566e9;background:#f0f0ff}
  .nav-symbol{font-size:17px;width:auto;line-height:1.1;display:flex;align-items:center;justify-content:center}
@@ -816,3 +816,43 @@ body:has(.modal-backdrop) .add-menu-wrap{display:none!important}
 .segmented-field button{flex:1;min-height:36px;padding:7px 12px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:650}
 .segmented-field button.selected{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px rgba(0,0,0,.12)}
 .segmented-field button:focus-visible{outline:2px solid #d94f91;outline-offset:2px}
+
+/* Agenda y checklist */
+.checklist-panel{padding:4px 18px}
+.checklist-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);min-width:0}
+.checklist-row:last-child{border-bottom:0}
+.checklist-toggle{width:27px;height:27px;flex:none;border:1.5px solid var(--muted);border-radius:8px;background:transparent;color:#fff;display:grid;place-items:center;padding:0}
+.checklist-toggle[aria-pressed="true"]{background:#19845f;border-color:#19845f}
+.checklist-copy{display:grid;gap:3px;flex:1;min-width:0}
+.checklist-copy strong{font-size:14px;overflow-wrap:anywhere}
+.checklist-copy small{font-size:12px;color:var(--muted)}
+.checklist-copy p{margin:3px 0 0;color:var(--muted);font-size:13px;white-space:pre-wrap}
+.checklist-row.is-done .checklist-copy strong{text-decoration:line-through;color:var(--muted)}
+.activity-feed{display:grid;gap:10px}
+.activity-card{padding:16px 18px;display:grid;gap:9px}
+.activity-card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.activity-card-head time{font-size:12px;color:var(--muted);flex:1}
+.activity-kind{font-size:12px;font-weight:750;border-radius:999px;padding:5px 9px;background:#e5f1fb;color:#285c85}
+.activity-kind.note{background:#fce8f1;color:#9a3264}
+:root[data-theme="dark"] .activity-kind{background:#24394c;color:#b8ddfa}
+:root[data-theme="dark"] .activity-kind.note{background:#48283b;color:#ffc1dd}
+.activity-card h3{font-size:17px;margin:0}
+.activity-contacts{margin:0;color:var(--muted);font-size:12px;font-weight:650}
+.activity-body{font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.activity-contact-picker{display:grid;gap:7px;margin-top:16px}
+.activity-contact-picker>strong{font-size:14px}
+.activity-contact-picker>small{font-size:12px;color:var(--muted)}
+.activity-contact-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px;max-height:180px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:12px}
+.activity-contact-options label{display:flex;align-items:center;gap:8px;font-size:13px;min-height:34px}
+.activity-contact-options input{width:17px;height:17px;accent-color:#d94f91}
+body:has(.activity-contact-picker) .editor-modal{width:min(900px,calc(100vw - 32px));max-height:calc(100svh - 24px);overflow:auto}
+body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:280px;resize:vertical}
+@media(max-width:700px){
+ .checklist-panel{padding:3px 12px}
+ .checklist-row{gap:8px;flex-wrap:wrap}
+ .checklist-copy{min-width:calc(100% - 46px)}
+ .checklist-row>.priority{margin-left:35px}
+ .checklist-row>.row-actions{margin-left:auto;flex-direction:row}
+ .activity-card{padding:13px}
+ .activity-contact-options{grid-template-columns:1fr}
+}
