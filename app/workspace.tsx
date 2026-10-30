@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminUsers from "@/app/admin/users";
-import { House, Users, FolderKanban, ListTodo, Wallet, ShieldCheck, RefreshCw, Sun, Moon, Plus, ContactRound, FolderPlus, ListPlus, WalletCards, ArrowLeftRight, CalendarDays, NotebookPen, Check } from "lucide-react";
+import { House, Users, Wallet, ShieldCheck, RefreshCw, Sun, Moon, Plus, ContactRound, ListPlus, WalletCards, ArrowLeftRight, CalendarDays, NotebookPen, Check } from "lucide-react";
 
-const NavIcons = { home: House, contacts: Users, projects: FolderKanban, tasks: ListTodo, activity: CalendarDays, finance: Wallet, admin: ShieldCheck };
+const NavIcons = { home: House, contacts: Users, activity: CalendarDays, finance: Wallet, admin: ShieldCheck };
 import SignOutButton from "@/app/sign-out-button";
 
 type Item = Record<string, string | number | boolean | null | undefined> & { id: string };
-type Section = "home" | "contacts" | "projects" | "tasks" | "activity" | "finance" | "admin";
+type Section = "home" | "contacts" | "activity" | "finance" | "admin";
 type Field = { key:string; label:string; type?:"text"|"textarea"|"select"|"segmented"|"date"|"datetime-local"|"number"|"email"|"tel"; required?:boolean; options?:{value:string;label:string}[]; placeholder?:string };
 const sections:{id:Section;label:string;short:string}[]=[
   {id:"home",label:"Resumen",short:"Inicio"},{id:"contacts",label:"Contactos",short:"CRM"},
-  {id:"projects",label:"Proyectos",short:"Proyectos"},{id:"tasks",label:"Tareas",short:"Tareas"},{id:"activity",label:"Agenda",short:"Agenda"},
+  {id:"activity",label:"Agenda",short:"Agenda"},
   {id:"finance",label:"Finanzas",short:"Finanzas"},{id:"admin",label:"Accesos",short:"Admin"}
 ];
 const empty:Record<string,string>={};
@@ -94,7 +94,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   const activeAddType=({contacts:"contacts",projects:"projects",tasks:"tasks",activity:"activities-event",finance:"transactions"} as Partial<Record<Section,string>>)[section];
   const addOptions=[
     {id:"contacts",label:"Contacto",icon:ContactRound},
-    {id:"projects",label:"Proyecto",icon:FolderPlus},
+
     {id:"tasks",label:"Tarea",icon:ListPlus},
     {id:"activities-event",label:"Evento",icon:CalendarDays},
     {id:"activities-note",label:"Nota",icon:NotebookPen},
