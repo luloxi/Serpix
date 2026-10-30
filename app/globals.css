@@ -681,3 +681,51 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 :root[data-theme="dark"] .add-menu { background: #171e2b !important; color: #f2f5fb !important; }
 :root[data-theme="dark"] .add-menu-item { background: #202a3a !important; color: #f2f5fb !important; }
 :root[data-theme="dark"] .profile-menu { background: #171e2b !important; color: #f2f5fb !important; }
+
+/* Larger type and tighter layout: legibility without wasting screen space. */
+html,body{font-size:16px} body{line-height:1.5}
+.main-area{padding:26px clamp(20px,3vw,44px) 48px}
+.topbar{padding-bottom:15px;margin-bottom:20px}.topbar h1{font-size:29px;letter-spacing:-.7px}
+.eyebrow,.topbar .eyebrow{font-size:11px;letter-spacing:1.1px}
+.welcome{margin:0 0 16px;padding:17px 20px}.welcome h2{font-size:27px}.welcome p:not(.eyebrow){font-size:14px}
+.today{font-size:12px;padding:7px 10px}
+.stat-grid{gap:10px;margin-bottom:13px}.stat-card{padding:14px 16px;gap:5px}
+.stat-card small,.finance-summary small{font-size:13px}.stat-card strong{font-size:30px}.stat-card span{font-size:12px}
+.dashboard-grid{gap:12px}.dashboard-grid>.panel,.finance-layout>.panel{padding:16px 17px}
+.panel-title{margin-bottom:9px}.panel-title h2{font-size:17px}
+.list-line{padding:9px 0;gap:10px}.list-line strong{font-size:14px}.list-line small{font-size:12px}.list-line>b{font-size:13px}
+.tag,.priority{font-size:12px;padding:4px 8px}.empty-copy{font-size:14px;line-height:1.55;margin:12px 0}
+.table-panel{padding:7px 16px}.table-head{font-size:12px;padding:9px 0}.table-row{font-size:13px;padding:10px 0}
+.table-row strong{font-size:14px}.table-row small{font-size:12px}.row-actions button{font-size:13px}
+.card-grid{gap:11px}.project-card{padding:15px 16px}.project-card h3{font-size:17px;margin:10px 0 5px}
+.project-card p,.task-card p{font-size:13px;line-height:1.45;margin:5px 0}
+.project-card>small,.task-card>small,.card-meta{font-size:12px}
+.task-board{gap:10px}.task-column{padding:10px}.column-heading{padding:2px 3px 8px}.column-heading h3{font-size:14px}
+.task-card{padding:10px;margin-bottom:7px}.task-card>strong{font-size:14px;margin:7px 0 4px}
+.finance-summary{gap:10px;margin-bottom:12px}.finance-summary>.panel{padding:12px 14px;gap:6px}.finance-summary strong{font-size:18px}
+.account-line{padding:10px 0}.account-line strong{font-size:14px}.account-line small{font-size:12px}
+.form-grid{gap:12px}.form-grid label{font-size:13px;gap:5px}
+.form-grid input,.form-grid select,.form-grid textarea{font-size:15px;padding:10px 11px}
+.primary-button,.secondary-button{font-size:14px}.loading{padding:34px;font-size:14px}.toast{font-size:15px}
+/* The avatar takes the former admin-navigation slot. Admin remains inside its menu. */
+.profile-nav-wrap{position:relative;min-width:0}.profile-nav-item{width:100%}
+.profile-nav-avatar{position:relative;width:26px;height:26px;flex:none;overflow:hidden;border-radius:50%;display:grid;place-items:center;background:#111827;box-shadow:0 0 0 2px rgba(217,79,145,.22)}
+.profile-nav-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.profile-nav-avatar .profile-avatar-fallback{font-size:13px}
+.profile-menu{position:absolute;z-index:90;left:0;right:auto;bottom:calc(100% + 10px);width:min(290px,calc(100vw - 28px))}
+.profile-menu-heading strong{font-size:15px}.profile-menu-heading small{font-size:13px}.profile-menu-heading span{font-size:11px}.profile-menu-item{font-size:14px}
+@media(min-width:701px){.profile-menu{left:0;right:auto}}
+@media(max-width:700px){
+ .main-area{padding:17px 13px 24px}.topbar{margin-bottom:14px;padding-bottom:12px}.topbar h1{font-size:24px}
+ .welcome{padding:14px 15px;gap:8px}.welcome h2{font-size:23px}.welcome p:not(.eyebrow){font-size:13px}.today{font-size:11px}
+ .stat-grid{gap:8px;margin-bottom:10px}.stat-card{padding:11px 12px}
+ .stat-card small,.finance-summary small{font-size:12px}.stat-card strong{font-size:27px}.stat-card span{font-size:11px}
+ .dashboard-grid,.finance-layout,.card-grid{gap:9px}.dashboard-grid>.panel,.finance-layout>.panel{padding:12px 13px}
+ .panel-title h2{font-size:16px}.list-line{padding:8px 0}.list-line strong{font-size:13px}.list-line small{font-size:11px}
+ .table-row{font-size:12px}.table-row strong{font-size:13px}.table-row small{font-size:11px}
+ .project-card{padding:13px}.project-card h3{font-size:16px}.task-column{padding:9px}.task-card{padding:9px}.task-card>strong{font-size:13px}
+ .finance-summary{gap:7px}.finance-summary>.panel{padding:10px}.finance-summary strong{font-size:16px}.form-grid label{font-size:13px}
+ .sidebar nav{grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch}
+ .profile-nav-wrap{min-width:0}.profile-nav-item{min-height:54px;padding:5px 1px 4px;display:flex;flex-direction:column;justify-content:center;gap:3px;text-align:center;font-size:11px;border-radius:9px}
+ .profile-nav-avatar{width:25px;height:25px}.profile-menu{left:auto;right:0;bottom:calc(100% + 11px)}
+}
