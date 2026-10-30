@@ -2,10 +2,15 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Serpix — Gestión simple",
-  description: "Clientes, trabajo, finanzas y facturación en un solo lugar.",
+  title: "Serpix — Tu espacio de trabajo",
+  description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
   applicationName: "Serpix",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+    apple: [{ url: "/apple-touch-icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -14,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f8fa",
+  themeColor: "#f5f7fb",
   width: "device-width",
   initialScale: 1,
 };
