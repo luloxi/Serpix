@@ -4,7 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-const tableByResource = { contacts: "contacts", projects: "projects", tasks: "tasks", accounts: "financial_accounts", transactions: "financial_transactions" } as const;
+const tableByResource = { contacts: "contacts", projects: "projects", tasks: "tasks", accounts: "financial_accounts", transactions: "financial_transactions", activities: "activities" } as const;
 type Resource = keyof typeof tableByResource;
 async function context() {
   const auth = await getAuth();
@@ -47,6 +47,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         if(!existing) return NextResponse.json({error:"Cuenta inexistente"},{status:404});
         const currency=pick(b.currency,["ARS","USD"] as const,existing.currency as "ARS"|"USD");
         result=await db.prepare("UPDATE financial_accounts SET name=?,currency=?,updated_at=? WHERE id=? AND user_id=?").bind(name,currency,now,id,userId).run(); break;
+      }
+      case "activities": {
+        const title=str(b.title,200), kind=pick(b.kind,["event","note"] as const,"note");
+        const occurredAt=str(b.occurredAt,32) || new Date().toISOString();
+        const contactIds=Array.isArray(b.contactIds)?[...new Set(b.contactIds.map(v=>str(v,80)).filter(Boolean))]:[];
+        if(!title) return NextResponse.json({error:"El título es obligatorio"},{status:400});
+        if(contactIds.length){
+          const placeholders=contactIds.map(()=>"?").join(",");
+          const linked=await db.prepare("SELECT COUNT(*) AS count FROM contacts WHERE user_id=? AND id IN ("+placeholders+")").bind(userId,...contactIds).first<{count:number}>();
+          if(Number(linked?.count||0)!==contactIds.length) return NextResponse.json({error:"Hay contactos inválidos"},{status:400});
+        }
+        result=await db.prepare("UPDATE activities SET kind=?,title=?,body=?,occurred_at=?,updated_at=? WHERE id=? AND user_id=?").bind(kind,title,nullable(b.body,30000),occurredAt,now,id,userId).run();
+        if(result.meta.changes){
+          await db.prepare("DELETE FROM activity_contacts WHERE activity_id=?").bind(id).run();
+          for(const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id) VALUES (?,?)").bind(id,contactId).run();
+        }
+        break;
       }
       case "transactions": {
         const amount=Number(b.amountMinor), category=str(b.category,80);
