@@ -6,7 +6,7 @@ type ApprovalUser = { approvalStatus?: "pending" | "approved" | "rejected" };
 
 export default function PendingPage() {
   const { data: session, isPending } = authClient.useSession();
-  const status = (session?.user as typeof session.user & ApprovalUser | undefined)?.approvalStatus;
+  const status = (session?.user as ApprovalUser | undefined)?.approvalStatus;
 
   return (
     <main className="auth-screen">

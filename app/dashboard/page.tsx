@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getAuth } from "@/lib/auth";
+import SignOutButton from "@/app/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
           <h1>Hola, {session.user.name}</h1>
           <p>Tu cuenta está habilitada. Los módulos se habilitarán a medida que queden conectados a datos reales.</p>
         </div>
+        <SignOutButton />
       </header>
       <section className="empty-state">
         <h2>Serpix se está configurando</h2>
