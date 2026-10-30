@@ -33,7 +33,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .nav-item{border:0;background:transparent;text-align:left;padding:11px 12px;border-radius:10px;color:#66748b;font-size:12px;font-weight:600;display:flex;align-items:center;gap:12px;transition:background .15s,color .15s}
 .nav-item:hover{background:#f4f5ff;color:#4546c9}
 .nav-item.active{background:linear-gradient(100deg,#eeeeff,#f5f5ff);color:#4e50d2;box-shadow:inset 3px 0 #6566e9}
-.nav-symbol{font-size:17px;width:20px;text-align:center}
+.nav-symbol{font-size:17px;width:20px;display:flex;align-items:center;justify-content:center;flex:none}
 .sidebar-bottom{margin-top:auto;display:grid;gap:12px}
 .user-chip{display:flex;align-items:center;gap:10px;padding:15px 7px 8px;border-top:1px solid var(--line)}
 .avatar{width:35px;height:35px;flex:none;border-radius:12px;background:linear-gradient(145deg,#e9eaff,#d8dcff);color:#4c4dc7;display:grid;place-items:center;font-weight:800}
@@ -149,7 +149,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .sidebar nav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}
  .nav-item{padding:7px 1px 6px;display:flex;flex-direction:column;gap:4px;justify-content:center;text-align:center;font-size:9px;border-radius:9px;min-width:0}
  .nav-item.active{box-shadow:inset 0 -2px #6566e9;background:#f0f0ff}
- .nav-symbol{font-size:17px;width:auto;line-height:1.1}
+ .nav-symbol{font-size:17px;width:auto;line-height:1.1;display:flex;align-items:center;justify-content:center}
  .main-area{padding:20px 15px 28px}
  .topbar{margin-bottom:17px;padding-bottom:16px}
  .topbar h1{font-size:21px}
