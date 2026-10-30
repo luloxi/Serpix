@@ -1,0 +1,13 @@
+{
+  "name": "Serpix",
+  "short_name": "Serpix",
+  "description": "Gestión simple de tu actividad profesional.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#f7f8fa",
+  "lang": "es-AR",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
