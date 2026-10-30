@@ -8,5 +8,5 @@ export default async function DashboardPage() {
  const session = await auth.api.getSession({ headers: await headers() });
  if (!session) redirect("/login");
  if (session.user.approvalStatus !== "approved") redirect("/pending");
- return <Workspace name={session.user.name} isAdmin={session.user.role === "admin"} />;
+ return <Workspace name={session.user.name} email={session.user.email} image={session.user.image ?? null} isAdmin={session.user.role === "admin"} />;
 }
