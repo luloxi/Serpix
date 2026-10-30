@@ -810,3 +810,9 @@ body:has(.modal-backdrop) .add-menu-wrap{display:none!important}
 .contact-related small,.contact-related span{font-size:13px;color:var(--muted)}
 .contact-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 @media(max-width:700px){.contact-card>summary{padding:12px;gap:9px}.contact-avatar{width:36px;height:36px}.contact-summary-main strong{font-size:14px}.contact-details{padding:12px;gap:12px}.contact-actions{align-items:stretch}.contact-actions>.row-actions{flex-direction:row}}
+
+
+.segmented-field{display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--bg);min-height:44px}
+.segmented-field button{flex:1;min-height:36px;padding:7px 12px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:650}
+.segmented-field button.selected{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px rgba(0,0,0,.12)}
+.segmented-field button:focus-visible{outline:2px solid #d94f91;outline-offset:2px}
