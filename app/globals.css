@@ -180,3 +180,97 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .account-line .row-actions{flex-direction:column}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+
+/* Serpix: accesibilidad, notificaciones y temas */
+:root{
+  --accent:#d94f91;
+  --accent-dark:#b93476;
+  --highlight-pink:#f7c5dc;
+  --highlight-yellow:#fff0a8;
+  --highlight-sky:#b9e8f8;
+  --focus-ring:rgba(217,79,145,.48);
+}
+html,body{font-size:15px}
+body{line-height:1.55}
+button,input,select,textarea{font-size:14px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid var(--focus-ring);outline-offset:3px
+}
+.topbar-actions{display:flex;align-items:center;gap:9px}
+.icon-button{display:grid;place-items:center}
+.nav-item{font-size:13px;min-height:44px}
+.nav-symbol{min-width:22px}
+.stat-card small,.finance-summary small{font-size:12px}
+.stat-card span{font-size:11px}
+.section-intro p{display:none}
+.panel-title h2{font-size:15px}
+.table-head{font-size:11px}
+.table-row{font-size:12px}
+.table-row strong{font-size:13px}
+.table-row small,.list-line small{font-size:11px}
+.list-line strong{font-size:13px}
+.project-card p,.task-card p{font-size:12px}
+.project-card>small,.task-card>small,.card-meta{font-size:11px}
+.form-grid label{font-size:12px}
+.form-grid input,.form-grid select,.form-grid textarea{font-size:14px;min-height:44px}
+.primary-button,.secondary-button{font-size:13px;min-height:42px}
+.row-actions button{font-size:12px;min-height:36px;padding:7px 9px}
+.tag,.priority{font-size:11px}
+.empty-copy{font-size:13px}
+.toast{
+  position:fixed;z-index:50;top:18px;right:18px;width:min(420px,calc(100vw - 36px));
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 16px;border-radius:13px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);box-shadow:0 16px 45px rgba(20,30,55,.18);
+  font-size:14px;animation:toast-in .18s ease-out
+}
+.toast.success{border-left:4px solid #249b78}
+.toast.error{border-left:4px solid #d34f68}
+.toast button{border:0;background:transparent;color:inherit;font-size:21px;min-width:32px;min-height:32px}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11131b;--surface:#1b1e29;--ink:#edf0f7;--muted:#a2aabd;--line:#303545;
+  --accent:#ed78ad;--accent-dark:#d85b96;--shadow:0 12px 35px rgba(0,0,0,.22);
+  --focus-ring:rgba(237,120,173,.62)
+}
+:root[data-theme="dark"] html{background:var(--bg);color-scheme:dark}
+:root[data-theme="dark"] body{background:radial-gradient(ellipse at 75% -12%,rgba(237,120,173,.10),transparent 34%),var(--bg);color:var(--ink)}
+:root[data-theme="dark"] .sidebar{background:rgba(27,30,41,.96);border-color:var(--line)}
+:root[data-theme="dark"] .logo,:root[data-theme="dark"] .topbar h1,:root[data-theme="dark"] .welcome h2,
+:root[data-theme="dark"] .panel-title h2,:root[data-theme="dark"] .section-intro h2,
+:root[data-theme="dark"] .project-card h3,:root[data-theme="dark"] .task-card>strong,
+:root[data-theme="dark"] .table-row strong,:root[data-theme="dark"] .list-line strong,
+:root[data-theme="dark"] .account-line strong,:root[data-theme="dark"] .user-chip strong{color:var(--ink)}
+:root[data-theme="dark"] .welcome{background:linear-gradient(115deg,#1b1e29,#292333);border-color:#493047}
+:root[data-theme="dark"] .today,:root[data-theme="dark"] .icon-button,:root[data-theme="dark"] .editor-modal,
+:root[data-theme="dark"] .task-card,:root[data-theme="dark"] .column-heading span{background:var(--surface);color:var(--ink);border-color:var(--line)}
+:root[data-theme="dark"] .nav-item{color:#b0b8c9}
+:root[data-theme="dark"] .nav-item:hover,:root[data-theme="dark"] .nav-item.active{background:#35283a;color:#ffc1dc}
+:root[data-theme="dark"] .task-column{background:#171a24;border-color:var(--line)}
+:root[data-theme="dark"] .secondary-button{background:#303545;color:#e3e7f0}
+:root[data-theme="dark"] .form-grid input,:root[data-theme="dark"] .form-grid select,:root[data-theme="dark"] .form-grid textarea{background:#141722;color:var(--ink);border-color:#41485b}
+:root[data-theme="dark"] .list-line,:root[data-theme="dark"] .account-line,:root[data-theme="dark"] .table-row{border-color:#303545}
+:root[data-theme="dark"] .table-row,:root[data-theme="dark"] .column-heading h3{color:#c2c9d8}
+:root[data-theme="dark"] .status-active,:root[data-theme="dark"] .status-done{background:#173b35;color:#8ce0c2}
+:root[data-theme="dark"] .status-paused,:root[data-theme="dark"] .status_in_progress,:root[data-theme="dark"] .status-in_progress{background:#453b20;color:#ffe08a}
+:root[data-theme="dark"] .status-completed,:root[data-theme="dark"] .priority-normal{background:#302b4b;color:#c9c4ff}
+:root[data-theme="dark"] .status-archived,:root[data-theme="dark"] .status-cancelled,:root[data-theme="dark"] .tag{background:#303545;color:#c2c9d8}
+:root[data-theme="dark"] .priority-urgent,:root[data-theme="dark"] .priority-high{background:#482a35;color:#ffb4bd}
+:root[data-theme="dark"] .money-sign.income{background:#173b35;color:#8ce0c2}
+:root[data-theme="dark"] .money-sign.expense{background:#482a35;color:#ffb4bd}
+:root[data-theme="dark"] .positive{color:#8ce0c2}:root[data-theme="dark"] .negative{color:#ffabb4}
+:root[data-theme="dark"] .sidebar-bottom>.secondary-button:hover{background:#35283a}
+:root[data-theme="dark"] .auth-screen{background:radial-gradient(ellipse at 50% 15%,#302b4b,transparent 50%),var(--bg)}
+:root[data-theme="dark"] .auth-card{background:var(--surface);border-color:var(--line)}
+:root[data-theme="dark"] .auth-card h1{color:var(--ink)}
+:root[data-theme="dark"] .editor-modal{background:var(--surface)}
+:root[data-theme="dark"] .modal-backdrop{background:rgba(0,0,0,.68)}
+@media(max-width:700px){
+  .sidebar{background:rgba(27,30,41,.96);border-color:var(--line)}
+  :root:not([data-theme="dark"]) .sidebar{background:rgba(255,255,255,.97)}
+  .toast{top:10px;right:10px;width:calc(100vw - 20px)}
+  .main-area{padding-top:16px}
+}
+@media(prefers-reduced-motion:reduce){.toast{animation:none}}
