@@ -787,3 +787,26 @@ button:disabled,select:disabled,input:disabled{cursor:not-allowed}
 body:has(.modal-backdrop) .add-menu-wrap{display:none!important}
 .auth-brand-icon{border-radius:22px}
 .logo>span:last-child:after{font-size:12px;letter-spacing:1.2px}
+
+
+/* CRM: cards expandibles, relaciones y acciones accesibles en móvil. */
+.contact-list{display:grid;gap:10px}
+.contact-card{padding:0;overflow:hidden}
+.contact-card>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;min-height:70px}
+.contact-card>summary::-webkit-details-marker{display:none}
+.contact-avatar{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#d94f91,#6b79d8);color:white;font-weight:800;font-size:17px}
+.contact-summary-main{display:grid;gap:3px;min-width:0;flex:1}
+.contact-summary-main strong{font-size:15px;overflow-wrap:anywhere}
+.contact-summary-main small{font-size:12px;color:var(--muted)}
+.contact-chevron{font-size:20px;color:var(--muted);transition:transform .18s}
+.contact-card[open] .contact-chevron{transform:rotate(180deg)}
+.contact-details{border-top:1px solid var(--line);padding:14px 16px 16px;display:grid;gap:14px}
+.contact-facts{display:flex;flex-wrap:wrap;gap:8px}
+.contact-facts a{font-size:13px;font-weight:650;color:var(--ink);text-decoration:none;padding:7px 10px;border:1px solid var(--line);border-radius:9px;overflow-wrap:anywhere}
+.contact-facts a:hover{text-decoration:underline}
+.contact-notes{font-size:14px;line-height:1.5;color:var(--muted);margin:0;white-space:pre-wrap}
+.contact-related{display:grid;gap:6px}
+.contact-related strong{font-size:13px}
+.contact-related small,.contact-related span{font-size:13px;color:var(--muted)}
+.contact-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+@media(max-width:700px){.contact-card>summary{padding:12px;gap:9px}.contact-avatar{width:36px;height:36px}.contact-summary-main strong{font-size:14px}.contact-details{padding:12px;gap:12px}.contact-actions{align-items:stretch}.contact-actions>.row-actions{flex-direction:row}}
