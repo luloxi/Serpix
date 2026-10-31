@@ -334,9 +334,11 @@ function isConstraint(error: unknown): boolean {
   return message.includes("UNIQUE") || message.includes("CONSTRAINT") || message.includes("constraint");
 }
 
-export async function encryptionMode(db: D1Like, userId: string): Promise<"server" | "e2e"> {
-  const row = await db.prepare("SELECT encryption_mode AS mode FROM user WHERE id = ?").bind(userId).first<{ mode: string }>();
-  return row?.mode === "e2e" ? "e2e" : "server";
+/** Stored encryption_mode, or null when the user row is missing. Not normalised. */
+export async function encryptionMode(db: D1Like, userId: string): Promise<string | null> {
+  const row = await db.prepare("SELECT encryption_mode AS mode FROM user WHERE id = ?").bind(userId).first<{ mode: string | null }>();
+  if (!row) return null;
+  return row.mode;
 }
 
 function legacyTable(name: string): string {
@@ -511,7 +513,7 @@ export async function nextCounter(db: D1Like, userId: string, kind: "quote" | "i
   return value;
 }
 
-export async function listKeys(db: D1Like, userId: string): Promise<{ mode: "server" | "e2e"; legacyData: boolean; wraps: WrapView[] }> {
+export async function listKeys(db: D1Like, userId: string): Promise<{ mode: string | null; legacyData: boolean; wraps: WrapView[] }> {
   const mode = await encryptionMode(db, userId);
   const legacyData = await hasLegacyData(db, userId);
   const rows = (await db.prepare(

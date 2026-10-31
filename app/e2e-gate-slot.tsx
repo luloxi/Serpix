@@ -10,7 +10,7 @@ const E2eGate = dynamic(() => import("./e2e-gate"), { ssr: false, loading: GateF
 
 type Props = {
   userId: string;
-  encryptionMode: "server" | "e2e";
+  encryptionMode: string | null;
   name: string;
   email: string;
   image: string | null;

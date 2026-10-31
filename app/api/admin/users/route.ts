@@ -20,7 +20,7 @@ export async function GET() {
     role: user.role,
     createdAt: user.createdAt,
     aiReceipts: Number(user.aiReceipts) === 1,
-    encryptionMode: user.encryptionMode === "e2e" ? "e2e" : "server",
+    encryptionMode: user.encryptionMode === "e2e" ? "e2e" : user.encryptionMode === "server" ? "server" : user.encryptionMode,
   }));
   return NextResponse.json({ users });
 }

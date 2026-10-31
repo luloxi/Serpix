@@ -31,7 +31,7 @@ import {
 
 type Props = {
   userId: string;
-  encryptionMode: "server" | "e2e";
+  encryptionMode: string | null;
   name: string;
   email: string;
   image: string | null;
@@ -50,10 +50,10 @@ function isKeyWrap(value: unknown, type: "password" | "passkey"): value is KeyWr
   return Boolean(value) && typeof value === "object" && !Array.isArray(value) && (value as { type?: unknown }).type === type;
 }
 
-function readKeys(body: unknown): { mode: "server" | "e2e"; legacyData: boolean; held: Held | null; hasPasskey: boolean } | null {
+function readKeys(body: unknown): { mode: string; legacyData: boolean; held: Held | null; hasPasskey: boolean } | null {
   if (!body || typeof body !== "object") return null;
   const row = body as { mode?: unknown; legacyData?: unknown; wraps?: unknown };
-  if ((row.mode !== "server" && row.mode !== "e2e") || !Array.isArray(row.wraps)) return null;
+  if (typeof row.mode !== "string" || !Array.isArray(row.wraps)) return null;
   let password: { id?: unknown; wrap?: unknown; createdAt?: unknown } | null = null;
   let passkey: { id?: unknown; wrap?: unknown; credentialId?: unknown } | null = null;
   for (const item of row.wraps) {

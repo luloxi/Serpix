@@ -82,7 +82,7 @@ export type GateState = {
 };
 
 export type GateEvent =
-  | { type: "loaded"; mode: "server" | "e2e"; legacyData: boolean; hasPasskey: boolean; cachedDek: boolean; message?: string }
+  | { type: "loaded"; mode: string | null; legacyData: boolean; hasPasskey: boolean; cachedDek: boolean; message?: string }
   | { type: "legacy-blocked" }
   | { type: "load-failed" }
   | { type: "retry" }
@@ -119,9 +119,10 @@ export function decideGate(input: {
   mode?: string | null;
   legacyData: boolean;
   cachedDek: boolean;
-}): "admin" | "legacy" | "onboarding" | "auto-unlock" | "unlock" {
+}): "admin" | "legacy" | "onboarding" | "auto-unlock" | "unlock" | "closed" {
   if (input.role === "admin") return "admin";
   if (input.mode === "e2e") return input.cachedDek ? "auto-unlock" : "unlock";
+  if (input.mode !== "server") return "closed";
   if (input.legacyData) return "legacy";
   return "onboarding";
 }
@@ -132,6 +133,7 @@ export function reduceGate(state: GateState, event: GateEvent): GateState {
       if (state.phase !== "loading") return state;
       const next = decideGate({ role: "user", mode: event.mode, legacyData: event.legacyData, cachedDek: event.cachedDek });
       if (next === "legacy") return { phase: "legacy", legacyData: true, hasPasskey: false, message: "", autoUnlocked: false };
+      if (next === "closed") return { phase: "load-error", legacyData: false, hasPasskey: false, message: LOAD_ERROR, autoUnlocked: false };
       if (next === "onboarding") return { phase: "onboarding", legacyData: false, hasPasskey: false, message: "", autoUnlocked: false };
       if (next === "auto-unlock") return { phase: "ready", legacyData: event.legacyData, hasPasskey: event.hasPasskey, message: "", autoUnlocked: true };
       return { phase: "unlock", legacyData: event.legacyData, hasPasskey: event.hasPasskey, message: event.message ?? "", autoUnlocked: false };
