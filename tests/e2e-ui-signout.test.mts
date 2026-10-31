@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { runSignOut } from "../lib/e2e/sign-out.ts";
+import { DEVICE_WIPE_WARNING, runSignOut, signOutWarning } from "../lib/e2e/sign-out.ts";
 import { activateE2eSession, clearE2eSession, getE2eTeardown, isE2eActive, peekUninstall } from "../lib/e2e/client-session.ts";
 
 test("sign-out wipes push, vault, fetch and the engine before the auth cookie", async () => {
   const order: string[] = [];
-  await runSignOut({
+  const result = await runSignOut({
     removePush: async () => { order.push("push"); },
     e2eActive: true,
     wipeVault: async () => { order.push("vault"); },
@@ -15,6 +15,8 @@ test("sign-out wipes push, vault, fetch and the engine before the auth cookie", 
     authSignOut: async () => { order.push("auth"); },
   });
   assert.deepEqual(order, ["push", "vault", "fetch", "engine", "auth"]);
+  assert.equal(result.deviceWipeFailed, false);
+  assert.equal(signOutWarning(result), null);
 });
 
 test("the open session's teardown is what sign-out runs", async () => {
@@ -50,7 +52,7 @@ test("the open session's teardown is what sign-out runs", async () => {
 
 test("a server session signs out without touching the vault", async () => {
   const order: string[] = [];
-  await runSignOut({
+  const result = await runSignOut({
     removePush: async () => { order.push("push"); },
     e2eActive: false,
     wipeVault: async () => { order.push("vault"); },
@@ -59,11 +61,13 @@ test("a server session signs out without touching the vault", async () => {
     authSignOut: async () => { order.push("auth"); },
   });
   assert.deepEqual(order, ["push", "auth"]);
+  assert.equal(result.deviceWipeFailed, false);
+  assert.equal(signOutWarning(result), null);
 });
 
-test("a failed wipe still uninstalls, closes the engine and signs out", async () => {
+test("a failed wipe still ends the session and is not a silent success", async () => {
   const order: string[] = [];
-  await runSignOut({
+  const result = await runSignOut({
     removePush: async () => { order.push("push"); throw new Error("push"); },
     e2eActive: true,
     wipeVault: async () => { order.push("vault"); throw new Error("vault"); },
@@ -72,6 +76,9 @@ test("a failed wipe still uninstalls, closes the engine and signs out", async ()
     authSignOut: async () => { order.push("auth"); },
   });
   assert.deepEqual(order, ["push", "vault", "fetch", "engine", "auth"]);
+  assert.equal(result.deviceWipeFailed, true);
+  assert.equal(signOutWarning(result), DEVICE_WIPE_WARNING);
+  assert.equal(DEVICE_WIPE_WARNING, "No pudimos borrar la clave de este dispositivo: cerrá las otras pestañas de Serpix y reintentá");
 });
 
 test("the button captures the e2e session before any await and does not wipe on pagehide", () => {
@@ -84,7 +91,13 @@ test("the button captures the e2e session before any await and does not wipe on 
   const teardown = body.indexOf("getE2eTeardown()");
   const run = body.indexOf("runSignOut(");
   const clear = body.indexOf("clearE2eSession()");
-  assert.ok(active > -1 && uninstall > active && teardown > uninstall && run > teardown && clear > run);
+  const warn = body.indexOf("signOutWarning(result)");
+  const notify = body.indexOf("onWarning?.(message)");
+  assert.ok(active > -1 && uninstall > active && teardown > uninstall && run > teardown && clear > run && warn > clear && notify > warn);
+  assert.match(source, /role="alert"/);
+  assert.match(source, /error-message/);
+  const workspace = readFileSync(new URL("../app/workspace.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /<SignOutButton onWarning=\{setError\}\/>/);
   assert.equal(source.includes("@/lib/e2e/engine"), false);
   assert.equal(source.includes("@/lib/crypto/vault"), false);
   assert.match(source, /removeDevicePush/);

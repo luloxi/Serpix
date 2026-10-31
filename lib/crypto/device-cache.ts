@@ -1,16 +1,56 @@
 // Optional "recordar en este dispositivo". Default off: nothing is written unless
 // `remember` is true. The device key is a non-extractable AES-GCM CryptoKey kept in
 // IndexedDB (structured clone). It wraps the raw DEK. Sign-out deletes the database.
-// Never localStorage.
+// A delete that stays blocked is a failure: the stored key is removed first so the
+// next login cannot auto-unlock from this device. Never localStorage.
 
 import { base64UrlToBytes, bytesToBase64Url, randomBytes, utf8Encode } from "./bytes.ts";
 import { aesGcmOpen, aesGcmSeal, DecryptError, EnvelopeError } from "./envelope.ts";
 
 export const DEVICE_DB_NAME = "serpix-e2e-device";
 export const DEVICE_STORE = "kv";
+/** How long a sign-out waits for other tabs to release the device database. */
+export const DEVICE_WIPE_BLOCKED_MS = 3000;
 
 const DEVICE_KEY_ID = "device-key";
 const DEK_ID = "dek";
+
+/** `deleteDatabase` stayed blocked until the timeout. The session can still end. */
+export class DeviceWipeBlockedError extends Error {
+  constructor() {
+    super("device wipe blocked");
+    this.name = "DeviceWipeBlockedError";
+  }
+}
+
+const connections = new Map<IDBFactory, Set<IDBDatabase>>();
+
+function watch(idb: IDBFactory, db: IDBDatabase): void {
+  let open = connections.get(idb);
+  if (!open) {
+    open = new Set();
+    connections.set(idb, open);
+  }
+  open.add(db);
+  db.onversionchange = () => {
+    release(idb, db);
+  };
+}
+
+function release(idb: IDBFactory, db: IDBDatabase): void {
+  const open = connections.get(idb);
+  if (open) {
+    open.delete(db);
+    if (open.size === 0) connections.delete(idb);
+  }
+  db.close();
+}
+
+function closeOwnConnections(idb: IDBFactory): void {
+  const open = connections.get(idb);
+  if (!open) return;
+  for (const db of [...open]) release(idb, db);
+}
 
 type DeviceKeyRow = { id: typeof DEVICE_KEY_ID; key: CryptoKey };
 type DekRow = { id: typeof DEK_ID; userId: string; n: string; c: string };
@@ -37,7 +77,11 @@ function openDb(idb: IDBFactory): Promise<IDBDatabase> {
         db.createObjectStore(DEVICE_STORE, { keyPath: "id" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      watch(idb, db);
+      resolve(db);
+    };
     request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
   });
 }
@@ -86,7 +130,7 @@ export async function cacheDek(options: {
     } satisfies DekRow);
     await finish(tx);
   } finally {
-    db.close();
+    release(idb, db);
   }
 }
 
@@ -121,18 +165,64 @@ export async function loadCachedDek(options: { userId: string; idb?: IDBFactory 
     }
     return await aesGcmOpen(deviceKey, nonce, ciphertext, utf8Encode(`device|${options.userId}`));
   } finally {
-    db.close();
+    release(idb, db);
   }
 }
 
+/**
+ * Drop the wrapped key in its own transaction before `deleteDatabase`.
+ * A normal open connection does not block this write. Skip when the database
+ * is absent: opening would create it. `databases()` missing means we cannot
+ * tell, so we do not create one either.
+ */
+async function dropStoredRecords(idb: IDBFactory): Promise<void> {
+  const names = await knownDatabases(idb);
+  if (!names?.includes(DEVICE_DB_NAME)) return;
+  const db = await openDb(idb);
+  try {
+    if (!db.objectStoreNames.contains(DEVICE_STORE)) return;
+    const tx = db.transaction(DEVICE_STORE, "readwrite");
+    tx.objectStore(DEVICE_STORE).clear();
+    await finish(tx);
+  } finally {
+    release(idb, db);
+  }
+}
+
+function deleteDeviceDatabase(idb: IDBFactory, blockedTimeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stop = (follow: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) clearTimeout(timer);
+      follow();
+    };
+    const request = idb.deleteDatabase(DEVICE_DB_NAME);
+    request.onsuccess = () => stop(() => resolve());
+    request.onerror = () => stop(() => reject(request.error ?? new Error("IndexedDB delete failed")));
+    // Stay pending. The delete finishes when the other tabs close; until then this is not success.
+    request.onblocked = () => {
+      if (settled || timer !== undefined) return;
+      timer = setTimeout(() => {
+        stop(() => reject(new DeviceWipeBlockedError()));
+      }, blockedTimeoutMs);
+    };
+  });
+}
+
 /** Delete the device database. Sign-out calls this. Missing databases are not an error. */
-export async function clearDeviceCache(options?: { idb?: IDBFactory }): Promise<void> {
+export async function clearDeviceCache(options?: { idb?: IDBFactory; blockedTimeoutMs?: number }): Promise<void> {
   const idb = options?.idb ?? globalThis.indexedDB;
   if (!idb) return;
-  await new Promise<void>((resolve, reject) => {
-    const request = idb.deleteDatabase(DEVICE_DB_NAME);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB delete failed"));
-    request.onblocked = () => resolve();
-  });
+  const blockedTimeoutMs = options?.blockedTimeoutMs ?? DEVICE_WIPE_BLOCKED_MS;
+  closeOwnConnections(idb);
+  try {
+    await dropStoredRecords(idb);
+  } catch {
+    // The database may still be deletable. A blocked delete rejects below.
+  }
+  closeOwnConnections(idb);
+  await deleteDeviceDatabase(idb, blockedTimeoutMs);
 }
