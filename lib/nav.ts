@@ -201,6 +201,11 @@ export function sameNav(a: NavState, b: NavState): boolean {
     && a.edit?.id === b.edit?.id;
 }
 
+/** Section changes jump back to the top. Entering the agenda does not: it opens scrolled to today. */
+export function shouldResetScroll(prev: string, next: string): boolean {
+  return prev !== next && next !== "activity";
+}
+
 function hasControlOrBackslash(value: string): boolean {
   for (let i = 0; i < value.length; i++) {
     const c = value.charCodeAt(i);

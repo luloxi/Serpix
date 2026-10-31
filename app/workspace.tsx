@@ -20,7 +20,8 @@ import { useDocuments } from "@/app/documents";
 import { toneClass } from "@/lib/palette";
 import { createCoalescedLoader } from "@/lib/coalesce";
 import { clockSkew, parseTimerState, type TimerState } from "@/lib/timer";
-import { DEFAULT_NAV, buildSearch, buildUrl, closeLayer, layerOf, openLayer, parseNav, pushScreen, refine as refineHistory, sameNav, type EditTarget, type Layer, type NavState, type Section } from "@/lib/nav";
+import { DEFAULT_NAV, buildSearch, buildUrl, closeLayer, layerOf, openLayer, parseNav, pushScreen, refine as refineHistory, sameNav, shouldResetScroll, type EditTarget, type Layer, type NavState, type Section } from "@/lib/nav";
+import { resetScroll } from "@/lib/scroll-reset";
 
 const NavIcons = { home: House, contacts: Users, activity: CalendarDays, finance: Wallet, admin: ShieldCheck };
 import SignOutButton from "@/app/sign-out-button";
@@ -353,6 +354,13 @@ export default function Workspace({name,email,image,isAdmin,e2e=false,e2eMenu}:{
   const toggleTask=async(task:Item)=>{if(taskPending)return;setTaskPending(task.id);const status=task.status==="done"?"todo":"done";const r=await fetch("/api/data/tasks/"+encodeURIComponent(task.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:task.title,description:task.description,status,priority:task.priority,projectId:task.projectId||null,contactId:task.contactId||null,dueDate:task.dueDate||null})});if(!r.ok){setError("No se pudo actualizar la tarea");setTaskPending(null);return;}await load();setTaskPending(null);};
   const createTaskForContact=(contact:Item)=>{openEditor("tasks");setValues(v=>({...v,contactId:contact.id,title:"",description:""}));};
   const noteOpen=section==="activity"&&!!nav.noteId&&(histLayer==="note"||histLayer===null);
+  const prevSection=useRef<Section|null>(null);
+  useLayoutEffect(()=>{
+    const prev=prevSection.current;
+    const next=nav.section;
+    prevSection.current=next;
+    if(prev!==null&&shouldResetScroll(prev,next))resetScroll(document,window);
+  },[nav.section]);
   useLayoutEffect(()=>{
     const onPop=()=>{
       let next=parseNav(window.location.search);

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_NAV, parseNav, buildSearch, buildUrl, sameNav, safeNext,
+  DEFAULT_NAV, parseNav, buildSearch, buildUrl, sameNav, safeNext, shouldResetScroll,
   layerOf, pushScreen, refine, openLayer, closeLayer,
   type NavState, type HistoryLike, type Layer,
 } from "../lib/nav.ts";
@@ -131,6 +131,24 @@ test("legacy section= and solicitudes= links", () => {
     nav({ section: "activity", edit: { resource: "tasks", id: "t" } }),
     nav({ section: "activity", edit: { resource: "tasks", id: "u" } }),
   ), false);
+});
+
+test("shouldResetScroll is true only when the section changes and the next one is not the agenda", () => {
+  assert.equal(shouldResetScroll("home", "home"), false);
+  assert.equal(shouldResetScroll("contacts", "contacts"), false);
+  assert.equal(shouldResetScroll("activity", "activity"), false);
+  assert.equal(shouldResetScroll("home", "contacts"), true);
+  assert.equal(shouldResetScroll("contacts", "finance"), true);
+  assert.equal(shouldResetScroll("finance", "admin"), true);
+  assert.equal(shouldResetScroll("admin", "home"), true);
+  assert.equal(shouldResetScroll("home", "activity"), false);
+  assert.equal(shouldResetScroll("contacts", "activity"), false);
+  assert.equal(shouldResetScroll("finance", "activity"), false);
+  assert.equal(shouldResetScroll("admin", "activity"), false);
+  assert.equal(shouldResetScroll("activity", "home"), true);
+  assert.equal(shouldResetScroll("activity", "contacts"), true);
+  assert.equal(shouldResetScroll("activity", "finance"), true);
+  assert.equal(shouldResetScroll("activity", "admin"), true);
 });
 
 test("safeNext allows same-origin paths and rejects open redirects", () => {
