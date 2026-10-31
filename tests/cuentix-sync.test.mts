@@ -720,15 +720,23 @@ test("owner email match is case-insensitive", async () => {
   assert.equal(txs(db)[0].user_id, OWNER_ID);
 });
 
-test("ownerIsSyncable allows only an approved admin without the encryption flag", () => {
-  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved" }), true);
-  assert.equal(ownerIsSyncable({ role: "user", approvalStatus: "approved" }), false);
-  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "pending" }), false);
-  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "rejected" }), false);
+test("ownerIsSyncable accepts only an approved admin whose encryption mode is exactly server", () => {
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "server" }), true);
+  assert.equal(ownerIsSyncable({ role: "user", approvalStatus: "approved", encryptionEnabled: "server" }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "pending", encryptionEnabled: "server" }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "rejected", encryptionEnabled: "server" }), false);
+  // A missing flag used to pass, and so did a false-like flag. Neither is the mode "server".
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved" }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: undefined }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: null }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: 0 }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: false }), false);
   assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: 1 }), false);
   assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: true }), false);
   assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "1" }), false);
-  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: 0 }), true);
+  for (const mode of ["e2e", "weird", "legacy", ""]) {
+    assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: mode }), false, mode || "empty");
+  }
 });
 
 test("an encrypted user never receives Cuentix sync, even when role and email match", async () => {
@@ -753,7 +761,8 @@ test("an encrypted user never receives Cuentix sync, even when role and email ma
     assert.equal(res.status, 200);
   });
   assert.equal(count(db, "SELECT COUNT(*) AS n FROM financial_transactions"), 1);
-  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "e2e" !== "server" }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "e2e" }), false);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "server" }), true);
 });
 
 test("a database failure is 500 and the log does not include the secret or the body", async () => {

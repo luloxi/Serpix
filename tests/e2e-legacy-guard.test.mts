@@ -228,6 +228,103 @@ test("an open timer blocks activation and stays plaintext legacy data", async ()
   assert.equal(listed.legacyData, true);
 });
 
+/** The column is NOT NULL, so a NULL mode is presented as the row legacyDataContext reads. */
+function withMode(d1: ReturnType<typeof openDb>["d1"], mode: string | null) {
+  return {
+    prepare(sql: string) {
+      const stmt = d1.prepare(sql);
+      const bound = (values: unknown[]) => {
+        const row = stmt.bind(...values);
+        return {
+          async first<T>() {
+            if (sql.includes("encryption_mode")) return { mode } as T;
+            return row.first<T>();
+          },
+          all: row.all.bind(row),
+          run: row.run.bind(row),
+        };
+      };
+      return { ...bound([]), bind(...values: unknown[]) { return bound(values); } };
+    },
+    batch: d1.batch.bind(d1),
+  };
+}
+
+test("legacyDataContext returns the encrypted-account 403 unless the mode is exactly server", async () => {
+  await locked(async () => {
+    const { db, d1 } = openDb();
+    user(db, "ana");
+    db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("c1", "ana", "person", "Secreto", 1, 1);
+    setEnv(d1);
+    asUser("ana");
+    const routes = await import("../app/api/data/[resource]/route.ts");
+    const { legacyDataContext } = await import("../lib/session.ts");
+    const read = () => call(routes, "GET", "http://t.local/api/data/contacts", { params: { resource: "contacts" } });
+    const write = () => call(routes, "POST", "http://t.local/api/data/contacts", { params: { resource: "contacts" }, json: { name: "Intruso" } });
+    const stored = () => (db.prepare("SELECT COUNT(*) AS n FROM contacts").get() as { n: number }).n;
+
+    const serverCtx = await legacyDataContext();
+    assert.equal(serverCtx !== null && "userId" in serverCtx && !("encrypted" in serverCtx) && serverCtx.userId, "ana");
+    const open = await read();
+    assert.equal(open.status, 200);
+    assert.match(JSON.stringify(open.body), /Secreto/);
+
+    for (const mode of ["weird", "e2e"]) {
+      db.prepare("UPDATE user SET encryption_mode = ? WHERE id = 'ana'").run(mode);
+      assert.deepEqual(await legacyDataContext(), { encrypted: true }, mode);
+      const res = await read();
+      assert.equal(res.status, 403, mode);
+      assert.deepEqual(res.body, { error: ENCRYPTED });
+      assert.equal(res.headers["cache-control"], "no-store");
+      assert.equal(JSON.stringify(res.body).includes("Secreto"), false);
+    }
+
+    setEnv(withMode(d1, null));
+    assert.deepEqual(await legacyDataContext(), { encrypted: true }, "null");
+    const nulled = await read();
+    assert.equal(nulled.status, 403, JSON.stringify(nulled.body));
+    assert.deepEqual(nulled.body, { error: ENCRYPTED });
+    assert.equal(nulled.headers["cache-control"], "no-store");
+    const injected = await write();
+    assert.equal(injected.status, 403, JSON.stringify(injected.body));
+    assert.deepEqual(injected.body, { error: ENCRYPTED });
+    assert.equal(stored(), 1);
+
+    setEnv(d1);
+    asUser("ghost");
+    assert.equal(await legacyDataContext(), null);
+    const missing = await read();
+    assert.equal(missing.status, 401);
+    assert.deepEqual(missing.body, { error: "Unauthorized" });
+    assert.equal(JSON.stringify(missing.body).includes("Secreto"), false);
+    assert.equal(stored(), 1);
+  });
+});
+
+test("contacts GET and POST return 403 for an unknown encryption mode and store nothing", async () => {
+  await locked(async () => {
+    const { db, d1 } = openDb();
+    user(db, "ana");
+    db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("c1", "ana", "person", "Secreto", 1, 1);
+    db.prepare("UPDATE user SET encryption_mode = 'weird' WHERE id = 'ana'").run();
+    setEnv(d1);
+    asUser("ana");
+    const routes = await import("../app/api/data/[resource]/route.ts");
+    const before = (db.prepare("SELECT COUNT(*) AS n FROM contacts").get() as { n: number }).n;
+    const got = await call(routes, "GET", "http://t.local/api/data/contacts", { params: { resource: "contacts" } });
+    assert.equal(got.status, 403, JSON.stringify(got.body));
+    assert.deepEqual(got.body, { error: ENCRYPTED });
+    assert.equal(got.headers["cache-control"], "no-store");
+    assert.equal(JSON.stringify(got.body).includes("Secreto"), false);
+    const posted = await call(routes, "POST", "http://t.local/api/data/contacts", { params: { resource: "contacts" }, json: { name: "Intruso" } });
+    assert.equal(posted.status, 403, JSON.stringify(posted.body));
+    assert.deepEqual(posted.body, { error: ENCRYPTED });
+    assert.equal(posted.headers["cache-control"], "no-store");
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM contacts").get() as { n: number }).n, before);
+    assert.equal(db.prepare("SELECT id FROM contacts WHERE name = 'Intruso'").get(), undefined);
+  });
+});
+
 test("the sql.js client schema does not install the plaintext-write triggers", async () => {
   assert.equal(LOCAL_SCHEMA_SQL.includes("e2e_account_plaintext_write"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("_e2e_guard_"), false);

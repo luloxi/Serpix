@@ -129,14 +129,12 @@ export function syncTimestampFresh(timestamp: string, now: number, skew = SYNC_M
 
 /**
  * Admin and approved only. Guests and other users are never the sync target.
- * GUARD: encrypted guests. `user.encryption_mode` (migration 0015) is passed as encryptionEnabled
- * (true for anything but 'server'); an encrypted user never receives Cuentix sync.
+ * `encryptionEnabled` is `user.encryption_mode`. Only the explicit value "server" syncs.
+ * A missing flag, null, "e2e", or any other value is refused.
  */
 export function ownerIsSyncable(user: { role: string; approvalStatus: string; encryptionEnabled?: unknown }): boolean {
   if (user.role !== "admin" || user.approvalStatus !== "approved") return false;
-  const flag = user.encryptionEnabled;
-  if (flag === 1 || flag === true || flag === "1") return false;
-  return true;
+  return user.encryptionEnabled === "server";
 }
 
 export function cuentixAccountId(userId: string, currency: Currency): string {
@@ -398,9 +396,8 @@ export async function handleCuentixEvent(db: D1Like, input: CuentixSyncInput): P
   if (!email) return forbidden;
   try {
     const owner = await db.prepare("SELECT id, role, approvalStatus, encryption_mode FROM user WHERE lower(email)=? LIMIT 1").bind(email).first<OwnerRow>();
-    // GUARD: encrypted guests. encryption_mode is read with the owner and anything other than 'server'
-    // (a NULL or an unknown value included) is refused by ownerIsSyncable.
-    if (!owner || !ownerIsSyncable({ role: owner.role, approvalStatus: owner.approvalStatus, encryptionEnabled: owner.encryption_mode !== "server" })) return forbidden;
+    // The mode is passed through. ownerIsSyncable accepts only an explicit "server".
+    if (!owner || !ownerIsSyncable({ role: owner.role, approvalStatus: owner.approvalStatus, encryptionEnabled: owner.encryption_mode })) return forbidden;
     if (parsed.event.type === "delete") return await applyDelete(db, owner.id, parsed.event, input.now);
     return await applyUpsert(db, owner.id, parsed.event, input.now);
   } catch {
