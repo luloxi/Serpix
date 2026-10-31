@@ -1,6 +1,8 @@
 // DEK wraps. IKM -> HKDF-SHA-256(info = "serpix-e2e/v1/wrap/<type>") -> AES-256-GCM.
-// AAD is `wrap|<type>|<userId>|<wrapId>`. The wrap key is not extractable.
+// AAD is `wrap|<type>|<userId>|<wrapId>`. A password wrap also binds `|<m>|<t>|<p>`.
+// The wrap key is not extractable.
 
+import { isAllowedArgon2Params } from "./argon2-params.ts";
 import {
   base64UrlToBytes,
   bytesToBase64Url,
@@ -98,11 +100,27 @@ export function wrapInfo(type: string): Uint8Array {
   return utf8Encode(`${HKDF_INFO_PREFIX}${type}`);
 }
 
-export function wrapAad(type: string, userId: string, wrapId: string): Uint8Array {
+export function wrapAad(
+  type: string,
+  userId: string,
+  wrapId: string,
+  params?: { m: number; t: number; p: number },
+): Uint8Array {
   assertWrapType(type);
   assertComponent(userId, "userId");
   assertComponent(wrapId, "wrapId");
-  return utf8Encode(`wrap|${type}|${userId}|${wrapId}`);
+  if (type !== "password") return utf8Encode(`wrap|${type}|${userId}|${wrapId}`);
+  if (!params || !isAllowedArgon2Params(params)) throw new WrapError("invalid argon2 params");
+  return utf8Encode(`wrap|password|${userId}|${wrapId}|${params.m}|${params.t}|${params.p}`);
+}
+
+function passwordCost(
+  type: string,
+  params: PasswordParams | PasskeyParams | undefined,
+): { m: number; t: number; p: number } | undefined {
+  if (type !== "password") return undefined;
+  if (!params || !("m" in params) || !isAllowedArgon2Params(params)) throw new WrapError("invalid argon2 params");
+  return { m: params.m, t: params.t, p: params.p };
 }
 
 /** 256-bit AES-GCM key. `extractable` is false. */
@@ -137,7 +155,12 @@ export async function wrapDek(dekRaw: Uint8Array, ikm: Uint8Array, options: Wrap
   if (nonce.byteLength !== 12) throw new WrapError("nonce must be 12 bytes");
   const key = await deriveWrapKey(ikm, salt, options.type);
   try {
-    const sealed = await aesGcmSeal(key, nonce, dekRaw, wrapAad(options.type, options.userId, options.wrapId));
+    const sealed = await aesGcmSeal(
+      key,
+      nonce,
+      dekRaw,
+      wrapAad(options.type, options.userId, options.wrapId, passwordCost(options.type, options.params)),
+    );
     const wrap: Wrap = {
       v: 1,
       type: options.type,
@@ -206,21 +229,12 @@ export function assertWrap(value: unknown): Wrap {
   return wrap;
 }
 
-function assertUint(value: unknown, name: string, min: number, max: number): number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
-    throw new WrapError(`invalid ${name}`);
-  }
-  return value;
-}
-
 function assertParams(type: string, value: unknown): PasswordParams | PasskeyParams {
   if (!isRecord(value)) throw new WrapError("wrap params must be an object");
   if (type === "password") {
     if (!exactKeys(value, ["m", "t", "p", "salt"])) throw new WrapError("password params keys are not exact");
-    const m = assertUint(value.m, "m", 8, 262_144);
-    const t = assertUint(value.t, "t", 1, 10);
-    const p = assertUint(value.p, "p", 1, 4);
-    if (m < 8 * p) throw new WrapError("argon2 memory is below 8*p");
+    const cost = { m: value.m, t: value.t, p: value.p };
+    if (!isAllowedArgon2Params(cost)) throw new WrapError("invalid argon2 params");
     if (typeof value.salt !== "string") throw new WrapError("invalid kdf salt");
     let salt: Uint8Array;
     try {
@@ -229,7 +243,7 @@ function assertParams(type: string, value: unknown): PasswordParams | PasskeyPar
       throw new WrapError("invalid kdf salt");
     }
     if (salt.byteLength !== 16) throw new WrapError("argon2 salt must be 16 bytes");
-    return { m, t, p, salt: value.salt };
+    return { m: cost.m, t: cost.t, p: cost.p, salt: value.salt };
   }
   if (type === "passkey") {
     if (!exactKeys(value, ["prfSalt", "credentialId"])) throw new WrapError("passkey params keys are not exact");
@@ -261,7 +275,12 @@ export async function unwrapDek(wrap: Wrap, ikm: Uint8Array, ctx: { userId: stri
   const ciphertext = base64UrlToBytes(parsed.c);
   const key = await deriveWrapKey(ikm, salt, parsed.type);
   wipe(salt);
-  const raw = await aesGcmOpen(key, nonce, ciphertext, wrapAad(parsed.type, ctx.userId, ctx.wrapId));
+  const raw = await aesGcmOpen(
+    key,
+    nonce,
+    ciphertext,
+    wrapAad(parsed.type, ctx.userId, ctx.wrapId, passwordCost(parsed.type, parsed.params)),
+  );
   if (raw.byteLength !== 32) {
     wipe(raw);
     throw new DecryptError("decrypt failed");

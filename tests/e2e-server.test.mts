@@ -91,22 +91,27 @@ test("envelope shape accepts only v, n and c", () => {
 test("wrap shape checks lengths, exact keys and argon2 bounds", () => {
   const password = validateWrap(passwordWrap(), "password");
   assert.equal(password.ok, true);
+  assert.equal(validateWrap(passwordWrap({ m: 47104 }), "password").ok, true);
   const passkey = validateWrap(passkeyWrap(), "passkey");
   assert.equal(passkey.ok, true);
   assert.equal(validateWrap(passwordWrap(), "passkey").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ note: "x" }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ m: 8 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ m: 19455 }), "password").error, WRAP_ERROR);
-  assert.equal(validateWrap(passwordWrap({ m: 19456 }), "password").ok, true);
-  assert.equal(validateWrap(passwordWrap({ m: 262144 }), "password").ok, true);
+  assert.equal(validateWrap(passwordWrap({ m: 19456 }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ m: 262144 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ m: 262145 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ m: 65536.5 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ t: 0 }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ t: 1 }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ t: 10 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ t: 11 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ t: "3" }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ p: 0 }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ p: 2 }), "password").error, WRAP_ERROR);
+  assert.equal(validateWrap(passwordWrap({ p: 4 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ p: 5 }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ p: 1 }), "password").ok, true);
-  assert.equal(validateWrap(passwordWrap({ p: 4 }), "password").ok, true);
   assert.equal(validateWrap(passwordWrap({ argonSalt: "r".repeat(21) }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ salt: "s".repeat(42) }), "password").error, WRAP_ERROR);
   assert.equal(validateWrap(passwordWrap({ c: "c".repeat(63) }), "password").error, WRAP_ERROR);
@@ -210,11 +215,12 @@ test("stored wrap is canonical and the first password wrap switches the mode", a
   assert.equal(betoKeys.mode, "server");
   assert.equal(betoKeys.legacyData, false);
 
-  assert.equal((await replacePasswordWrap(d1, "beto", "pw", passwordWrap({ m: 19456 }))).error, WRAP_NOT_FOUND);
+  assert.equal((await replacePasswordWrap(d1, "beto", "pw", passwordWrap({ m: 47104 }))).error, WRAP_NOT_FOUND);
   assert.equal((await replacePasswordWrap(d1, "ana", "k0", passwordWrap())).error, REPLACE_PASSWORD_ONLY);
-  assert.equal((await replacePasswordWrap(d1, "ana", "pw", passwordWrap({ m: 19456 }))).ok, true);
+  assert.equal((await replacePasswordWrap(d1, "ana", "pw", passwordWrap({ m: 8 }))).error, WRAP_ERROR);
+  assert.equal((await replacePasswordWrap(d1, "ana", "pw", passwordWrap({ m: 47104 }))).ok, true);
   const replaced = await listKeys(d1, "ana");
-  assert.equal((replaced.wraps[0].wrap as { m: number }).m, 19456);
+  assert.equal((replaced.wraps[0].wrap as { m: number }).m, 47104);
   assert.equal((await touchWrap(d1, "beto", "pw", 99)).error, WRAP_NOT_FOUND);
   assert.equal((await touchWrap(d1, "ana", "pw", 99)).ok, true);
   assert.equal((await listKeys(d1, "ana")).wraps[0].lastUsedAt, 99);

@@ -191,7 +191,7 @@ test("keys: activation, limits, replace, touch, delete and isolation", async () 
     assert.equal(wraps.find((row) => row.id === "k0")?.credentialId, "c0");
     assert.equal(JSON.stringify(listed.body).includes("plain"), false);
 
-    const replaced = await call(routes.key, "PUT", base + "/api/e2e/keys/pw", { params: { id: "pw" }, json: { wrap: passwordWrap(19456) } });
+    const replaced = await call(routes.key, "PUT", base + "/api/e2e/keys/pw", { params: { id: "pw" }, json: { wrap: passwordWrap(47104) } });
     assert.equal(replaced.status, 200);
     assert.deepEqual(replaced.body, { ok: true });
     const notPassword = await call(routes.key, "PUT", base + "/api/e2e/keys/k0", { params: { id: "k0" }, json: { wrap: passwordWrap() } });
@@ -209,14 +209,14 @@ test("keys: activation, limits, replace, touch, delete and isolation", async () 
     asUser("beto");
     const betoList = await call(routes.keys, "GET", base + "/api/e2e/keys");
     assert.deepEqual(betoList.body, { mode: "server", wraps: [], legacyData: false });
-    const stealPut = await call(routes.key, "PUT", base + "/api/e2e/keys/pw", { params: { id: "pw" }, json: { wrap: passwordWrap(20000) } });
+    const stealPut = await call(routes.key, "PUT", base + "/api/e2e/keys/pw", { params: { id: "pw" }, json: { wrap: passwordWrap() } });
     const stealPatch = await call(routes.key, "PATCH", base + "/api/e2e/keys/k1", { params: { id: "k1" }, json: { touch: true } });
     const stealDel = await call(routes.key, "DELETE", base + "/api/e2e/keys/k1", { params: { id: "k1" } });
     assert.equal(stealPut.status, 404);
     assert.equal(stealPatch.status, 404);
     assert.equal(stealDel.status, 404);
     assert.equal(JSON.stringify(rows(db, "SELECT * FROM user_keys WHERE user_id='ana' ORDER BY id")), anaWraps);
-    assert.equal((db.prepare("SELECT wrap AS m FROM user_keys WHERE id='pw'").get() as { m: string }).m.includes("19456"), true);
+    assert.equal((db.prepare("SELECT wrap AS m FROM user_keys WHERE id='pw'").get() as { m: string }).m.includes("47104"), true);
     assert.equal((listed.body as { legacyData: boolean }).legacyData, false);
   });
 });
