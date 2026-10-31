@@ -28,7 +28,7 @@ const NONCE = hexToBytes("c0c1c2c3c4c5c6c7c8c9cacb");
 const ENVELOPE = '{"v":1,"n":"wMHCw8TFxsfIycrL","c":"e2pJBhodtGS6mJnDEIDKOCMHhh0GwNwrS60vyY1fAjH6vWF2rorJ695zj8RHzKM"}';
 const HKDF_SALT = hexToBytes("a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf");
 const WRAP_NONCE = "0NHS09TV1tfY2drb";
-const PASSWORD_C = "cg4KLWcgZO39iK0Wq6DswWN2NVVOqX-9adZNnLySgJhnfn5PZ2ZfOaTHpYPmfBIQ";
+const PASSWORD_C = "cg4KLWcgZO39iK0Wq6DswWN2NVVOqX-9adZNnLySgJgmXTX_XH3yHhvhLBt9m1PK";
 const PASSKEY_C = "-L2djdVmiG5NA5xbpo_FR_KghUr_pF2Q6APVObk2UhanyWVo5aqtskQy4Ly5zXcr";
 const SALT_B64 = "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8";
 
@@ -121,7 +121,9 @@ test("wrap goldens for password and passkey types", async () => {
     assert.equal(wrap.wrapId, sample.wrapId);
 
     const nodeNonce = Buffer.from("d0d1d2d3d4d5d6d7d8d9dadb", "hex");
-    const nodeAad = Buffer.from(`wrap|${sample.type}|user-1|${sample.wrapId}`, "utf8");
+    // Password wraps bind the Argon2id cost. Passkey wraps do not. HKDF and the nonce stay as published.
+    const cost = sample.type === "password" ? "|65536|3|1" : "";
+    const nodeAad = Buffer.from(`wrap|${sample.type}|user-1|${sample.wrapId}${cost}`, "utf8");
     const nodeCipher = createCipheriv("aes-256-gcm", okm, nodeNonce);
     nodeCipher.setAAD(nodeAad);
     const nodeCt = Buffer.concat([nodeCipher.update(DEK), nodeCipher.final(), nodeCipher.getAuthTag()]);

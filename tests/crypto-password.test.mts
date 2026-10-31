@@ -2,7 +2,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { wipe } from "../lib/crypto/bytes.ts";
+import { bytesToBase64Url, wipe } from "../lib/crypto/bytes.ts";
 import { DecryptError } from "../lib/crypto/envelope.ts";
 import {
   ARGON2_ITERATIONS,
@@ -17,6 +17,7 @@ import {
   PasswordPolicyError,
   type PasswordParams,
 } from "../lib/crypto/password.ts";
+import { WrapError, assertWrap, type Wrap } from "../lib/crypto/wrap.ts";
 import { hexToBytes } from "./helpers/codec.ts";
 
 const dek = hexToBytes("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
@@ -113,9 +114,49 @@ test("password wrap round trip, wrong password, and stored m", { timeout: 180_00
     wipe(opened);
   }
   await assert.rejects(() => openPasswordWrap(wrap, "Wrong-Horse-99!!", ctx), DecryptError);
+});
 
-  const cheap: typeof wrap = { ...wrap, params: { ...params, m: 8192 } };
-  await assert.rejects(() => openPasswordWrap(cheap, "Correct-Horse-99", ctx), DecryptError);
+test("openPasswordWrap rejects argon2 costs outside the two presets before deriving", async () => {
+  const kdfSalt = bytesToBase64Url(new Uint8Array(16).fill(9));
+  const shell = (cost: { m: number; t: number; p: number }): Wrap => ({
+    v: 1,
+    type: "password",
+    userId: ctx.userId,
+    wrapId: ctx.wrapId,
+    salt: bytesToBase64Url(new Uint8Array(32).fill(1)),
+    n: bytesToBase64Url(new Uint8Array(12).fill(2)),
+    c: bytesToBase64Url(new Uint8Array(48).fill(3)),
+    params: { ...cost, salt: kdfSalt },
+  });
+  // m=8 is first: on the old floor it is legal, so a failure stops before m=262144 could run the KDF.
+  const hostile = [
+    { m: 8, t: 3, p: 1 },
+    { m: 19456, t: 3, p: 1 },
+    { m: 65536, t: 1, p: 1 },
+    { m: 65536, t: 10, p: 1 },
+    { m: 65536, t: 3, p: 2 },
+    { m: 262144, t: 3, p: 1 },
+  ];
+  let calls = 0;
+  const derive = async () => {
+    calls += 1;
+    throw new Error("kdf was reached");
+  };
+  for (const cost of hostile) {
+    calls = 0;
+    const wrap = shell(cost);
+    assert.throws(() => assertWrap(wrap), WrapError);
+    const started = performance.now();
+    await assert.rejects(() => openPasswordWrap(wrap, "Correct-Horse-99", { ...ctx, derive }), WrapError);
+    assert.equal(calls, 0);
+    if (cost.m === 262144) assert.ok(performance.now() - started < 250);
+  }
+  for (const m of [ARGON2_MEMORY_KIB, ARGON2_MEMORY_SLOW_KIB]) {
+    const accepted = assertWrap(shell({ m, t: ARGON2_ITERATIONS, p: ARGON2_PARALLELISM }));
+    assert.equal((accepted.params as PasswordParams).m, m);
+    assert.equal((accepted.params as PasswordParams).t, ARGON2_ITERATIONS);
+    assert.equal((accepted.params as PasswordParams).p, ARGON2_PARALLELISM);
+  }
 });
 
 test("a timer of exactly 2000 ms keeps the 64 MiB parameter", { timeout: 120_000 }, async () => {

@@ -102,3 +102,56 @@ test("assertWrap rejects a malformed wrap", async () => {
     WrapError,
   );
 });
+
+test("assertWrap accepts only the two argon2 presets", () => {
+  const salt = bytesToBase64Url(new Uint8Array(16).fill(4));
+  const good = {
+    v: 1 as const,
+    type: "password",
+    userId: "user-1",
+    wrapId: "wrap-1",
+    salt: bytesToBase64Url(new Uint8Array(32).fill(1)),
+    n: bytesToBase64Url(new Uint8Array(12).fill(2)),
+    c: bytesToBase64Url(new Uint8Array(48).fill(3)),
+  };
+  for (const m of [65536, 47104]) {
+    assert.equal(assertWrap({ ...good, params: { m, t: 3, p: 1, salt } }).type, "password");
+  }
+  const hostile = [
+    { m: 8, t: 3, p: 1 },
+    { m: 19456, t: 3, p: 1 },
+    { m: 262144, t: 3, p: 1 },
+    { m: 65536, t: 1, p: 1 },
+    { m: 65536, t: 10, p: 1 },
+    { m: 65536, t: 3, p: 2 },
+  ];
+  for (const cost of hostile) {
+    assert.throws(() => assertWrap({ ...good, params: { ...cost, salt } }), WrapError);
+  }
+});
+
+test("password wrap AAD binds the argon2 cost", async () => {
+  const params = { m: 65536, t: 3, p: 1, salt: bytesToBase64Url(new Uint8Array(16).fill(4)) };
+  const wrap = await wrapDek(dek, ikm, {
+    type: "password",
+    userId: "user-1",
+    wrapId: "wrap-1",
+    rng: sequentialRng(0x11),
+    params,
+  });
+  const raw = await unwrapDek(wrap, ikm, { userId: "user-1", wrapId: "wrap-1" });
+  assert.equal(bytesToHex(raw), bytesToHex(dek));
+  wipe(raw);
+  await assert.rejects(
+    () => unwrapDek({ ...wrap, params: { ...params, m: 47104 } }, ikm, { userId: "user-1", wrapId: "wrap-1" }),
+    DecryptError,
+  );
+  await assert.rejects(
+    () => unwrapDek({ ...wrap, params: { ...params, t: 1 } }, ikm, { userId: "user-1", wrapId: "wrap-1" }),
+    WrapError,
+  );
+  await assert.rejects(
+    () => unwrapDek({ ...wrap, params: { ...params, p: 2 } }, ikm, { userId: "user-1", wrapId: "wrap-1" }),
+    WrapError,
+  );
+});

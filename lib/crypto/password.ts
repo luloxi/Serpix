@@ -4,16 +4,25 @@
 // vector (which sets both) is not used here. Production derivation passes neither.
 
 import { argon2id } from "hash-wasm";
+import {
+  ARGON2_ITERATIONS,
+  ARGON2_MEMORY_KIB,
+  ARGON2_MEMORY_SLOW_KIB,
+  ARGON2_PARALLELISM,
+  isAllowedArgon2Params,
+} from "./argon2-params.ts";
 import { base64UrlToBytes, bytesToBase64Url, copyBytes, randomBytes, wipe } from "./bytes.ts";
 import { DecryptError, type ByteRng } from "./envelope.ts";
 import { assertWrap, unwrapDek, wrapDek, WrapError, type PasswordParams, type Wrap } from "./wrap.ts";
 
-/** 64 MiB. The setup default. */
-export const ARGON2_MEMORY_KIB = 65_536;
-/** 46 MiB. Used when the 64 MiB derivation takes more than two seconds. */
-export const ARGON2_MEMORY_SLOW_KIB = 47_104;
-export const ARGON2_ITERATIONS = 3;
-export const ARGON2_PARALLELISM = 1;
+export {
+  ARGON2_ITERATIONS,
+  ARGON2_MEMORY_KIB,
+  ARGON2_MEMORY_SLOW_KIB,
+  ARGON2_PARALLELISM,
+  isAllowedArgon2Params,
+};
+
 export const ARGON2_SLOW_MS = 2_000;
 
 export type Argon2Params = { m: number; t: number; p: number };
@@ -81,6 +90,7 @@ export type PasswordWrapOptions = {
   rng?: ByteRng;
 };
 
+/** Wide bounds for the primitive, including the published m=256 vector. Wraps use isAllowedArgon2Params. */
 function assertArgonParams(params: Argon2Params): void {
   if (!Number.isInteger(params.m) || params.m < 8 || params.m > 262_144) throw new Error("invalid argon2 memory");
   if (!Number.isInteger(params.t) || params.t < 1 || params.t > 10) throw new Error("invalid argon2 iterations");
@@ -158,17 +168,24 @@ export async function createPasswordWrap(
 export async function openPasswordWrap(
   wrap: Wrap,
   password: string,
-  ctx: { userId: string; wrapId: string },
+  ctx: {
+    userId: string;
+    wrapId: string;
+    /** Replaces Argon2id. Production leaves this unset. A rejected cost never calls it. */
+    derive?: (password: string, salt: Uint8Array, params: Argon2Params) => Promise<Uint8Array>;
+  },
 ): Promise<Uint8Array> {
   const parsed = assertWrap(wrap);
   if (parsed.type !== "password" || !parsed.params || !("m" in parsed.params)) {
     throw new WrapError("not a password wrap");
   }
   const params: PasswordParams = parsed.params;
+  if (!isAllowedArgon2Params(params)) throw new WrapError("invalid argon2 params");
   // A mismatched id cannot be the right AAD. Fail before the memory-hard KDF.
   if (parsed.userId !== ctx.userId || parsed.wrapId !== ctx.wrapId) throw new DecryptError("decrypt failed");
   const salt = base64UrlToBytes(params.salt);
-  const ikm = await deriveArgon2id(password, salt, { m: params.m, t: params.t, p: params.p });
+  const derive = ctx.derive ?? deriveArgon2id;
+  const ikm = await derive(password, salt, { m: params.m, t: params.t, p: params.p });
   wipe(salt);
   try {
     return await unwrapDek(parsed, ikm, ctx);

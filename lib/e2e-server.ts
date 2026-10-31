@@ -1,4 +1,5 @@
 // Server side of encrypted accounts. Shape checks only: the worker never decrypts.
+import { isAllowedArgon2Params } from "./crypto/argon2-params.ts";
 import type { D1Like, D1RunResult } from "./finance.ts";
 import { isDateKey } from "./recurring.ts";
 
@@ -186,8 +187,8 @@ export function validateEnvelope(blob: unknown): { ok: true } | { ok: false; sta
 
 /**
  * Key wrap. `salt` is the 32-byte HKDF salt. Password wraps also carry Argon2id
- * m/t/p (KiB, iterations, lanes) and `argonSalt` (16 bytes). Passkey wraps carry `prfSalt` (32 bytes).
- * Exact keys only, so a wrap cannot smuggle plaintext.
+ * m/t/p and `argonSalt` (16 bytes). m/t/p must be one of the two client presets.
+ * Passkey wraps carry `prfSalt` (32 bytes). Exact keys only, so a wrap cannot smuggle plaintext.
  */
 export function validateWrap(value: unknown, type: "password" | "passkey"): { ok: true; wrap: KeyWrap } | { ok: false; error: string } {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: WRAP_ERROR };
@@ -196,9 +197,10 @@ export function validateWrap(value: unknown, type: "password" | "passkey"): { ok
   if (!b64url(row.salt, HKDF_SALT_CHARS) || !b64url(row.n, NONCE_CHARS) || !b64url(row.c, WRAP_CIPHER_CHARS)) return { ok: false, error: WRAP_ERROR };
   if (type === "password") {
     if (!exactKeys(row, ["v", "type", "salt", "n", "c", "m", "t", "p", "argonSalt"])) return { ok: false, error: WRAP_ERROR };
-    if (!intIn(row.m, 19456, 262144) || !intIn(row.t, 1, 10) || !intIn(row.p, 1, 4)) return { ok: false, error: WRAP_ERROR };
+    const cost = { m: row.m, t: row.t, p: row.p };
+    if (!isAllowedArgon2Params(cost)) return { ok: false, error: WRAP_ERROR };
     if (!b64url(row.argonSalt, ARGON_SALT_CHARS)) return { ok: false, error: WRAP_ERROR };
-    return { ok: true, wrap: { v: 1, type: "password", salt: row.salt, n: row.n, c: row.c, m: row.m, t: row.t, p: row.p, argonSalt: row.argonSalt } };
+    return { ok: true, wrap: { v: 1, type: "password", salt: row.salt, n: row.n, c: row.c, m: cost.m, t: cost.t, p: cost.p, argonSalt: row.argonSalt } };
   }
   if (!exactKeys(row, ["v", "type", "salt", "n", "c", "prfSalt"])) return { ok: false, error: WRAP_ERROR };
   if (!b64url(row.prfSalt, PRF_SALT_CHARS)) return { ok: false, error: WRAP_ERROR };
