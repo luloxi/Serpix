@@ -50,4 +50,6 @@ test("admin renders Workspace directly and a non-admin goes through the gate", (
   assert.match(workspaceSource, /e2eMenu\?:\s*ReactNode/);
   assert.match(workspaceSource, /\{e2eMenu\}/);
   assert.match(workspaceSource, /<ReceiptField [^>]*e2e=\{e2e\}/);
+  // Source-level guard: no automatic third-party avatar lookup for encrypted accounts.
+  assert.match(workspaceSource, /const autoLoadAvatar=async\(c:Item\)=>\{[^\n]*\n[^\n]*\n\s*if\(e2e\|\|autoLimited/);
 });
