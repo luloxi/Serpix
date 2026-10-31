@@ -89,7 +89,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
   const renderRow = (e: Entry, overdueDate?: string, withTracked = true) => {
     const done = e.kind === "task" && e.source.status === "done";
     const tracked = withTracked && e.kind === "task" ? timeByTask[e.source.id] || 0 : 0;
-    return <div className={"agenda-row kind-" + e.kind + (done ? " is-done" : "")}>
+    return <div className={"agenda-row kind-" + e.kind + (e.kind === "task" ? " prio-" + String(e.source.priority || "normal") : "") + (done ? " is-done" : "")}>
       {e.kind === "task"
         ? <button type="button" className="checklist-toggle" aria-label={done ? "Marcar pendiente" : "Marcar como hecha"} title={done ? "Marcar pendiente" : "Marcar como hecha"} aria-pressed={done} disabled={taskPending === e.source.id} onClick={() => onToggleTask(e.source)}>{done ? <Check size={16} /> : null}</button>
         : <span className={"agenda-kind kind-" + e.kind} title={KIND_LABEL[e.kind]} role="img" aria-label={KIND_LABEL[e.kind]}>{e.kind === "event" ? <CalendarClock size={17} /> : <NotebookPen size={17} />}</span>}

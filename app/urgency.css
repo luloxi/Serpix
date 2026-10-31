@@ -1,0 +1,36 @@
+/* Urgency colors for anything that has a priority (tasks): urgent = red, high = orange, medium (normal) = yellow, low = green.
+   These are semantic colors, NOT brand colors. Soft tinted background + a solid bar on the left; text keeps the normal ink (AA).
+   Levels come from tasks.priority: urgent | high | normal | low (no data change needed). */
+:root{
+  --prio-urgent:#ef4444;--prio-high:#f97316;--prio-normal:#eab308;--prio-low:#22c55e;
+  --prio-bg:14%;
+}
+:root[data-theme="dark"]{--prio-bg:20%}
+/* tinted rows: agenda (class prio-*) and home "Próximas tareas" (matched by the check's priority class) */
+:root[data-theme] :is(.agenda-row.kind-task.prio-urgent,.home-task:has(.home-check.urgent)){--p:var(--prio-urgent)}
+:root[data-theme] :is(.agenda-row.kind-task.prio-high,.home-task:has(.home-check.high)){--p:var(--prio-high)}
+:root[data-theme] :is(.agenda-row.kind-task.prio-normal,.home-task:has(.home-check.normal)){--p:var(--prio-normal)}
+:root[data-theme] :is(.agenda-row.kind-task.prio-low,.home-task:has(.home-check.low)){--p:var(--prio-low)}
+:root[data-theme] :is(.agenda-row.kind-task[class*="prio-"],.home-task:has(.home-check)){
+  background:color-mix(in srgb,var(--p,transparent) var(--prio-bg),transparent);
+  box-shadow:inset 3px 0 0 var(--p,transparent);border-radius:10px;padding-left:12px;padding-right:10px;margin:3px 0;border-top:0;border-bottom:0}
+:root[data-theme] .agenda-row.kind-task.is-done{background:transparent;box-shadow:none}
+:root[data-theme] .agenda-list-item .agenda-row.kind-task[class*="prio-"]{margin:3px 0}
+/* the check circle uses the same level color */
+:root[data-theme] .home-check{border-color:var(--p,var(--muted))}
+:root[data-theme] .home-check.urgent{border-color:var(--prio-urgent)}
+:root[data-theme] .home-check.high{border-color:var(--prio-high)}
+:root[data-theme] .home-check.normal{border-color:var(--prio-normal)}
+:root[data-theme] .home-check.low{border-color:var(--prio-low)}
+:root[data-theme] .agenda-row.kind-task .checklist-toggle{border-color:var(--p,var(--muted))}
+/* priority pills (anywhere a .priority-* badge shows) */
+:root[data-theme] .priority-urgent{background:color-mix(in srgb,var(--prio-urgent) 16%,transparent)!important;color:color-mix(in srgb,var(--prio-urgent) 68%,#000)!important}
+:root[data-theme] .priority-high{background:color-mix(in srgb,var(--prio-high) 16%,transparent)!important;color:color-mix(in srgb,var(--prio-high) 62%,#000)!important}
+:root[data-theme] .priority-normal{background:color-mix(in srgb,var(--prio-normal) 18%,transparent)!important;color:color-mix(in srgb,var(--prio-normal) 56%,#000)!important}
+:root[data-theme] .priority-low{background:color-mix(in srgb,var(--prio-low) 16%,transparent)!important;color:color-mix(in srgb,var(--prio-low) 60%,#000)!important}
+:root[data-theme="dark"] .priority-urgent{color:color-mix(in srgb,var(--prio-urgent) 62%,#fff)!important}
+:root[data-theme="dark"] .priority-high{color:color-mix(in srgb,var(--prio-high) 62%,#fff)!important}
+:root[data-theme="dark"] .priority-normal{color:color-mix(in srgb,var(--prio-normal) 66%,#fff)!important}
+:root[data-theme="dark"] .priority-low{color:color-mix(in srgb,var(--prio-low) 62%,#fff)!important}
+/* secondary text on tinted rows: a bit darker in light mode so small text stays >= 4.5:1 */
+:root[data-theme="light"] :is(.agenda-row.kind-task[class*="prio-"],.home-task:has(.home-check)) :is(small,time,.home-task-meta){color:color-mix(in srgb,var(--muted) 72%,#000)}
