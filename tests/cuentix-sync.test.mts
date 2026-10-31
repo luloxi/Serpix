@@ -731,6 +731,31 @@ test("ownerIsSyncable allows only an approved admin without the encryption flag"
   assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: 0 }), true);
 });
 
+test("an encrypted user never receives Cuentix sync, even when role and email match", async () => {
+  for (const mode of ["e2e", "something-else"]) {
+    const { db, d1 } = setup("admin", "approved");
+    db.prepare("UPDATE user SET encryption_mode=? WHERE id=?").run(mode, OWNER_ID);
+    const raw = JSON.stringify(movement({ source_id: "enc-" + mode }));
+    await locked(async () => {
+      bindEnv(d1);
+      const res = await postEvent(raw);
+      assert.equal(res.status, 403, mode);
+      assert.deepEqual(res.body, { error: "forbidden" });
+    });
+    assert.equal(count(db, "SELECT COUNT(*) AS n FROM financial_transactions"), 0, mode);
+    assert.equal(count(db, "SELECT COUNT(*) AS n FROM financial_accounts"), 0, mode);
+  }
+  // control: the same owner in server mode (the default column value) still syncs.
+  const { d1, db } = setup("admin", "approved");
+  await locked(async () => {
+    bindEnv(d1);
+    const res = await postEvent(JSON.stringify(movement({ source_id: "enc-control" })));
+    assert.equal(res.status, 200);
+  });
+  assert.equal(count(db, "SELECT COUNT(*) AS n FROM financial_transactions"), 1);
+  assert.equal(ownerIsSyncable({ role: "admin", approvalStatus: "approved", encryptionEnabled: "e2e" !== "server" }), false);
+});
+
 test("a database failure is 500 and the log does not include the secret or the body", async () => {
   const boom: D1Like = { prepare() { throw new Error("db down"); } };
   const raw = JSON.stringify(movement());
