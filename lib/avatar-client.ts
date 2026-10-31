@@ -125,6 +125,33 @@ export async function sourcesKey(values: Record<string, unknown>): Promise<strin
   return parts.join("|");
 }
 
+/**
+ * Save looks up a photo only for a server-mode contact that has no photo yet.
+ * Encrypted accounts never call Gravatar or unavatar on their own.
+ */
+export function shouldAutoAvatarOnSave(input: {
+  e2e: boolean;
+  resource: string;
+  hasAvatarDataInValues: boolean;
+  hasPhoto: boolean;
+  key: string;
+  eligible: boolean;
+}): boolean {
+  if (input.e2e) return false;
+  if (input.resource !== "contacts") return false;
+  if (input.hasAvatarDataInValues || input.hasPhoto) return false;
+  return Boolean(input.key) && input.eligible;
+}
+
+/** Manual chip: an encrypted account must confirm once before the identifier leaves the device. */
+export function avatarFetchStep(e2e: boolean, confirmed: boolean): "fetch" | "confirm" {
+  if (!e2e || confirmed) return "fetch";
+  return "confirm";
+}
+
+export const AVATAR_EXTERNAL_WARNING = "El email o el usuario sale de este dispositivo y se envía a Gravatar o a unavatar.io.";
+export const AVATAR_EXTERNAL_CONTINUE = "Continuar";
+
 /** Whether an automatic lookup should run for this contact (never over a chosen/uploaded photo, never repeating a recent failure). */
 export function autoEligible(c: Record<string, unknown>, key: string): boolean {
   if (!key) return false;
