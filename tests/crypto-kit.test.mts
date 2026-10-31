@@ -67,6 +67,31 @@ test("the kit is Spanish, dated in UTC, and holds only the password wrap", async
   assert.match(nextDay.text, /1 de noviembre de 2026/);
 });
 
+test("the kit text and the printable page do not promise an import screen", async () => {
+  const wrap = await passwordWrap();
+  const kit = buildRecoveryKit({
+    email: "ada@example.com",
+    createdAt: "2026-10-31T12:00:00.000Z",
+    passwordWrap: wrap,
+    appUrl: "https://serpix.example",
+  });
+  const notYet = "Importar este archivo en la app todavía no está disponible.";
+  for (const body of [kit.text, kit.html]) {
+    const prose = body.replace(/\s+/g, " ");
+    assert.equal(prose.includes("importá"), false);
+    assert.equal(prose.includes("recuperar la bóveda"), false);
+    assert.equal(prose.includes(notYet), true);
+    assert.match(prose, /copia de respaldo de la clave protegida con tu contraseña/);
+    assert.match(prose, /contraseña de recuperación o con una passkey/);
+    assert.match(prose, /copia del servidor/);
+    assert.match(prose, /recuperación futura/);
+    assert.match(prose, /cuando la app permita importarlo/);
+    assert.equal(prose.includes("soporte"), false);
+  }
+  assert.deepEqual(parseRecoveryKit(kit.text), assertWrap(wrap));
+  assert.throws(() => parseRecoveryKit(kit.html), KitError);
+});
+
 test("the kit refuses a wrap that is not a password wrap", async () => {
   const wrap = await wrapDek(dek, ikm, {
     type: "backup",
