@@ -173,7 +173,8 @@ export default function Workspace({name,email,image,isAdmin,e2e=false,e2eMenu}:{
   const autoBusy=useRef<Set<string>>(new Set());
   const autoLimited=useRef(false);
   const autoLoadAvatar=async(c:Item)=>{
-    if(autoLimited.current||autoBusy.current.has(c.id))return;
+    // Encrypted accounts never send a contact's email or handle to gravatar/unavatar on their own.
+    if(e2e||autoLimited.current||autoBusy.current.has(c.id))return;
     const key=await sourcesKey(c);
     if(!autoEligible(c,key))return;
     autoBusy.current.add(c.id);
