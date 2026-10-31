@@ -64,6 +64,12 @@ test("admin never mounts the gate and the local engine only mounts for e2e invit
   assert.equal(decideGate({ role: "user", mode: "server", legacyData: true, cachedDek: true }), "legacy");
   assert.equal(decideGate({ role: "user", mode: "e2e", legacyData: true, cachedDek: false }), "unlock");
   assert.equal(decideGate({ role: "user", mode: "e2e", legacyData: true, cachedDek: true }), "auto-unlock");
+  assert.equal(decideGate({ role: "user", mode: "weird", legacyData: false, cachedDek: false }), "closed");
+  assert.notEqual(decideGate({ role: "user", mode: "weird", legacyData: false, cachedDek: false }), "onboarding");
+  assert.notEqual(decideGate({ role: "user", mode: "weird", legacyData: false, cachedDek: false }), "server");
+  assert.equal(apply([{ type: "loaded", mode: "weird", legacyData: false, hasPasskey: false, cachedDek: false }]).phase, "load-error");
+  assert.equal(apply([{ type: "loaded", mode: "", legacyData: false, hasPasskey: false, cachedDek: false }]).phase, "load-error");
+  assert.equal(apply([{ type: "loaded", mode: null, legacyData: false, hasPasskey: false, cachedDek: false }]).phase, "load-error");
 });
 
 test("gate transitions cover onboarding, legacy data, unlock and the device cache", () => {

@@ -414,3 +414,16 @@ test("the first wrap refuses every legacy table, leaves the rows, and still allo
   assert.equal(listed.legacyData, false);
   assert.equal(listed.wraps.length, 2);
 });
+
+test("encryptionMode returns the stored value, including unknown modes", async () => {
+  const { db, d1 } = openDb();
+  user(db, "ana");
+  assert.equal(await encryptionMode(d1, "missing"), null);
+  for (const mode of ["e2e", "server", "weird", ""]) {
+    db.prepare("UPDATE user SET encryption_mode = ? WHERE id = 'ana'").run(mode);
+    assert.equal(await encryptionMode(d1, "ana"), mode);
+    assert.equal((await listKeys(d1, "ana")).mode, mode);
+  }
+  db.prepare("UPDATE user SET encryption_mode = 'weird' WHERE id = 'ana'").run();
+  assert.notEqual(await encryptionMode(d1, "ana"), "server");
+});
