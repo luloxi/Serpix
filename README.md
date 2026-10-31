@@ -80,6 +80,10 @@ npm run deploy
 - Notificaciones push: Web Push con VAPID implementado sobre WebCrypto (`lib/webpush.ts`, sin dependencias; `npm test`). Se activan por dispositivo en Perfil → Notificaciones (tabla `push_subscriptions`). Al entrar una solicitud el Worker avisa a todos tus dispositivos; tocar el aviso abre la solicitud. En iPhone hay que instalar Serpix en la pantalla de inicio primero.
 - Temporizador y tiempo registrado: hoja con `HH:MM:SS` (Pausa/Reanudar y Detener), pastilla flotante al minimizar y pantalla para guardar el registro (inicio y fin en hora de Buenos Aires, ±5 min, redondeo a 15 min, tarea, facturable en ARS). El estado vive en D1 (`timer_state`, `time_entries`) y se cachea en el navegador para el primer dibujo. En Agenda (General y Lista) cada tarea muestra el tiempo acumulado; en Finanzas, el panel "Tiempo registrado".
 
+## Licencia
+
+El código es [GNU AGPL-3.0-or-later](LICENSE). Si corrés una versión modificada en un servidor, tenés que compartir su código con sus usuarios.
+
 ## Functional status (English)
 
 - Navigation: Overview · Contacts · Agenda · Finance + profile avatar (dark mode, admin, sign out).
@@ -100,3 +104,7 @@ npm run deploy
 - Money is stored in integer minor units (ARS/USD); data is isolated per user; no demo data.
 - Finance: income and expense totals are SQL aggregates with no row limit ("Ver más" pages the movements list 250 at a time), the account opening balance can be edited and is saved, and data refreshes on focus, when the tab becomes visible, and after each change (no 10 s polling).
 - Timer and time entries: a sheet with `HH:MM:SS` (Pause/Resume and Stop), a floating pill when minimized, and a screen to save the entry (start and end in Buenos Aires time, ±5 min, round up to 15 minutes, task, billable ARS). State lives in D1 (`timer_state`, `time_entries`) and is cached in the browser for the first paint. Agenda (General and List) shows tracked time on each task; Finance has a "Tiempo registrado" panel.
+
+## License
+
+The code is licensed under the [GNU AGPL-3.0-or-later](LICENSE). If you run a modified version on a server, you must share its source with its users.
