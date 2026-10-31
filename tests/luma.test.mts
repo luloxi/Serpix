@@ -301,7 +301,9 @@ test("the six-hour cron only syncs Luma and the secret stays out of git", () => 
   assert.match(worker, /event\.cron === "30 \*\/6 \* \* \*"/);
   assert.match(worker, /\["luma_sync", \(\) => runLumaSync\(env\)\]/);
   assert.match(secrets, /LUMA_ICS_URL\?: string/);
+  assert.match(secrets, /LUMA_SETTINGS_KEY\?: string/);
   assert.match(readme, /wrangler secret put LUMA_ICS_URL/);
-  assert.match(readme, /Calendar → Subscribe \/ Add to calendar/);
+  assert.match(readme, /openssl rand -hex 32 \| npx wrangler secret put LUMA_SETTINGS_KEY/);
+  assert.match(worker, /runLumaSyncForOwner\(env, fetch\)/);
   assert.equal(wrangler.includes("https://"), false);
 });

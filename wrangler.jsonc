@@ -26,12 +26,12 @@
     "MAILTOX_LINK_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
     // lulox-mcp calls the McpRpc entrypoint only for this account (must be admin and approved).
     "MCP_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
-    // Secrets (wrangler secret put, never here): BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, PORTFOLIO_INBOUND_SECRET, VAPID_PRIVATE_KEY, CUENTIX_SYNC_SECRET, LUMA_ICS_URL
+    // Secrets (wrangler secret put, never here): BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, PORTFOLIO_INBOUND_SECRET, VAPID_PRIVATE_KEY, CUENTIX_SYNC_SECRET, LUMA_ICS_URL, LUMA_SETTINGS_KEY
   },
   // Workers AI (receipt reading). Free tier: 10,000 neurons/day; model in lib/receipt.ts.
   "ai": { "binding": "AI" },
   // "0 12 * * *" daily at 12:00 UTC = 09:00 America/Buenos_Aires: overdue-invoice push, due recurring movements, unattached-receipt purge, and the Luma sync.
-  // "30 */6 * * *" runs only the Luma sync. LUMA_ICS_URL is a secret (wrangler secret put); if it is missing the sync logs luma_sync_skipped.
+  // "30 */6 * * *" runs only the Luma sync. The saved link (LUMA_SETTINGS_KEY) wins over the LUMA_ICS_URL secret; if both are missing the sync logs luma_sync_skipped.
   "triggers": { "crons": ["0 12 * * *", "30 */6 * * *"] },
   "observability": { "enabled": true }
 }

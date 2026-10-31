@@ -12,6 +12,8 @@ declare global {
     CUENTIX_SYNC_SECRET: string;
     /** Luma ICS feed (wrangler secret put LUMA_ICS_URL). Optional: the sync logs luma_sync_skipped when unset. Never log the URL. */
     LUMA_ICS_URL?: string;
+    /** AES-256-GCM key for the saved Luma ICS link, 64 hex chars. openssl rand -hex 32 | npx wrangler secret put LUMA_SETTINGS_KEY. Never log it or the URL. */
+    LUMA_SETTINGS_KEY?: string;
   }
 }
 export {};

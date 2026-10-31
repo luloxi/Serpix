@@ -35,6 +35,8 @@ const COVERED = [
   "integrations/cuentix/events/route.ts",
   "invites/redeem/route.ts",
   "luma-events/route.ts",
+  "settings/luma/route.ts",
+  "settings/luma/sync/route.ts",
   "push/subscribe/route.ts",
   "receipts/scan/route.ts",
   "receipts/[id]/route.ts",
@@ -93,6 +95,8 @@ async function api() {
     e2eCounter: await import("../app/api/e2e/counter/route.ts"),
     e2eScan: await import("../app/api/e2e/scan-ai/route.ts"),
     luma: await import("../app/api/luma-events/route.ts"),
+    lumaSettings: await import("../app/api/settings/luma/route.ts"),
+    lumaSync: await import("../app/api/settings/luma/sync/route.ts"),
   };
 }
 
@@ -150,6 +154,10 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "POST", mod: routes.e2eCounter, url: base + "/api/e2e/counter", json: { kind: "quote" } },
     { method: "POST", mod: routes.e2eScan, url: base + "/api/e2e/scan-ai" },
     { method: "GET", mod: routes.luma, url: base + "/api/luma-events" },
+    { method: "GET", mod: routes.lumaSettings, url: base + "/api/settings/luma" },
+    { method: "PUT", mod: routes.lumaSettings, url: base + "/api/settings/luma", json: { url: "https://api.lu.ma/ics/nope" } },
+    { method: "DELETE", mod: routes.lumaSettings, url: base + "/api/settings/luma" },
+    { method: "POST", mod: routes.lumaSync, url: base + "/api/settings/luma/sync" },
   );
   return out;
 }
