@@ -1,10 +1,14 @@
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { formatSummary, hashAssetFile, sha256Prefixed, verifyAgainst } from "./lib/build-manifest.mjs";
+import { fileURLToPath } from "node:url";
+import { formatSummary, hashAssetFile, hashWorkerFile, sha256Prefixed, verifyAgainst } from "./lib/build-manifest.mjs";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const defaultWorkerFile = path.join(repoRoot, ".open-next", "worker.js");
 
 function usage() {
-  console.error("Usage: node scripts/verify-build.mjs <baseUrl>");
-  console.error("       node scripts/verify-build.mjs --local <dir>");
+  console.error("Usage: node scripts/verify-build.mjs <baseUrl> [--worker <file>]");
+  console.error("       node scripts/verify-build.mjs --local <dir> [--worker <file>]");
 }
 
 function fail(message) {
@@ -26,13 +30,63 @@ async function readManifest(file) {
   }
 }
 
-async function verifyLocal(dir) {
-  const root = path.resolve(dir);
-  const manifest = await readManifest(path.join(root, ".well-known", "build.json"));
-  return verifyAgainst(manifest, (urlPath) => hashAssetFile(root, urlPath));
+function parseArgs(argv) {
+  let localDir;
+  let baseUrl;
+  let workerFile;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--local") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("-") || localDir !== undefined) return null;
+      localDir = value;
+      i += 1;
+      continue;
+    }
+    if (arg === "--worker") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("-") || workerFile !== undefined) return null;
+      workerFile = value;
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("-") || baseUrl !== undefined) return null;
+    baseUrl = arg;
+  }
+  if (localDir !== undefined && baseUrl !== undefined) return null;
+  if (localDir === undefined && baseUrl === undefined) return null;
+  return {
+    mode: localDir !== undefined ? "local" : "url",
+    target: localDir ?? baseUrl,
+    workerFile: path.resolve(workerFile ?? defaultWorkerFile),
+  };
 }
 
-async function verifyUrl(baseUrl) {
+/** Compare `manifest.worker` to the local build artifact when the manifest publishes a hash. */
+function applyWorkerCheck(result, manifest, workerFile) {
+  if (manifest.worker == null) return result;
+  const actual = hashWorkerFile(workerFile);
+  let failure = null;
+  if (actual == null) {
+    failure = { path: "worker", reason: "missing", expected: manifest.worker, actual: null, artifact: workerFile };
+  } else if (actual !== manifest.worker) {
+    failure = { path: "worker", reason: "mismatch", expected: manifest.worker, actual, artifact: workerFile };
+  }
+  return {
+    checked: result.checked + 1,
+    skipped: result.skipped,
+    failures: failure ? [...result.failures, failure] : result.failures,
+  };
+}
+
+async function verifyLocal(dir, workerFile) {
+  const root = path.resolve(dir);
+  const manifest = await readManifest(path.join(root, ".well-known", "build.json"));
+  const result = await verifyAgainst(manifest, (urlPath) => hashAssetFile(root, urlPath));
+  return applyWorkerCheck(result, manifest, workerFile);
+}
+
+async function verifyUrl(baseUrl, workerFile) {
   let base;
   try {
     base = new URL(baseUrl);
@@ -54,7 +108,7 @@ async function verifyUrl(baseUrl) {
   } catch {
     fail(`Manifest ${manifestUrl} is not JSON`);
   }
-  return verifyAgainst(manifest, async (urlPath) => {
+  const result = await verifyAgainst(manifest, async (urlPath) => {
     const fileUrl = new URL(urlPath, base.origin);
     try {
       const file = await fetch(fileUrl, { signal: AbortSignal.timeout(20_000) });
@@ -64,23 +118,21 @@ async function verifyUrl(baseUrl) {
       return null;
     }
   });
+  return applyWorkerCheck(result, manifest, workerFile);
 }
 
-const args = process.argv.slice(2);
+const args = parseArgs(process.argv.slice(2));
+if (!args) {
+  usage();
+  process.exit(1);
+}
+
 let result;
 try {
-  if (args[0] === "--local") {
-    if (!args[1] || args[2]) {
-      usage();
-      process.exit(1);
-    }
-    result = await verifyLocal(args[1]);
-  } else if (args.length === 1 && !args[0].startsWith("-")) {
-    result = await verifyUrl(args[0]);
-  } else {
-    usage();
-    process.exit(1);
-  }
+  result =
+    args.mode === "local"
+      ? await verifyLocal(args.target, args.workerFile)
+      : await verifyUrl(args.target, args.workerFile);
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 }

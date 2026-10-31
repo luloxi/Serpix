@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -13,9 +14,23 @@ export function sha256Prefixed(bytes) {
   return "sha256-" + createHash("sha256").update(bytes).digest("hex");
 }
 
+/**
+ * SHA-256 of the OpenNext worker bundle, the same value stored in `manifest.worker`.
+ * Null when the file is absent.
+ */
+export function hashWorkerFile(file) {
+  try {
+    return sha256Prefixed(readFileSync(file));
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 /** Paths the URL checker fetches. Everything else stays in the manifest for a manual audit. */
 export function isVerifiedPath(urlPath) {
-  if (urlPath === "/sw.js") return true;
+  // First-party scripts from public/. theme-init.js runs with the CSP nonce, and strict-dynamic lets it load more scripts.
+  if (urlPath === "/sw.js" || urlPath === "/theme-init.js") return true;
   if (urlPath.startsWith("/manifest")) return true;
   if (urlPath === "/_next/static" || urlPath.startsWith("/_next/static/")) return true;
   if (urlPath === "/icons" || urlPath.startsWith("/icons/")) return true;
@@ -177,12 +192,13 @@ export async function verifyAgainst(manifest, load, concurrency = VERIFY_CONCURR
 
 export function formatSummary(result) {
   const lines = [
-    `checked ${result.checked}, failed ${result.failures.length}, skipped ${result.skipped} (not under /_next/static, /icons, /vendor, /sw.js, /manifest*)`,
+    `checked ${result.checked}, failed ${result.failures.length}, skipped ${result.skipped} (not under /_next/static, /icons, /vendor, /sw.js, /theme-init.js, /manifest*)`,
   ];
   for (const failure of result.failures) {
     lines.push(`${failure.reason} ${failure.path}`);
     if (failure.expected) lines.push(`  expected ${failure.expected}`);
     if (failure.actual) lines.push(`  actual   ${failure.actual}`);
+    if (failure.artifact) lines.push(`  artifact ${failure.artifact}`);
   }
   return lines.join("\n");
 }
