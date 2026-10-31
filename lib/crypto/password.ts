@@ -304,6 +304,28 @@ function isRepeatedCommon(lower: string): boolean {
   return false;
 }
 
+/**
+ * Exact identity: the password is the email, its local part, or that local part
+ * with only digits before or after it. A longer passphrase that merely contains
+ * the email keeps the smaller penalty in passwordStrength.
+ */
+export function passwordMatchesUserIdentity(password: string, userInputs: readonly string[]): boolean {
+  const lower = password.normalize("NFKC").toLowerCase();
+  for (const raw of userInputs) {
+    if (typeof raw !== "string") continue;
+    const norm = raw.normalize("NFKC").toLowerCase().trim();
+    const at = norm.indexOf("@");
+    if (at <= 0) continue;
+    if (lower === norm) return true;
+    const local = norm.slice(0, at);
+    if (local.length < 1) continue;
+    if (lower === local) return true;
+    if (lower.length > local.length && lower.startsWith(local) && /^\d+$/.test(lower.slice(local.length))) return true;
+    if (lower.length > local.length && lower.endsWith(local) && /^\d+$/.test(lower.slice(0, lower.length - local.length))) return true;
+  }
+  return false;
+}
+
 function userTokens(userInputs: readonly string[]): string[] {
   const tokens: string[] = [];
   for (const raw of userInputs) {
@@ -347,10 +369,12 @@ export function passwordStrength(password: string, userInputs: readonly string[]
   const repeated = hasRepeatedRun(normalised);
   const sequential = hasSequentialRun(normalised);
   const personal = userTokens(userInputs).some((token) => includesToken(lower, token));
+  const identity = passwordMatchesUserIdentity(password, userInputs);
   const common = COMMON.has(lower) || isRepeatedCommon(lower);
   if (repeated) score -= 1;
   if (sequential) score -= 1;
   if (personal) score -= 1;
+  if (identity) score = Math.min(score, 1);
   if (common) score = Math.min(score, 1);
   if (length < 12) score = Math.min(score, 1);
   score = Math.max(0, Math.min(4, score));
@@ -360,7 +384,7 @@ export function passwordStrength(password: string, userInputs: readonly string[]
   if (common) issues.push("common");
   if (repeated) issues.push("repeated");
   if (sequential) issues.push("sequential");
-  if (personal) issues.push("user-input");
+  if (personal || identity) issues.push("user-input");
   if (score < 3) issues.push("low-score");
   return { score: score as PasswordStrength["score"], label: LABELS[score], issues };
 }

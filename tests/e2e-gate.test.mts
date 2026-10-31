@@ -40,6 +40,7 @@ function check(password: string, extra: { confirm?: string; understood?: boolean
     understood: extra.understood ?? true,
     deriving: extra.deriving ?? false,
     length: codePointLength(password),
+    userInputs: extra.userInputs,
   });
 }
 
@@ -313,6 +314,23 @@ test("onboarding submit matches validateRecoveryPassword", () => {
   for (const password of ["passwordpassword", "PASSWORDPASSWORD", "footballfootball"]) {
     assert.equal(check(password).canSubmit, false, password);
   }
+  const email = "user123@gmail.com";
+  assert.equal(check(email, { userInputs: [email] }).canSubmit, false);
+  assert.equal(check("qzvmhtrwkdjxpnbc", { userInputs: ["qzvmhtrwkdjxpnbc@gmail.com"] }).canSubmit, false);
+  assert.equal(check("qzvmhtrwkdjxpnbc99", { userInputs: ["qzvmhtrwkdjxpnbc@gmail.com"] }).canSubmit, false);
+  assert.equal(check("99qzvmhtrwkdjxpnbc", { userInputs: ["qzvmhtrwkdjxpnbc@gmail.com"] }).canSubmit, false);
+  const forced = onboardingValidation({
+    score: 4,
+    issues: [],
+    password: email,
+    confirm: email,
+    understood: true,
+    deriving: false,
+    length: 17,
+    email,
+  });
+  assert.equal(forced.canSubmit, false);
+  assert.equal(check("Tr0pic-Moon-42", { userInputs: [email] }).canSubmit, true);
 });
 
 test("unlock and passkey copy stays fixed and does not echo a decrypt error", () => {

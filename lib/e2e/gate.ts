@@ -1,3 +1,5 @@
+import { passwordMatchesUserIdentity } from "../crypto/password.ts";
+
 // Pure gate for encrypted accounts. No DOM, no network, no engine import.
 // Admin never mounts this. Invitees either onboard, unlock, or stay on the server
 // workspace when they already have plaintext rows.
@@ -202,6 +204,9 @@ export function onboardingValidation(input: {
   understood: boolean;
   deriving: boolean;
   length: number;
+  /** Account email. Exact email / local-part / local-part-plus-digits cannot be submitted. */
+  email?: string;
+  userInputs?: readonly string[];
 }): OnboardingCheck {
   const messages: string[] = [];
   for (const issue of input.issues) {
@@ -212,11 +217,15 @@ export function onboardingValidation(input: {
     messages.push(ISSUE["low-score"]);
   }
   if (input.confirm.length > 0 && input.confirm !== input.password) messages.push("Las contraseñas no coinciden.");
+  const identityInputs = input.userInputs ?? (input.email ? [input.email] : []);
+  const identity = identityInputs.length > 0 && passwordMatchesUserIdentity(input.password, identityInputs);
+  if (identity && !messages.includes(ISSUE["user-input"])) messages.push(ISSUE["user-input"]);
   const meter = Math.max(0, Math.min(4, Math.trunc(input.score)));
   const canSubmit = !input.deriving
     && input.understood
     && input.length >= 12
     && input.score >= 3
+    && !identity
     && !input.issues.includes("low-score")
     && input.password.length > 0
     && input.password === input.confirm;
