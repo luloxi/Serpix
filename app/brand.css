@@ -117,9 +117,10 @@
 :root[data-theme] .icon-button{background:color-mix(in srgb,var(--ink) 5%,transparent)!important;border:0!important;color:var(--ink);cursor:pointer}
 :root[data-theme] .icon-button:hover{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)}
 
-/* + button (FAB): pure black disc, thick Serpix ouroboros ring around it (public/icons/fab-ring.v5.png, ~7 KB, no $), duck-yellow plus, no halo. */
-:root[data-theme] .add-trigger{border:0!important;outline:0;background-color:#000!important;background-image:url(/icons/fab-ring.v5.png)!important;background-size:100% 100%!important;background-repeat:no-repeat!important;background-position:center!important;color:var(--brand-yellow)!important;box-shadow:0 6px 18px rgb(0 0 0/.4),0 0 0 1px rgb(255 255 255/.07)!important;cursor:pointer;transition:transform .15s,box-shadow .15s}
-:root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;box-shadow:0 8px 24px rgb(171 150 255/.5),0 0 0 1px rgb(255 255 255/.1)!important}
+/* + button (FAB): the ring itself is the outer edge (public/icons/fab-ring.v6.png: black hole inside, transparent outside, no black margin), a round box so nothing square peeks out, duck-yellow plus. Shadow follows the ring silhouette (drop-shadow, not box-shadow): soft in light, a little deeper in dark. */
+:root[data-theme] .add-trigger{border:0!important;outline:0;border-radius:50%!important;background-color:transparent!important;background-image:url(/icons/fab-ring.v6.png)!important;background-size:100% 100%!important;background-repeat:no-repeat!important;background-position:center!important;color:var(--brand-yellow)!important;box-shadow:none!important;filter:drop-shadow(0 3px 7px rgb(24 28 52/.2));cursor:pointer;transition:transform .15s,filter .15s}
+:root[data-theme="dark"] .add-trigger{filter:drop-shadow(0 4px 9px rgb(0 0 0/.55))}
+:root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;filter:drop-shadow(0 5px 11px rgb(171 150 255/.4))}
 :root[data-theme] .add-trigger:active{transform:scale(.96)!important}
 :root[data-theme] .add-trigger:focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:3px!important}
 :root[data-theme] .add-trigger svg{width:23px!important;height:23px!important;stroke-width:3.4;filter:none}
