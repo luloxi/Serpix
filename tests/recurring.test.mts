@@ -140,3 +140,45 @@ test("deleting a rule keeps its movements; deleting a movement does not bring it
   db.prepare("DELETE FROM recurring_rules WHERE id=?").run(id);
   assert.equal(count(db, "recurring_id IS NULL"), 2);
 });
+
+test("one failing rule does not stop the other due rules", async () => {
+  const { db, d1 } = setup();
+  const first = await newRule(d1, db, "ana", "a1", "2026-07-15", "monthly");
+  const middle = await newRule(d1, db, "ana", "a1", "2026-08-15", "monthly");
+  const last = await newRule(d1, db, "ana", "a1", "2026-09-15", "monthly");
+  const dbLike = {
+    prepare(sql: string) {
+      const stmt = d1.prepare(sql);
+      return {
+        bind(...values: unknown[]) {
+          const bound = stmt.bind(...(values as []));
+          return {
+            all: bound.all.bind(bound),
+            first: bound.first.bind(bound),
+            async run() {
+              if (sql.includes("INSERT OR IGNORE INTO financial_transactions") && values.includes(middle)) {
+                throw new Error("e2e_account_plaintext_write");
+              }
+              return bound.run();
+            },
+          };
+        },
+      };
+    },
+  };
+  const logs: unknown[][] = [];
+  const previous = console.error;
+  console.error = (...args: unknown[]) => { logs.push(args); };
+  try {
+    const result = await generateDue(dbLike as unknown as typeof d1, null, "2026-10-31", 20);
+    assert.equal(result.failed, 1);
+    assert.equal(result.rules, 3);
+    assert.ok(result.created >= 2);
+    assert.ok(count(db, "recurring_id='" + first + "'") > 1);
+    assert.equal(count(db, "recurring_id='" + middle + "'"), 1);
+    assert.ok(count(db, "recurring_id='" + last + "'") > 1);
+    assert.deepEqual(logs, [["generateDue rule failed", middle]]);
+  } finally {
+    console.error = previous;
+  }
+});

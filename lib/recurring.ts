@@ -138,29 +138,36 @@ export type RuleRow = {
  * plus INSERT OR IGNORE means running it twice, or two runs at once, never duplicates a period.
  * Pass userId to limit it to one user (lazy catch-up when the app loads); null for the daily cron.
  */
-export async function generateDue(db: D1Like, userId: string | null, today: string, now = Date.now()): Promise<{ rules: number; created: number }> {
+export async function generateDue(db: D1Like, userId: string | null, today: string, now = Date.now()): Promise<{ rules: number; created: number; failed: number }> {
   const sql = "SELECT id,user_id,account_id,contact_id,kind,amount_minor,category,description,frequency,anchor_date,end_date,from_date,generated_through FROM recurring_rules WHERE status='active'"
     + (userId ? " AND user_id=?" : "") + " AND (generated_through IS NULL OR generated_through < ?) LIMIT 500";
   const stmt = userId ? db.prepare(sql).bind(userId, today) : db.prepare(sql).bind(today);
   const rows = (await stmt.all<RuleRow>()).results ?? [];
   let created = 0;
+  let failed = 0;
   for (const rule of rows) {
-    const dates = dueDates({ anchorDate: rule.anchor_date, frequency: rule.frequency, endDate: rule.end_date, fromDate: rule.from_date, generatedThrough: rule.generated_through }, today);
-    for (const date of dates) {
-      const id = recurringIdFactory ? recurringIdFactory(rule.id, date) : crypto.randomUUID();
-      const result = await db.prepare("INSERT OR IGNORE INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at,recurring_id,recurring_period) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
-        .bind(id, rule.user_id, rule.account_id, rule.contact_id, rule.kind, rule.amount_minor, rule.category, rule.description, date, now, rule.id, date).run();
-      created += result.meta.changes;
-      if (result.meta.changes) await reconcileManual(db, rule.user_id, id, now);
+    try {
+      const dates = dueDates({ anchorDate: rule.anchor_date, frequency: rule.frequency, endDate: rule.end_date, fromDate: rule.from_date, generatedThrough: rule.generated_through }, today);
+      for (const date of dates) {
+        const id = recurringIdFactory ? recurringIdFactory(rule.id, date) : crypto.randomUUID();
+        const result = await db.prepare("INSERT OR IGNORE INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at,recurring_id,recurring_period) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+          .bind(id, rule.user_id, rule.account_id, rule.contact_id, rule.kind, rule.amount_minor, rule.category, rule.description, date, now, rule.id, date).run();
+        created += result.meta.changes;
+        if (result.meta.changes) await reconcileManual(db, rule.user_id, id, now);
+      }
+      const limit = rule.end_date && rule.end_date < today ? rule.end_date : today;
+      // If the per-run cap cut the list short, advance only to the last date handled so the next run continues.
+      const through = dates.length >= MAX_PER_RUN ? dates[dates.length - 1] : limit;
+      const over = !!rule.end_date && rule.end_date < today && dates.length < MAX_PER_RUN;
+      await db.prepare("UPDATE recurring_rules SET generated_through=?, status=?, updated_at=? WHERE id=? AND user_id=?")
+        .bind(through, over ? "ended" : "active", now, rule.id, rule.user_id).run();
+    } catch {
+      failed += 1;
+      // Rule id only. The error can carry a row and must not be logged.
+      console.error("generateDue rule failed", rule.id);
     }
-    const limit = rule.end_date && rule.end_date < today ? rule.end_date : today;
-    // If the per-run cap cut the list short, advance only to the last date handled so the next run continues.
-    const through = dates.length >= MAX_PER_RUN ? dates[dates.length - 1] : limit;
-    const over = !!rule.end_date && rule.end_date < today && dates.length < MAX_PER_RUN;
-    await db.prepare("UPDATE recurring_rules SET generated_through=?, status=?, updated_at=? WHERE id=? AND user_id=?")
-      .bind(through, over ? "ended" : "active", now, rule.id, rule.user_id).run();
   }
-  return { rules: rows.length, created };
+  return { rules: rows.length, created, failed };
 }
 
 export const RULES_SQL = "SELECT r.id, r.kind, r.amount_minor AS amountMinor, r.category, r.description, r.frequency, r.anchor_date AS anchorDate, r.end_date AS endDate, r.status, r.account_id AS accountId, a.name AS accountName, a.currency AS currency, r.contact_id AS contactId FROM recurring_rules r JOIN financial_accounts a ON a.id = r.account_id AND a.user_id = r.user_id WHERE r.user_id = ? ORDER BY CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, r.category COLLATE NOCASE";
