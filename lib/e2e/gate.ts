@@ -18,7 +18,7 @@ export const BOOT_FAILED = "No se pudo abrir el espacio cifrado. Reintentá.";
 
 export const COPY = {
   onboardingTitle: "Activá tu cifrado",
-  onboardingBody: "Tus datos se cifran en este navegador antes de salir. El servidor solo guarda el texto cifrado, y no puede leerlo.",
+  onboardingBody: "Tus datos se cifran en este navegador antes de salir. El servidor guarda el texto cifrado y no puede leerlo. También ve, entre otras cosas, los identificadores y las fechas de creación y de modificación. En presupuestos y facturas ve el tipo de documento, el número, el estado y la fecha de vencimiento. Si pedís la lectura con IA, ve el texto de ese ticket.",
   onboardingNeed: "Para abrirlos más adelante necesitás la contraseña de recuperación o la passkey de un dispositivo. Si perdés las dos, no hay forma de recuperar los datos.",
   onboardingAi: "La lectura de tickets con IA manda ese ticket en claro, y solo si lo pedís en ese ticket. Esto no es una factura de ARCA.",
   passwordLabel: "Contraseña de recuperación",
