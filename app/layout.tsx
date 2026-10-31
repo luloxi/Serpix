@@ -4,6 +4,7 @@ import "./brand.css";
 import "./urgency.css";
 import "./documents.css";
 import "./gastos.css";
+import { E2eEngineSlot } from "./e2e-slot";
 
 export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
@@ -41,7 +42,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: 'try{var t=localStorage.getItem("serpix-theme")==="dark"?"dark":"light";document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}' }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <E2eEngineSlot />
+        {children}
+      </body>
     </html>
   );
 }

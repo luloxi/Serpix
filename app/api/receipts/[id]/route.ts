@@ -19,7 +19,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     "Referrer-Policy": "no-referrer",
   };
   if (row.mime !== "application/pdf") headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
-  return new Response(Buffer.from(row.data, "base64"), { headers });
+  const binary = atob(row.data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Response(bytes, { headers });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

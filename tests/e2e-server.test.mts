@@ -114,6 +114,7 @@ test("wrap shape checks lengths, exact keys and argon2 bounds", () => {
   assert.equal(validRecordId("a".repeat(121)), false);
   assert.equal(validRecordId("a b"), false);
   assert.equal(validCollection("contacts"), true);
+  assert.equal(validCollection("receipt_files"), true);
   assert.equal(validCollection("inquiries"), false);
 });
 

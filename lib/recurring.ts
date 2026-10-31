@@ -10,6 +10,24 @@ export type RuleStatus = (typeof RULE_STATUSES)[number];
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MAX_PER_RUN = 400;
 
+type RecurringIdFactory = (ruleId: string, period: string) => string;
+let recurringIdFactory: RecurringIdFactory | null = null;
+let recurringIdUsers = 0;
+
+/**
+ * Engine-only. Generated movements share an id per rule and period so two devices converge.
+ * Server mode leaves this unset and keeps crypto.randomUUID().
+ */
+export function setRecurringIdFactory(next: RecurringIdFactory | null): void {
+  if (next) {
+    recurringIdFactory = next;
+    recurringIdUsers += 1;
+    return;
+  }
+  recurringIdUsers = Math.max(0, recurringIdUsers - 1);
+  if (recurringIdUsers === 0) recurringIdFactory = null;
+}
+
 export function isDateKey(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const m = DATE_RE.exec(value);
@@ -129,7 +147,7 @@ export async function generateDue(db: D1Like, userId: string | null, today: stri
   for (const rule of rows) {
     const dates = dueDates({ anchorDate: rule.anchor_date, frequency: rule.frequency, endDate: rule.end_date, fromDate: rule.from_date, generatedThrough: rule.generated_through }, today);
     for (const date of dates) {
-      const id = crypto.randomUUID();
+      const id = recurringIdFactory ? recurringIdFactory(rule.id, date) : crypto.randomUUID();
       const result = await db.prepare("INSERT OR IGNORE INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at,recurring_id,recurring_period) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(id, rule.user_id, rule.account_id, rule.contact_id, rule.kind, rule.amount_minor, rule.category, rule.description, date, now, rule.id, date).run();
       created += result.meta.changes;
