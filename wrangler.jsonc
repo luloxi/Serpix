@@ -24,6 +24,8 @@
     "CUENTIX_SYNC_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
     // Mailtox reads and upserts contacts only for this account (must be admin and approved). Same owner as CUENTIX_SYNC_OWNER_EMAIL.
     "MAILTOX_LINK_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
+    // lulox-mcp calls the McpRpc entrypoint only for this account (must be admin and approved).
+    "MCP_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
     // Secrets (wrangler secret put, never here): BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, PORTFOLIO_INBOUND_SECRET, VAPID_PRIVATE_KEY, CUENTIX_SYNC_SECRET
   },
   // Workers AI (receipt reading). Free tier: 10,000 neurons/day; model in lib/receipt.ts.

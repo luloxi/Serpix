@@ -109,9 +109,10 @@ async function e2eBlocks(db: D1Like, userId: string): Promise<boolean> {
   return row?.mode !== "server";
 }
 
-type Gate = { ok: true; userId: string } | { ok: false; status: "no_owner" | "skipped_e2e" };
+export type OwnerGate = { ok: true; userId: string } | { ok: false; status: "no_owner" | "skipped_e2e" };
 
-async function resolveOwner(db: D1Like, ownerEmail: string | undefined): Promise<Gate> {
+/** Admin + approved only. `skipped_e2e` when `encryption_mode` exists and is not exactly `server`. */
+export async function resolveOwner(db: D1Like, ownerEmail: string | undefined): Promise<OwnerGate> {
   const email = ownerEmail?.trim().toLowerCase() ?? "";
   if (!email) return { ok: false, status: "no_owner" };
   const owner = await db.prepare("SELECT id, role, approvalStatus FROM user WHERE lower(email)=?").bind(email).first<OwnerRow>();
