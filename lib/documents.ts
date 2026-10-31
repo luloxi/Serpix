@@ -1,4 +1,5 @@
 // Presupuestos y facturas (comprobantes internos, NO fiscales). Pure helpers + D1 operations; no Next.js or Cloudflare imports so node:test can load them.
+import { isE2ePlaintextWrite } from "./e2e/plaintext-error.ts";
 import type { D1Bound } from "./finance.ts";
 import { reconcileManual } from "./cuentix-sync.ts";
 
@@ -269,8 +270,7 @@ export async function convertQuote(db: DocDb, userId: string, quoteId: string, t
     const r = await createDocument(db, userId, input, now, { sourceQuoteId: quoteId });
     return r as Result<{ id?: string; number?: number; existed?: boolean }>;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("e2e_account_plaintext_write")) throw error;
+    if (isE2ePlaintextWrite(error)) throw error;
     // Unique index on source_quote_id: a parallel call already converted it.
     const again = await getDocument(db, userId, quoteId);
     if (again?.invoiceId) return { status: 200, body: { ok: true, id: again.invoiceId, existed: true } };

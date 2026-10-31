@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { SQLITE_CONSTRAINT_TRIGGER, isE2ePlaintextWrite } from "../lib/e2e/plaintext-error.ts";
+
+test("plaintext-write detection accepts the token, D1 text, code 1811 and nested causes", () => {
+  assert.equal(SQLITE_CONSTRAINT_TRIGGER, 1811);
+  assert.equal(isE2ePlaintextWrite(new Error("e2e_account_plaintext_write")), true);
+  assert.equal(isE2ePlaintextWrite("D1_ERROR: e2e_account_plaintext_write: SQLITE_CONSTRAINT"), true);
+  const wrapped = new Error("D1_ERROR: e2e_account_plaintext_write: SQLITE_CONSTRAINT");
+  assert.equal(isE2ePlaintextWrite(wrapped), true);
+  const withCause = new Error("batch failed");
+  withCause.cause = new Error("e2e_account_plaintext_write");
+  assert.equal(isE2ePlaintextWrite(withCause), true);
+  const nested = new Error("outer");
+  const mid = new Error("mid");
+  mid.cause = "D1_ERROR: e2e_account_plaintext_write: SQLITE_CONSTRAINT";
+  nested.cause = mid;
+  assert.equal(isE2ePlaintextWrite(nested), true);
+  const coded = new Error("SQLITE_CONSTRAINT");
+  (coded as Error & { code: number }).code = 1811;
+  assert.equal(isE2ePlaintextWrite(coded), true);
+  const errcode = { errcode: 1811, message: "constraint" };
+  assert.equal(isE2ePlaintextWrite(errcode), true);
+  assert.equal(isE2ePlaintextWrite({ code: "SQLITE_CONSTRAINT_TRIGGER" }), true);
+  const unique = new Error("UNIQUE constraint failed: contacts.id");
+  (unique as Error & { code: number }).code = 2067;
+  assert.equal(isE2ePlaintextWrite(unique), false);
+  assert.equal(isE2ePlaintextWrite(new Error("SQLITE_CONSTRAINT")), false);
+  assert.equal(isE2ePlaintextWrite({ errcode: 19, message: "constraint failed" }), false);
+  assert.equal(isE2ePlaintextWrite(null), false);
+});
