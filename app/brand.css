@@ -118,13 +118,15 @@
 :root[data-theme] .icon-button:hover{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)}
 
 /* + button (FAB): the ring itself is the outer edge (public/icons/fab-ring.v6.png: black hole inside, transparent outside, no black margin), a round box so nothing square peeks out, duck-yellow plus. Shadow follows the ring silhouette (drop-shadow, not box-shadow): soft in light, a little deeper in dark. */
-:root[data-theme] .add-trigger{border:0!important;outline:0;border-radius:50%!important;background-color:transparent!important;background-image:url(/icons/fab-ring.v6.png)!important;background-size:100% 100%!important;background-repeat:no-repeat!important;background-position:center!important;color:var(--brand-yellow)!important;box-shadow:none!important;filter:drop-shadow(0 3px 7px rgb(24 28 52/.2));cursor:pointer;transition:transform .15s,filter .15s}
+:root[data-theme] .add-trigger{border:0!important;outline:0;border-radius:50%!important;background-color:transparent!important;background-image:none!important;color:var(--brand-yellow)!important;box-shadow:none!important;filter:drop-shadow(0 3px 7px rgb(24 28 52/.2));cursor:pointer;transition:transform .15s,filter .15s}
 :root[data-theme="dark"] .add-trigger{filter:drop-shadow(0 4px 9px rgb(0 0 0/.55))}
 :root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;filter:drop-shadow(0 5px 11px rgb(171 150 255/.4))}
 :root[data-theme] .add-trigger:active{transform:scale(.96)!important}
 :root[data-theme] .add-trigger:focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:3px!important}
 /* FAB glow: a ::before halo just outside the ouroboros (radial mask solid from the center, hidden under the opaque ring, so no gap shows when it grows) that grows and shrinks once per brand color, pink -> violet -> cyan, ~2s each (6s loop, colors cross-fade while the glow is at its lowest, so there are no jumps). Only background-color/opacity/transform animate on a ~1.4x box, no filter or blur in the loop; it stacks with the drop-shadow above. */
 :root[data-theme] .add-trigger{position:relative}
+/* The ring lives in ::after (painted after the ::before glow, both at z-index -1 inside the button's stacking context), so the glow always stays behind the ouroboros and the + sits on top. */
+:root[data-theme] .add-trigger::after{content:"";position:absolute;inset:0;border-radius:50%;z-index:-1;pointer-events:none;background:url(/icons/fab-ring.v6.png) center/100% 100% no-repeat}
 :root[data-theme] .add-trigger::before{content:"";position:absolute;inset:-22%;border-radius:50%;z-index:-1;pointer-events:none;background-color:var(--brand-pink);opacity:.4;transform:scale(.92);will-change:opacity,transform;-webkit-mask-image:radial-gradient(circle closest-side,#000 66%,rgb(0 0 0/.35) 80%,transparent 100%);mask-image:radial-gradient(circle closest-side,#000 66%,rgb(0 0 0/.35) 80%,transparent 100%);animation:fab-glow 6s ease-in-out infinite}
 @keyframes fab-glow{
 0%{background-color:var(--brand-pink);opacity:.3;transform:scale(.92)}
