@@ -1,0 +1,68 @@
+/* Presupuestos y facturas. Only the four brand colors (plus the urgency red for overdue), everything through tokens. */
+.doc-panel{padding:19px 20px;margin-top:14px}
+.doc-panel .panel-title{flex-wrap:wrap}
+.doc-panel-actions{display:flex;align-items:center;gap:8px}
+.doc-panel .segmented-field{display:inline-flex}
+.doc-panel .segmented-field button{border:0;background:transparent;padding:6px 10px;font-size:11px;font-weight:700}
+.doc-internal{font:700 9px/1 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-violet-ink);background:var(--brand-violet-soft);border-radius:99px;padding:4px 8px;margin-left:6px;vertical-align:middle;cursor:help}
+.doc-row{width:100%;display:grid;grid-template-columns:62px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:12px 10px;margin:0;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);text-align:left;cursor:pointer;border-radius:0;position:relative}
+.doc-row:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.doc-num{font:800 11px Manrope,sans-serif;color:var(--brand-pink-ink)}
+.doc-main{display:grid;gap:2px;min-width:0}
+.doc-main strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-main small{font-size:10px;color:var(--muted)}
+.doc-amount{font:700 12px Manrope,sans-serif;white-space:nowrap}
+.doc-row.is-void{opacity:.55}
+.doc-row.is-void .doc-amount{text-decoration:line-through}
+.doc-row.is-overdue{background:color-mix(in srgb,var(--prio-urgent,#ef4444) 10%,transparent);box-shadow:inset 3px 0 0 var(--prio-urgent,#ef4444)}
+.doc-row.is-overdue:hover{background:color-mix(in srgb,var(--prio-urgent,#ef4444) 16%,transparent)}
+.doc-badge{font:700 9px/1 'DM Sans',sans-serif;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:5px 8px;white-space:nowrap;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--muted)}
+.doc-badge.doc-sent{background:var(--brand-cyan-soft);color:var(--brand-cyan-ink)}
+.doc-badge.doc-paid{background:var(--brand-yellow-soft);color:var(--brand-yellow-ink)}
+.doc-badge.doc-billed{background:var(--brand-violet-soft);color:var(--brand-violet-ink)}
+.doc-badge.doc-overdue{background:color-mix(in srgb,var(--prio-urgent,#ef4444) 18%,transparent);color:color-mix(in srgb,var(--prio-urgent,#ef4444) 80%,var(--ink))}
+.doc-badge.doc-void{text-decoration:line-through}
+#doc-title .doc-badge{vertical-align:middle;margin-left:6px}
+.doc-alert .home-panel-head h3{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,var(--prio-urgent,#ef4444) 80%,var(--ink))}
+.doc-alert{border-color:color-mix(in srgb,var(--prio-urgent,#ef4444) 45%,transparent)!important}
+.doc-alert .doc-row{grid-template-columns:62px minmax(0,1fr) auto 16px}
+.doc-modal{width:min(100%,680px)}
+.doc-fields{border:0;margin:0;padding:0;min-width:0;display:grid;gap:16px}
+.doc-fields:disabled{opacity:.92}
+.doc-lines{display:grid;gap:8px}
+.doc-lines-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;color:var(--muted)}
+.doc-lines-tools{display:flex;gap:4px}
+.doc-lines-tools .text-button{display:inline-flex;align-items:center;gap:4px}
+.doc-line{display:grid;grid-template-columns:70px minmax(0,1fr) auto 30px;gap:6px;align-items:center;padding:8px;border-radius:10px;background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.doc-line input{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:11px;background:var(--surface);color:var(--ink)}
+.doc-line-desc{grid-column:1/-1}
+.doc-line-qty{grid-column:1;grid-row:2;text-align:right}
+.doc-line-price{grid-column:2;grid-row:2;text-align:right}
+.doc-line-total{grid-column:3;grid-row:2;min-width:96px;font:700 11px Manrope,sans-serif;text-align:right}
+.doc-line-remove{grid-column:4;grid-row:2;width:30px;height:30px;font-size:12px;padding:0}
+.doc-notes{display:grid;gap:7px;font-size:10px;font-weight:700;color:var(--muted)}
+.doc-notes textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;background:transparent;color:var(--ink);resize:vertical}
+.doc-import{display:grid;gap:8px;margin-top:12px;padding:12px;border-radius:12px;background:var(--brand-cyan-soft)}
+.doc-import label{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:11px;cursor:pointer}
+.doc-import small{color:var(--muted);font-size:10px}
+.doc-import-actions{display:flex;justify-content:flex-end;gap:8px}
+.doc-total{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:13px 16px;border-radius:12px;background:#000;color:#fff}
+.doc-total span{font:700 10px 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:rgb(255 255 255/.72)}
+.doc-total strong{font:800 19px Manrope,sans-serif;color:var(--brand-yellow)}
+.doc-pay{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-top:14px;padding:12px;border-radius:12px;background:var(--brand-yellow-soft)}
+.doc-pay label{display:grid;gap:6px;font-size:10px;font-weight:700;color:var(--muted);flex:1;min-width:130px}
+.doc-pay select,.doc-pay input{border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;background:var(--surface);color:var(--ink)}
+.doc-note{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--brand-yellow-ink);margin:12px 0 0}
+.doc-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px}
+.doc-icon-btn{display:inline-flex;align-items:center;gap:6px}
+.doc-actions .doc-danger{margin-left:auto;color:color-mix(in srgb,var(--prio-urgent,#ef4444) 80%,var(--ink))}
+.doc-actions button:disabled,.doc-lines button:disabled{cursor:not-allowed}
+.doc-fields:disabled :is(input,select,textarea){cursor:not-allowed}
+@media (max-width:640px){
+  .doc-panel{padding:15px}
+  .doc-row{grid-template-columns:54px minmax(0,1fr) auto;row-gap:6px}
+  .doc-row .doc-badge{grid-column:2;justify-self:start}
+  .doc-alert .doc-row{grid-template-columns:54px minmax(0,1fr) auto 16px}
+}
+.doc-panel .panel-title h2{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.doc-internal{margin-left:0;white-space:nowrap}
