@@ -47,6 +47,20 @@ export const LEGACY_TABLES = [
   "timer_state",
 ] as const;
 
+/**
+ * Plaintext tables with the same abort trigger, including children (migration 0017).
+ * Activation still scans only LEGACY_TABLES: a child row implies its parent.
+ */
+export const PLAINTEXT_GUARD_EXTRA = [
+  "document_items",
+  "document_time_entries",
+  "activity_contacts",
+  "contact_relationships",
+  "inquiries",
+] as const;
+
+export const PLAINTEXT_GUARD_TABLES = [...LEGACY_TABLES, ...PLAINTEXT_GUARD_EXTRA] as const;
+
 export const MAX_BLOB_CHARS = 1_900_000;
 export const MAX_ROWS_PER_COLLECTION = 50_000;
 export const MAX_WRAPS = 5;
