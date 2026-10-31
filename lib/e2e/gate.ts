@@ -57,7 +57,6 @@ const ISSUE: Record<string, string> = {
   repeated: "Repite el mismo carácter varias veces seguidas.",
   sequential: "Tiene una secuencia fácil de adivinar.",
   "user-input": "No uses tu email ni tu nombre.",
-  "single-class": "Usá al menos dos tipos de caracteres.",
   "low-score": "Es demasiado débil: hace falta más longitud o más variedad.",
 };
 
@@ -191,9 +190,8 @@ export type OnboardingCheck = {
 
 /**
  * Button stays disabled until the recovery password passes the same bar as
- * validateRecoveryPassword (12 code points, score >= 3, and at least two
- * character classes), the confirm matches, and the loss checkbox is on.
- * `single-class` in `issues` is that class check. `deriving` keeps the button
+ * validateRecoveryPassword (12 code points and score >= 3, no composition rule),
+ * the confirm matches, and the loss checkbox is on. `deriving` keeps the button
  * disabled while Argon2id runs.
  */
 export function onboardingValidation(input: {
@@ -219,7 +217,6 @@ export function onboardingValidation(input: {
     && input.understood
     && input.length >= 12
     && input.score >= 3
-    && !input.issues.includes("single-class")
     && !input.issues.includes("low-score")
     && input.password.length > 0
     && input.password === input.confirm;
