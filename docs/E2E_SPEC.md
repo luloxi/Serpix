@@ -23,7 +23,7 @@ Wrap key derivation: `IKM -> HKDF-SHA-256(salt = 32 random bytes stored in the w
 - Both wraps open the same DEK. Passkey is the fast path; the password is the universal recovery. If the passkey has no PRF, sign-in to the vault is by password only.
 - **Recovery kit**: a downloadable/printable file with the account email, date, plain-language instructions, and a copy of the password wrap blob (so the vault can be recovered even if the server lost it). It never contains the password or the DEK. Losing both passkey and password = data is lost forever (no operator recovery); the UI says so and requires an explicit confirmation.
 
-## 5. Server model (migration 0014, additive only)
+## 5. Server model (migration 0015, additive only)
 - `user.encryption_mode TEXT NOT NULL DEFAULT 'server'` (`'server'|'e2e'`). Only a non-admin, approved user can switch to `'e2e'`, once, atomically with creating the first wrap.
 - `user_keys(id PK, user_id, type, wrap TEXT json, credential_id TEXT NULL, created_at, last_used_at)`; at most one `password` wrap per user; the last wrap cannot be deleted.
 - `records(user_id, collection, id, seq, version, blob, created_at, updated_at, deleted, doc_type, doc_number, doc_status, doc_due_date, PK(user_id,collection,id))` (seq = per-user monotonic sync cursor). Writes use optimistic concurrency (`expected version`), tombstones for deletes (blob replaced with an empty-envelope marker), cursor-based listing by `updated_at/seq`. Per-record size cap (1.9 M chars of blob). Per-user caps (rows per collection).

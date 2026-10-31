@@ -34,7 +34,7 @@ La lectura automática de tickets arranca apagada para quien entra por invitaci�
 
 ## Cuentas cifradas (en desarrollo, sin publicar)
 
-El servidor no descifra: guarda el sobre y revisa solo su forma. La migración `migrations/0014_e2e.sql` está en el repositorio y sigue sin aplicarse en D1.
+El servidor no descifra: guarda el sobre y revisa solo su forma. La migración `migrations/0015_e2e.sql` está en el repositorio y sigue sin aplicarse en D1.
 
 Rutas (sesión aprobada, JSON, `Cache-Control: no-store`):
 

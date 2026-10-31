@@ -1,4 +1,4 @@
--- E2E para invitados (fase C, no publicada): modo de cuenta, envolturas de la clave de datos y almacén de registros cifrados.
+-- E2E para invitados (fase C, no publicada; 0014 es cuentix_sync): modo de cuenta, envolturas de la clave de datos y almacén de registros cifrados.
 -- Solo aditivo. Ver docs/E2E_SPEC.md.
 ALTER TABLE user ADD COLUMN encryption_mode TEXT NOT NULL DEFAULT 'server';
 
