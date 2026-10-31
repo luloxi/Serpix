@@ -117,13 +117,13 @@
 :root[data-theme] .icon-button{background:color-mix(in srgb,var(--ink) 5%,transparent)!important;border:0!important;color:var(--ink);cursor:pointer}
 :root[data-theme] .icon-button:hover{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)}
 
-/* + button (FAB): one clean gradient disc, a single soft glow, no ring or border */
-:root[data-theme] .add-trigger{border:0!important;outline:0;background:var(--brand-gradient)!important;color:var(--on-brand)!important;
+/* + button (FAB): one clean gradient disc with a duck-yellow plus (thicker stroke + thin dark halo for legibility), a single soft glow, no ring or border */
+:root[data-theme] .add-trigger{border:0!important;outline:0;background:var(--brand-gradient)!important;color:var(--brand-yellow)!important;
   box-shadow:0 6px 18px rgb(171 150 255/.38)!important;cursor:pointer;transition:transform .15s,box-shadow .15s}
 :root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;box-shadow:0 8px 24px rgb(171 150 255/.5)!important}
 :root[data-theme] .add-trigger:active{transform:scale(.96)!important}
 :root[data-theme] .add-trigger:focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:3px!important}
-:root[data-theme] .add-trigger svg{stroke-width:2.6}
+:root[data-theme] .add-trigger svg{stroke-width:3.2;filter:drop-shadow(0 0 1px rgb(18 17 28/.75)) drop-shadow(0 1px 1.5px rgb(18 17 28/.5))}
 :root[data-theme] .agenda-fab button,:root[data-theme] .agenda-fab .secondary-button{cursor:pointer}
 
 /* Inputs: hairline, brand focus */
