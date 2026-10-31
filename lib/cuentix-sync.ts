@@ -332,6 +332,10 @@ function versionResult(stored: number | null, version: number): SyncResult {
 async function applyUpsert(db: D1Like, userId: string, event: UpsertEvent, now: number): Promise<SyncResult> {
   const current = await loadStored(db, userId, event.sourceId);
   if (current && current.source_version != null && Number(current.source_version) >= event.version) return versionResult(current.source_version, event.version);
+  if (!current) {
+    const tomb = await db.prepare("SELECT version FROM integration_tombstones WHERE source=? AND source_id=? AND user_id=?").bind(NONCE_SOURCE, event.sourceId, userId).first<{ version: number }>();
+    if (tomb && Number(tomb.version) >= event.version) return { status: 200, body: { ok: true, applied: false, reason: "stale" } };
+  }
   const accountId = await ensureAccount(db, userId, event.currency, now);
   const id = current?.id ?? cuentixTxId(event.sourceId);
   const wrote = await db.prepare(
@@ -349,18 +353,22 @@ async function applyUpsert(db: D1Like, userId: string, event: UpsertEvent, now: 
 async function applyDelete(db: D1Like, userId: string, event: DeleteEvent, now: number): Promise<SyncResult> {
   const current = await loadStored(db, userId, event.sourceId);
   if (current && current.source_version != null && Number(current.source_version) >= event.version) return versionResult(current.source_version, event.version);
-  const accountId = await ensureAccount(db, userId, "ARS", now);
-  const id = current?.id ?? cuentixTxId(event.sourceId);
-  // A delete of a row we have not seen yet leaves a tombstone so a late older upsert cannot create it.
+  if (!current) {
+    // Nothing to delete. Remember the version in a side table (no financial row, no account) so a late older upsert cannot create it.
+    await db.prepare(
+      "INSERT INTO integration_tombstones (source, source_id, user_id, version, ts) VALUES (?,?,?,?,?) ON CONFLICT(source, source_id) DO UPDATE SET version=excluded.version, ts=excluded.ts WHERE integration_tombstones.version < excluded.version",
+    ).bind(NONCE_SOURCE, event.sourceId, userId, event.version, now).run();
+    return { status: 200, body: { ok: true, applied: false, reason: "unseen" } };
+  }
   const wrote = await db.prepare(
-    "INSERT INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at,updated_at,source,source_id,source_version,deleted_at,excluded_from_totals,linked_to,link_suppressed) VALUES (?,?,?,NULL,'expense',1,'Cuentix',NULL,'1970-01-01',?,?,?,?,?,?,1,NULL,NULL) ON CONFLICT(source, source_id) WHERE source IS NOT NULL DO UPDATE SET deleted_at=excluded.deleted_at, source_version=excluded.source_version, updated_at=excluded.updated_at, linked_to=NULL, link_suppressed=NULL, excluded_from_totals=0 WHERE financial_transactions.user_id=excluded.user_id AND financial_transactions.source_version < excluded.source_version",
-  ).bind(id, userId, accountId, now, now, NONCE_SOURCE, event.sourceId, event.version, now).run();
+    "UPDATE financial_transactions SET deleted_at=?, source_version=?, updated_at=?, linked_to=NULL, link_suppressed=NULL, excluded_from_totals=0 WHERE id=? AND user_id=? AND source=? AND (source_version IS NULL OR source_version < ?)",
+  ).bind(now, event.version, now, current.id, userId, NONCE_SOURCE, event.version).run();
   if (wrote.meta.changes === 0) {
     const again = await loadStored(db, userId, event.sourceId);
     if (!again) return unavailable;
     return versionResult(again.source_version, event.version);
   }
-  if (current?.linked_to) await clearCounterpart(db, userId, current.linked_to, now);
+  if (current.linked_to) await clearCounterpart(db, userId, current.linked_to, now);
   return { status: 200, body: { ok: true, applied: true } };
 }
 

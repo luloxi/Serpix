@@ -21,3 +21,13 @@ CREATE TABLE IF NOT EXISTS integration_nonces (
   PRIMARY KEY (source, nonce)
 );
 CREATE INDEX IF NOT EXISTS idx_integration_nonces_ts ON integration_nonces(source, ts);
+
+-- Delete received for an id never seen: remember its version here (not in financial_transactions) so an older upsert arriving late is ignored.
+CREATE TABLE IF NOT EXISTS integration_tombstones (
+  source TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  PRIMARY KEY (source, source_id)
+);

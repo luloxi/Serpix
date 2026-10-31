@@ -371,20 +371,19 @@ test("a later higher version un-deletes the movement", async () => {
   assert.equal((await getFinanceTotals(d1, OWNER_ID)).ARS.incomeMinor, 7000);
 });
 
-test("a delete of an unseen id leaves a tombstone a stale upsert cannot fill", async () => {
+test("a delete of an unseen id creates no financial row or account and a stale upsert cannot fill it", async () => {
   const { db, d1 } = setup();
+  const accountsBefore = (db.prepare("SELECT COUNT(*) AS n FROM financial_accounts").get() as { n: number }).n;
   await locked(async () => {
     bindEnv(d1);
-    const removed = await postEvent(JSON.stringify({ v: 1, event_id: crypto.randomUUID(), type: "delete", source: "cuentix", source_id: "ghost-1", version: 5, amount_minor: 9999, kind: "income" }));
-    assert.deepEqual(removed.body, { ok: true, applied: true });
+    const removed = await postEvent(JSON.stringify({ v: 1, event_id: crypto.randomUUID(), type: "delete", source: "cuentix", source_id: "ghost-1", version: 5 }));
+    assert.deepEqual(removed.body, { ok: true, applied: false, reason: "unseen" });
+    assert.equal(txs(db).length, 0);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM financial_accounts").get() as { n: number }).n, accountsBefore);
     const stale = await postEvent(JSON.stringify(movement({ source_id: "ghost-1", version: 4, amount_minor: 9999 })));
     assert.deepEqual(stale.body, { ok: true, applied: false, reason: "stale" });
+    assert.equal(txs(db).length, 0);
   });
-  const row = txs(db)[0];
-  assert.ok(row.deleted_at != null);
-  assert.equal(row.amount_minor, 1);
-  assert.equal(row.occurred_at, "1970-01-01");
-  assert.equal(row.source_version, 5);
   assert.equal((await getFinanceTotals(d1, OWNER_ID)).transactionCount, 0);
   await locked(async () => {
     bindEnv(d1);
