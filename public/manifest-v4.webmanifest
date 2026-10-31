@@ -17,9 +17,5 @@
     { "src": "/icons/icon-512.v4.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-192.v4.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/icons/icon-512.v4.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "shortcuts": [
-    { "name": "Nuevo contacto", "short_name": "Contacto", "url": "/dashboard?section=contacts", "icons": [{ "src": "/icons/icon-192.v4.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Ver tareas", "short_name": "Tareas", "url": "/dashboard?section=tasks", "icons": [{ "src": "/icons/icon-192.v4.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

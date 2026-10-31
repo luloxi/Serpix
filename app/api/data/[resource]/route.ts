@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/auth";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
+import { ACCOUNTS_SQL } from "@/lib/finance";
 
 export const dynamic = "force-dynamic";
 const resources = ["contacts", "projects", "tasks", "accounts", "transactions", "activities"] as const;
@@ -20,19 +21,32 @@ function validResource(value: string): value is Resource { return resources.incl
 function str(value: unknown, max = 5000): string { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function nullable(value: unknown, max = 5000): string | null { return str(value, max) || null; }
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T { return allowed.includes(value as T) ? value as T : fallback; }
+function pageInt(raw: string | null, fallback: number, min: number, max: number): number {
+  if (raw == null || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
 
-export async function GET(_request: Request, { params }: { params: Promise<{ resource: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ resource: string }> }) {
   const { resource } = await params;
   if (!validResource(resource)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const ctx = await context(); if ("response" in ctx) return ctx.response;
   const { db, userId } = ctx;
+  if (resource === "transactions") {
+    const url = new URL(request.url);
+    const limit = pageInt(url.searchParams.get("limit"), 250, 1, 5000);
+    const offset = pageInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
+    const result = await db.prepare(query).bind(userId, limit, offset).all();
+    return NextResponse.json({ items: result.results });
+  }
   let query: string;
   switch (resource) {
     case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, relations, github_url AS githubUrl, CASE WHEN avatar_data IS NOT NULL THEN 1 ELSE 0 END AS hasAvatar, avatar_source AS avatarSource, avatar_tried_at AS avatarTriedAt, avatar_tried_key AS avatarTriedKey, updated_at AS updatedAt, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
     case "projects": query = "SELECT id, name, description, status, start_date AS startDate, due_date AS dueDate, created_at AS createdAt FROM projects WHERE user_id = ? ORDER BY updated_at DESC"; break;
     case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
-    case "accounts": query = "SELECT a.id, a.name, a.currency, a.opening_balance_minor AS openingBalanceMinor, a.opening_balance_minor + COALESCE((SELECT SUM(CASE WHEN t.kind = 'income' THEN t.amount_minor ELSE -t.amount_minor END) FROM financial_transactions t WHERE t.account_id = a.id AND t.user_id = a.user_id), 0) AS balanceMinor FROM financial_accounts a WHERE a.user_id = ? ORDER BY a.name"; break;
-    case "transactions": query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT 250"; break;
+    case "accounts": query = ACCOUNTS_SQL; break;
     case "activities": query = "SELECT a.id, a.kind, a.title, a.body, a.occurred_at AS occurredAt, a.created_at AS createdAt, (SELECT group_concat(ac.contact_id, ',') FROM activity_contacts ac WHERE ac.activity_id=a.id) AS contactIds, (SELECT group_concat(c.name, ', ') FROM activity_contacts ac JOIN contacts c ON c.id=ac.contact_id WHERE ac.activity_id=a.id) AS contactNames FROM activities a WHERE a.user_id = ? ORDER BY a.occurred_at DESC, a.created_at DESC LIMIT 500"; break;
   }
   const result = await db.prepare(query).bind(userId).all();

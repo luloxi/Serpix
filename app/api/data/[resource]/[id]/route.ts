@@ -1,5 +1,6 @@
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
+import { updateAccount } from "@/lib/finance";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -45,11 +46,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         result=await db.prepare("UPDATE tasks SET title=?,description=?,status=?,priority=?,due_date=?,project_id=?,contact_id=?,updated_at=? WHERE id=? AND user_id=?").bind(title,nullable(b.description),pick(b.status,["todo","in_progress","done","cancelled"] as const,"todo"),pick(b.priority,["low","normal","high","urgent"] as const,"normal"),nullable(b.dueDate,10),projectId,contactId,now,id,userId).run(); break;
       }
       case "accounts": {
-        const name=str(b.name,100); if(!name) return NextResponse.json({error:"El nombre es obligatorio"},{status:400});
-        const existing=await db.prepare("SELECT currency FROM financial_accounts WHERE id=? AND user_id=?").bind(id,userId).first<{currency:string}>();
-        if(!existing) return NextResponse.json({error:"Cuenta inexistente"},{status:404});
-        const currency=pick(b.currency,["ARS","USD"] as const,existing.currency as "ARS"|"USD");
-        result=await db.prepare("UPDATE financial_accounts SET name=?,currency=?,updated_at=? WHERE id=? AND user_id=?").bind(name,currency,now,id,userId).run(); break;
+        const updated=await updateAccount(db,userId,id,b,now);
+        return NextResponse.json(updated.body,{status:updated.status});
       }
       case "activities": {
         const title=str(b.title,200), kind=pick(b.kind,["event","note"] as const,"note");
