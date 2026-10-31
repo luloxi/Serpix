@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Clock, Maximize2, NotebookPen } from "lucide-react";
 import MonthHeading from "@/app/month-heading";
 import { dayChip, shortDate, todayBA } from "@/lib/agenda-dates";
+import type { NavState } from "@/lib/nav";
 import { toneClass } from "@/lib/palette";
 import { formatTracked } from "@/lib/timer";
 
@@ -60,18 +61,26 @@ export function Markdown({ source }: { source: string }) {
   return <div className="markdown">{blocks}</div>;
 }
 
-export default function Agenda({ tasks, activities, onToggleTask, onEditTask, onEditActivity, onDeleteTask, onDeleteActivity, taskPending, timeByTask = {} }: {
+export default function Agenda({ tasks, activities, onToggleTask, onEditTask, onEditActivity, onDeleteTask, onDeleteActivity, taskPending, timeByTask = {}, tab, filter, month, day, noteId, noteOpen, onNav, onOpenNote, onCloseNote }: {
   tasks: AgendaItem[]; activities: AgendaItem[];
   onToggleTask: (t: AgendaItem) => void; onEditTask: (t: AgendaItem) => void; onEditActivity: (a: AgendaItem) => void;
   onDeleteTask: (t: AgendaItem) => void; onDeleteActivity: (a: AgendaItem) => void; taskPending?: string | null;
   timeByTask?: Record<string, number>;
+  tab: Tab;
+  filter: "all" | Kind;
+  month: string | null;
+  day: string | null;
+  noteId: string | null;
+  noteOpen: boolean;
+  onNav: (patch: Partial<NavState>, mode: "push" | "replace") => void;
+  onOpenNote: (id: string) => void;
+  onCloseNote: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("general");
-  const [filter, setFilter] = useState<"all" | Kind>("all");
-  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [selected, setSelected] = useState(() => todayBA());
-  const [reading, setReading] = useState<AgendaItem | null>(null);
   const today = todayBA();
+  const monthKey = month ?? today.slice(0, 7);
+  const monthDate = new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1);
+  const selected = day ?? today;
+  const reading = noteOpen && noteId ? activities.find(a => a.id === noteId) ?? null : null;
 
   const entries = useMemo<Entry[]>(() => {
     const e: Entry[] = [];
@@ -93,7 +102,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
       {e.kind === "task"
         ? <button type="button" className="checklist-toggle" aria-label={done ? "Marcar pendiente" : "Marcar como hecha"} title={done ? "Marcar pendiente" : "Marcar como hecha"} aria-pressed={done} disabled={taskPending === e.source.id} onClick={() => onToggleTask(e.source)}>{done ? <Check size={16} /> : null}</button>
         : <span className={"agenda-kind kind-" + e.kind} title={KIND_LABEL[e.kind]} role="img" aria-label={KIND_LABEL[e.kind]}>{e.kind === "event" ? <CalendarClock size={17} /> : <NotebookPen size={17} />}</span>}
-      <button type="button" className="agenda-main" title={e.kind === "note" ? "Abrir nota" : "Editar"} onClick={() => e.kind === "note" ? setReading(e.source) : e.kind === "task" ? onEditTask(e.source) : onEditActivity(e.source)}>
+      <button type="button" className="agenda-main" title={e.kind === "note" ? "Abrir nota" : "Editar"} onClick={() => e.kind === "note" ? onOpenNote(e.source.id) : e.kind === "task" ? onEditTask(e.source) : onEditActivity(e.source)}>
         <strong>{e.title}</strong>
         {e.sub && <small>{e.sub}</small>}
       </button>
@@ -216,22 +225,26 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
     </>;
   };
 
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const first = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const offset = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  const cells: (string | null)[] = [...Array(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => `${month.getFullYear()}-${pad(month.getMonth() + 1)}-${pad(i + 1)}`)];
+  const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+  const cells: (string | null)[] = [...Array(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => `${monthDate.getFullYear()}-${pad(monthDate.getMonth() + 1)}-${pad(i + 1)}`)];
 
   const empty = entries.length === 0;
   const overdueCount = entries.filter(e => isOpenTask(e) && e.day && e.day < today).length;
-  const calAway = tab === "calendar" && (selected !== today || month.getFullYear() !== Number(today.slice(0, 4)) || month.getMonth() !== Number(today.slice(5, 7)) - 1);
-  const goCalToday = () => { const d = new Date(today + "T12:00:00"); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelected(today); };
+  const calAway = tab === "calendar" && (selected !== today || monthKey !== today.slice(0, 7));
+  const goCalToday = () => onNav({ month: null, day: null }, "replace");
   const swipe = useRef<{ x: number; y: number } | null>(null);
-  const shiftMonth = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
+  const shiftMonth = (n: number) => {
+    const next = new Date(monthDate.getFullYear(), monthDate.getMonth() + n, 1);
+    const key = `${next.getFullYear()}-${pad(next.getMonth() + 1)}`;
+    onNav({ month: key === today.slice(0, 7) ? null : key }, "replace");
+  };
 
   return <div className="agenda">
     <div className="segmented-field agenda-tabs" role="tablist" aria-label="Vista de agenda">
       {([["general", "General"], ["calendar", "Calendario"], ["list", "Lista"]] as [Tab, string][]).map(([id, label]) =>
-        <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "selected" : ""} onClick={() => setTab(id)}>{label}</button>)}
+        <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "selected" : ""} onClick={() => onNav({ agendaTab: id }, "push")}>{label}</button>)}
     </div>
 
     {tab === "general" && <>
@@ -240,11 +253,11 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
     </>}
 
     {tab === "calendar" && <>
-      <section onTouchStart={ev => { swipe.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY }; }} onTouchEnd={ev => { const st = swipe.current; swipe.current = null; if (!st) return; const dx = ev.changedTouches[0].clientX - st.x, dy = ev.changedTouches[0].clientY - st.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) shiftMonth(dx < 0 ? 1 : -1); }} className={"panel calendar " + toneClass(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)}>
+      <section onTouchStart={ev => { swipe.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY }; }} onTouchEnd={ev => { const st = swipe.current; swipe.current = null; if (!st) return; const dx = ev.changedTouches[0].clientX - st.x, dy = ev.changedTouches[0].clientY - st.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) shiftMonth(dx < 0 ? 1 : -1); }} className={"panel calendar " + toneClass(monthKey)}>
         <div className="calendar-head">
-          <button type="button" className="icon-button" aria-label="Mes anterior" title="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={18} /></button>
-          <strong className="tone-text">{month.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</strong>
-          <button type="button" className="icon-button" aria-label="Mes siguiente" title="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={18} /></button>
+          <button type="button" className="icon-button" aria-label="Mes anterior" title="Mes anterior" onClick={() => shiftMonth(-1)}><ChevronLeft size={18} /></button>
+          <strong className="tone-text">{monthDate.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</strong>
+          <button type="button" className="icon-button" aria-label="Mes siguiente" title="Mes siguiente" onClick={() => shiftMonth(1)}><ChevronRight size={18} /></button>
         </div>
         <div className="calendar-grid" role="grid">
           {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => <span key={i} className="calendar-dow" aria-hidden="true">{d}</span>)}
@@ -252,7 +265,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
             if (!day) return <span key={"e" + i} />;
             const list = byDay.get(day) || [];
             const kinds = new Set(list.map(e => e.kind));
-            return <button key={day} type="button" className={"calendar-day" + (day === today ? " is-today" : "") + (day === selected ? " is-selected" : "")} aria-pressed={day === selected} aria-label={dayLabel(day) + (list.length ? ", " + list.length + " registros" : "")} onClick={() => setSelected(day)}>
+            return <button key={day} type="button" className={"calendar-day" + (day === today ? " is-today" : "") + (day === selected ? " is-selected" : "")} aria-pressed={day === selected} aria-label={dayLabel(day) + (list.length ? ", " + list.length + " registros" : "")} onClick={() => onNav({ day: day === today ? null : day }, "replace")}>
               <span>{Number(day.slice(8))}</span>
               <span className="calendar-dots" aria-hidden="true">{(["task", "event", "note"] as Kind[]).filter(k => kinds.has(k)).map(k => <i key={k} className={"agenda-dot kind-" + k} />)}</span>
             </button>;
@@ -269,7 +282,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
     {tab === "list" && <>
       <div className="segmented-field agenda-filter" role="group" aria-label="Filtrar por tipo">
         {([["all", "Todo"], ["task", "Tareas"], ["event", "Eventos"], ["note", "Notas"]] as ["all" | Kind, string][]).map(([id, label]) =>
-          <button key={id} type="button" aria-pressed={filter === id} className={filter === id ? "selected" : ""} onClick={() => setFilter(id)}>{label}</button>)}
+          <button key={id} type="button" aria-pressed={filter === id} className={filter === id ? "selected" : ""} onClick={() => onNav({ agendaKind: id }, "replace")}>{label}</button>)}
       </div>
       {renderTimeline("list")}
     </>}
@@ -284,8 +297,8 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
         <header>
           <div><h2>{String(reading.title)}</h2><small>{new Date(String(reading.occurredAt).replace(" ", "T")).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })}{reading.contactNames ? " · " + String(reading.contactNames) : ""}</small></div>
           <div className="note-reader-actions">
-            <button type="button" className="secondary-button compact" onClick={() => { const a = reading; setReading(null); onEditActivity(a); }}><Maximize2 size={14} /> Editar</button>
-            <button type="button" className="icon-button" aria-label="Cerrar" title="Cerrar" onClick={() => setReading(null)}>×</button>
+            <button type="button" className="secondary-button compact" onClick={() => onEditActivity(reading)}><Maximize2 size={14} /> Editar</button>
+            <button type="button" className="icon-button" aria-label="Cerrar" title="Cerrar" onClick={onCloseNote}>×</button>
           </div>
         </header>
         {reading.body ? <Markdown source={String(reading.body)} /> : <p className="empty-copy">Nota vacía.</p>}

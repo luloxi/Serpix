@@ -18,13 +18,13 @@ import { useDocuments } from "@/app/documents";
 import { toneClass } from "@/lib/palette";
 import { createCoalescedLoader } from "@/lib/coalesce";
 import { clockSkew, parseTimerState, type TimerState } from "@/lib/timer";
+import { DEFAULT_NAV, buildSearch, buildUrl, closeLayer, layerOf, openLayer, parseNav, pushScreen, refine as refineHistory, sameNav, type EditTarget, type Layer, type NavState, type Section } from "@/lib/nav";
 
 const NavIcons = { home: House, contacts: Users, activity: CalendarDays, finance: Wallet, admin: ShieldCheck };
 import SignOutButton from "@/app/sign-out-button";
 
 type FinTotals = { ARS: { incomeMinor: number; expenseMinor: number }; USD: { incomeMinor: number; expenseMinor: number }; transactionCount: number };
 type Item = Record<string, string | number | boolean | null | undefined> & { id: string };
-type Section = "home" | "contacts" | "activity" | "finance" | "admin";
 type Field = { key:string; label:string; type?:"text"|"textarea"|"select"|"segmented"|"relations"|"avatar"|"date"|"datetime-local"|"number"|"email"|"tel"; required?:boolean; options?:{value:string;label:string}[]; placeholder?:string };
 const sections:{id:Section;label:string;short:string}[]=[
   {id:"home",label:"Resumen",short:"Inicio"},{id:"contacts",label:"Contactos",short:"CRM"},
@@ -51,29 +51,73 @@ const socialHref=(kind:"x"|"instagram"|"telegram"|"whatsapp"|"linkedin"|"github"
 const money=(minor:number,currency:string)=>new Intl.NumberFormat("es-AR",{style:"currency",currency,maximumFractionDigits:2}).format(minor/100);
 const dateLabel=(value:unknown)=>typeof value==="string"&&value?new Date(value+"T12:00:00").toLocaleDateString("es-AR"):"Sin fecha";
 const labelStatus=(value:unknown)=>({active:"Activo",paused:"Pausado",completed:"Completado",archived:"Archivado",todo:"Pendiente",in_progress:"En curso",done:"Hecha",cancelled:"Cancelada",low:"Baja",normal:"Normal",high:"Alta",urgent:"Urgente"} as Record<string,string>)[String(value)]??String(value??"—");
+const fieldsFor=(resource:string)=>resource==="contacts"?contactFields:resource==="projects"?projectFields:resource==="tasks"?taskFields:resource==="accounts"?accountFields:resource==="activities"?activityFields:resource==="recurring"?recurringFields:transactionFields;
+function editorSeed(resource:string,item:Item|undefined,accountList:Item[]):Record<string,string>{
+  const initial:Record<string,string>={};
+  for(const f of fieldsFor(resource)){const v=item?.[f.key];initial[f.key]=v===undefined||v===null?"":String(v);}
+  if(resource==="contacts"&&item)initial.isPotential=String(Boolean(item.isPotential));
+  if(resource==="contacts")initial.relations=JSON.stringify(contactRelations(item?.relations,item?.role));
+  if(resource==="activities"&&item){initial.contactIds=String(item.contactIds||"").split(",").filter(Boolean).join(",");initial.occurredAt=String(item.occurredAt||"").replace(" ","T").slice(0,16);}
+  if(resource==="accounts"&&item)initial.openingBalance=(Number(item.openingBalanceMinor||0)/100).toFixed(2);
+  if(resource==="transactions"&&item)initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);
+  if(resource==="recurring"&&item){initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);initial.endDate=String(item.endDate||"");}
+  if(resource==="transactions"){initial.receiptId=String(item?.receiptId||"");initial.recurrence="";initial.recurrenceEnd="";}
+  if(resource==="contacts"&&!item){initial.kind="person";initial.isPotential="false";initial.phone="+54 ";}
+  if(resource==="projects"&&!item)initial.status="active";
+  if(resource==="tasks"&&!item){initial.status="todo";initial.priority="normal";}
+  if(resource==="accounts"&&!item){initial.currency="ARS";initial.openingBalance="0";}
+  if(resource==="transactions"&&!item){initial.kind="expense";initial.occurredAt=new Date().toISOString().slice(0,10);initial.accountId=String(accountList[0]?.id??"");}
+  if(resource==="activities"&&!item){initial.occurredAt=new Date(new Date().getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);initial.contactIds="";}
+  return initial;
+}
+function urlEdit(section:Section,resource:string,id:string):EditTarget|null{
+  if(!/^[A-Za-z0-9_-]{1,64}$/.test(id))return null;
+  if(section==="contacts"&&resource==="contacts")return{resource:"contacts",id};
+  if(section==="activity"&&resource==="tasks")return{resource:"tasks",id};
+  if(section==="activity"&&resource==="activities")return{resource:"activities",id};
+  if(section==="finance"&&resource==="accounts")return{resource:"accounts",id};
+  if(section==="finance"&&resource==="transactions")return{resource:"transactions",id};
+  return null;
+}
+const itemsOf=(resource:string,lists:{contacts:Item[];projects:Item[];tasks:Item[];accounts:Item[];transactions:Item[];activities:Item[]})=>resource==="contacts"?lists.contacts:resource==="projects"?lists.projects:resource==="tasks"?lists.tasks:resource==="accounts"?lists.accounts:resource==="transactions"?lists.transactions:lists.activities;
 
 export default function Workspace({name,email,image,isAdmin}:{name:string;email:string;image:string|null;isAdmin:boolean}) {
-  const [section,setSection]=useState<Section>("home");
+  const [nav,setNav]=useState<NavState>(DEFAULT_NAV);
+  const navRef=useRef(nav);
+  const section=nav.section,contactsTab=nav.contactsView,openInquiry=nav.inquiryId,roleFilter=nav.role,stateFilter=nav.relState;
+  const [histLayer,setHistLayer]=useState<Layer|null>(null);
   const [theme,setTheme]=useState<"light"|"dark">("light");
   const [addMenuOpen,setAddMenuOpen]=useState(false);
   const [profileMenuOpen,setProfileMenuOpen]=useState(false);
   const profileMenuRef=useRef<HTMLDivElement>(null);
   const addTriggerRef=useRef<HTMLButtonElement>(null);
-  const closeAddMenu=useCallback(()=>setAddMenuOpen(false),[]);
+  const timerClosing=useRef(false);
+  const armTimer=useRef(false);
+  const booted=useRef(false);
+  const editorRef=useRef<{resource:string;item?:Item}|null>(null);
+  const seenContact=useRef<string|null>(null);
   const txLimitRef=useRef(250);
   const lastLoadAt=useRef(0);
   const loaderRef=useRef<((silent?:boolean)=>Promise<void>)|null>(null);
-  const [inquiries,setInquiries]=useState<Inquiry[]>([]),[contactsTab,setContactsTab]=useState<"list"|"inquiries">("list"),[openInquiry,setOpenInquiry]=useState<string|null>(null);
+  const [inquiries,setInquiries]=useState<Inquiry[]>([]);
   const unreadInquiries=inquiries.filter(i=>i.status==="new").length;
   const [contacts,setContacts]=useState<Item[]>([]),[projects,setProjects]=useState<Item[]>([]),[tasks,setTasks]=useState<Item[]>([]),[accounts,setAccounts]=useState<Item[]>([]),[transactions,setTransactions]=useState<Item[]>([]),[activities,setActivities]=useState<Item[]>([]);
   const [finTotals,setFinTotals]=useState<FinTotals|null>(null);
   const [rules,setRules]=useState<RecurringRule[]>([]);
   const [txLimit,setTxLimit]=useState(250);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
+  const [dataReady,setDataReady]=useState(false);
   const [editor,setEditor]=useState<{resource:string;item?:Item}|null>(null),[saving,setSaving]=useState(false),[values,setValues]=useState<Record<string,string>>(empty);
+  const setEditorState=(next:{resource:string;item?:Item}|null)=>{editorRef.current=next;setEditor(next);};
   const [timer,setTimer]=useState<TimerState|null>(null),[timerSkew,setTimerSkew]=useState(0),[timeEntries,setTimeEntries]=useState<TimeEntry[]>([]),[timerView,setTimerView]=useState<TimerView>("closed");
   const timerRev=useRef(0),entriesRev=useRef(0);
-  const publishTimer=useCallback((next:TimerState|null,skew:number)=>{timerRev.current++;setTimer(next);setTimerSkew(skew);writeTimerCache(next,skew);if(!next)setTimerView("closed");},[]);
+  const closeTimerLayer=useCallback(()=>{const layer=layerOf(window.history.state);if((layer==="timer"||layer==="timer-stop")&&!timerClosing.current){timerClosing.current=true;closeLayer(window.history);setHistLayer(null);}setTimerView("closed");},[]);
+  const publishTimer=useCallback((next:TimerState|null,skew:number)=>{timerRev.current++;setTimer(next);setTimerSkew(skew);writeTimerCache(next,skew);if(!next)closeTimerLayer();},[closeTimerLayer]);
+  const onTimerView=useCallback((next:TimerView)=>{
+    if(next==="sheet"){timerClosing.current=false;openLayer(window.history,"timer");setHistLayer("timer");setTimerView("sheet");return;}
+    if(next==="stopping"){timerClosing.current=false;openLayer(window.history,"timer-stop");setHistLayer("timer-stop");setTimerView("stopping");return;}
+    closeTimerLayer();
+  },[closeTimerLayer]);
   const publishEntry=useCallback((entry:TimeEntry)=>{entriesRev.current++;setTimeEntries(es=>es.some(e=>e.id===entry.id)?es:[entry,...es].slice(0,300));},[]);
   const dropEntry=useCallback((id:string)=>{entriesRev.current++;setTimeEntries(es=>es.filter(e=>e.id!==id));},[]);
   const load=useCallback((silent=false)=>{
@@ -87,7 +131,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
           fetch("/api/finance/totals",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("No se pudieron cargar los datos");return await r.json() as FinTotals;}),
         ]);
         setContacts(results[0]);setProjects(results[1]);setTasks(results[2]);setAccounts(results[3]);setTransactions(results[4]);setActivities(results[5]);
-        setFinTotals(totals);
+        setFinTotals(totals);setDataReady(true);
         try{const ir=await fetch("/api/inquiries",{cache:"no-store"});if(ir.ok)setInquiries((await ir.json() as {items:Inquiry[]}).items);}catch{/* inquiries are optional */}
         try{const rev=timerRev.current;const tr=await fetch("/api/timer",{cache:"no-store"});if(tr.ok){const data=await tr.json() as {timer?:unknown;serverNow?:unknown};if(rev===timerRev.current&&typeof data.serverNow==="number"){const next=data.timer==null?null:parseTimerState(data.timer);if(data.timer==null||next){const skew=clockSkew(data.serverNow,Date.now());setTimerSkew(skew);setTimer(next);writeTimerCache(next,skew);if(!next)setTimerView("closed");}}}}catch{/* timer is optional */}
         try{const rev=entriesRev.current;const er=await fetch("/api/time-entries",{cache:"no-store"});if(er.ok){const items=(await er.json() as {items?:TimeEntry[]}).items;if(rev===entriesRev.current&&Array.isArray(items))setTimeEntries(items);}}catch{/* time entries are optional */}
@@ -95,9 +139,17 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
     };
     if(!loaderRef.current)loaderRef.current=createCoalescedLoader(run);
     return loaderRef.current(silent);
-  },[]);
+  },[setError]);
   useEffect(()=>{void load();},[load]);
   const docs=useDocuments({contacts,accounts,issuer:{name,email},onNotice:setNotice,onError:setError,onChanged:()=>{void load(true);}});
+  const docsRef=useRef(docs);
+  useEffect(()=>{docsRef.current=docs;});
+  const docsWasOpen=useRef(false);
+  useEffect(()=>{
+    const was=docsWasOpen.current;docsWasOpen.current=docs.open;
+    if(docs.open){if(layerOf(window.history.state)!=="doc")openLayer(window.history,"doc");setHistLayer("doc");setAddMenuOpen(false);}
+    else if(was&&layerOf(window.history.state)==="doc"){closeLayer(window.history);setHistLayer(null);}
+  },[docs.open]);
   useLayoutEffect(()=>{const cached=readTimerCache();if(!cached)return;setTimer(cached.timer);setTimerSkew(cached.skewMs);},[]);
   useEffect(()=>{const refresh=()=>{if(Date.now()-lastLoadAt.current<1500)return;void load(true);};const onVisible=()=>{if(document.visibilityState==="visible")refresh();};document.addEventListener("visibilitychange",onVisible);window.addEventListener("focus",refresh);window.addEventListener("online",refresh);return()=>{document.removeEventListener("visibilitychange",onVisible);window.removeEventListener("focus",refresh);window.removeEventListener("online",refresh);};},[load]);
   useEffect(()=>{const saved=window.localStorage.getItem("serpix-theme");const initial=saved==="dark"?"dark":"light";setTheme(initial);document.documentElement.dataset.theme=initial;document.documentElement.style.colorScheme=initial;},[]);
@@ -105,7 +157,6 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   useEffect(()=>{if(!error)return;const timer=window.setTimeout(()=>setError(""),4500);return()=>window.clearTimeout(timer);},[error]);
   useEffect(()=>{if(!profileMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setProfileMenuOpen(false);};const closeOnOutside=(event:PointerEvent)=>{if(profileMenuRef.current&&!profileMenuRef.current.contains(event.target as Node))setProfileMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);document.addEventListener("pointerdown",closeOnOutside);return()=>{window.removeEventListener("keydown",closeOnEscape);document.removeEventListener("pointerdown",closeOnOutside);};},[profileMenuOpen]);
   const inquiryAction=async(id:string,action:"read"|"unread"|"archive"|"unarchive"|"convert")=>{const r=await fetch("/api/inquiries/"+encodeURIComponent(id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action})});const j=await r.json().catch(()=>({})) as {error?:string;existed?:boolean};if(!r.ok){setError(j.error||"No se pudo actualizar la solicitud");return;}if(action==="convert"){setNotice(j.existed?"Ya había un contacto con ese mail: la solicitud quedó vinculada.":"Contacto creado desde la solicitud.");await load(true);}else{const ir=await fetch("/api/inquiries",{cache:"no-store"});if(ir.ok)setInquiries((await ir.json() as {items:Inquiry[]}).items);}};
-  useEffect(()=>{const id=new URLSearchParams(window.location.search).get("solicitudes");if(id){setSection("contacts");setContactsTab("inquiries");setOpenInquiry(id);window.history.replaceState(null,"","/dashboard");}},[]);
   useEffect(()=>{if(!openInquiry||contactsTab!=="inquiries"||section!=="contacts")return;const t=window.setTimeout(()=>document.getElementById("inq-"+openInquiry)?.scrollIntoView({block:"center",behavior:"smooth"}),300);return()=>window.clearTimeout(t);},[openInquiry,contactsTab,section,inquiries.length]);
   const toggleTheme=()=>{const next=theme==="light"?"dark":"light";setTheme(next);document.documentElement.dataset.theme=next;document.documentElement.style.colorScheme=next;window.localStorage.setItem("serpix-theme",next);};
   const totals=useMemo(()=>({openTasks:tasks.filter(t=>t.status!=="done"&&t.status!=="cancelled").length,activeProjects:projects.filter(p=>p.status==="active").length}),[tasks,projects]);
@@ -136,27 +187,72 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   };
   const [taskPending,setTaskPending]=useState<string|null>(null);
   const [noteTab,setNoteTab]=useState<"write"|"preview">("write");
-  const [roleFilter,setRoleFilter]=useState<string>("all");
-  const [stateFilter,setStateFilter]=useState<"any"|RelationState>("any");
   const [activityKind,setActivityKind]=useState<"event"|"note">("event");
+  const applyNav=(next:NavState)=>{navRef.current=next;setNav(next);};
+  const go=(patch:Partial<NavState>)=>{
+    const current=navRef.current;
+    const next=parseNav(buildSearch({...current,edit:null,noteId:null,...patch}));
+    const layer=layerOf(window.history.state);
+    const base=parseNav(buildSearch({...current,edit:null,noteId:null}));
+    const sameScreen=sameNav(next,base);
+    if(sameScreen&&layer&&closeLayer(window.history)){
+      setHistLayer(null);setEditorState(null);setAddMenuOpen(false);setError("");setProfileMenuOpen(false);
+      if(layer==="timer"||layer==="timer-stop")setTimerView("closed");
+      if(!sameNav(current,next))applyNav(next);
+      return;
+    }
+    if(sameScreen&&!sameNav(current,next)){
+      refineHistory(window.history,buildUrl(next));
+      applyNav(next);setHistLayer(layerOf(window.history.state));setEditorState(null);setAddMenuOpen(false);setError("");setProfileMenuOpen(false);
+      return;
+    }
+    if(sameNav(current,next)){setEditorState(null);setAddMenuOpen(false);setError("");setProfileMenuOpen(false);return;}
+    pushScreen(window.history,buildUrl(next));
+    setHistLayer(null);setEditorState(null);setAddMenuOpen(false);setError("");setProfileMenuOpen(false);
+    if(layer==="timer"||layer==="timer-stop")setTimerView("closed");
+    applyNav(next);
+  };
+  const refineNav=(patch:Partial<NavState>)=>{
+    const next=parseNav(buildSearch({...navRef.current,...patch}));
+    if(sameNav(navRef.current,next))return;
+    refineHistory(window.history,buildUrl(next));
+    applyNav(next);
+  };
+  const closeEditor=()=>{
+    const layer=layerOf(window.history.state);
+    if((layer==="editor"||layer==="edit")&&closeLayer(window.history)){
+      setEditorState(null);setHistLayer(null);
+      if(navRef.current.edit)applyNav(parseNav(buildSearch({...navRef.current,edit:null})));
+      return;
+    }
+    setEditorState(null);
+    if(navRef.current.edit){const next=parseNav(buildSearch({...navRef.current,edit:null}));refineHistory(window.history,buildUrl(next));applyNav(next);}
+  };
   const openEditor=(resource:string,item?:Item)=>{
-    const fields=resource==="contacts"?contactFields:resource==="projects"?projectFields:resource==="tasks"?taskFields:resource==="accounts"?accountFields:resource==="activities"?activityFields:resource==="recurring"?recurringFields:transactionFields;
-    const initial:Record<string,string>={};
-    for(const f of fields){const v=item?.[f.key];initial[f.key]=v===undefined||v===null?"":String(v);}
-    if(resource==="contacts"&&item)initial.isPotential=String(Boolean(item.isPotential));
-    if(resource==="contacts")initial.relations=JSON.stringify(contactRelations(item?.relations,item?.role));
-    if(resource==="activities"&&item){initial.contactIds=String(item.contactIds||"").split(",").filter(Boolean).join(",");initial.occurredAt=String(item.occurredAt||"").replace(" ","T").slice(0,16);}
-    if(resource==="accounts"&&item)initial.openingBalance=(Number(item.openingBalanceMinor||0)/100).toFixed(2);
-    if(resource==="transactions"&&item)initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);
-    if(resource==="recurring"&&item){initial.amount=(Number(item.amountMinor||0)/100).toFixed(2);initial.endDate=String(item.endDate||"");}
-    if(resource==="transactions"){initial.receiptId=String(item?.receiptId||"");initial.recurrence="";initial.recurrenceEnd="";}
-    if(resource==="contacts"&&!item){initial.kind="person";initial.isPotential="false";initial.phone="+54 ";}
-    if(resource==="projects"&&!item)initial.status="active";
-    if(resource==="tasks"&&!item){initial.status="todo";initial.priority="normal";}
-    if(resource==="accounts"&&!item){initial.currency="ARS";initial.openingBalance="0";}
-    if(resource==="transactions"&&!item){initial.kind="expense";initial.occurredAt=new Date().toISOString().slice(0,10);initial.accountId=String(accounts[0]?.id??"");}
-    if(resource==="activities"&&!item){initial.occurredAt=new Date(new Date().getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);initial.contactIds="";}
-    setValues(initial);setNoteTab("write");setEditor({resource,item});
+    setValues(editorSeed(resource,item,accounts));setNoteTab("write");setEditorState({resource,item});
+    if(item&&resource==="activities")setActivityKind(item.kind==="event"?"event":"note");
+    const target=item?urlEdit(navRef.current.section,resource,item.id):null;
+    if(target){
+      const next=parseNav(buildSearch({...navRef.current,edit:target,noteId:null}));
+      openLayer(window.history,"edit",buildUrl(next));setHistLayer("edit");applyNav(next);
+    }else{openLayer(window.history,"editor");setHistLayer("editor");}
+  };
+  const openNote=(id:string)=>{
+    const next=parseNav(buildSearch({...navRef.current,noteId:id,edit:null}));
+    openLayer(window.history,"note",buildUrl(next));setHistLayer("note");setEditorState(null);applyNav(next);
+  };
+  const closeNote=()=>{
+    if(closeLayer(window.history)){setHistLayer(null);if(navRef.current.noteId)applyNav(parseNav(buildSearch({...navRef.current,noteId:null})));return;}
+    const next=parseNav(buildSearch({...navRef.current,noteId:null}));
+    refineHistory(window.history,buildUrl(next));applyNav(next);setHistLayer(layerOf(window.history.state));
+  };
+  const closeAddMenu=()=>{
+    if(layerOf(window.history.state)==="add"&&closeLayer(window.history)){setAddMenuOpen(false);setHistLayer(null);return;}
+    setAddMenuOpen(false);
+  };
+  const toggleAdd=()=>{
+    if(addMenuOpen||layerOf(window.history.state)==="add"){closeAddMenu();return;}
+    openLayer(window.history,"add");setHistLayer("add");setAddMenuOpen(true);setProfileMenuOpen(false);
   };
   const save=async()=>{
     if(!editor)return;setSaving(true);setError("");setNotice("");
@@ -181,7 +277,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
       const response=await fetch(url,{method:editor.item?"PATCH":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       if(!response.ok){const body=await response.json() as {error?:string};throw new Error(body.error||"No se pudo guardar");}
       if(failedKey){const saved=await response.clone().json().catch(()=>({})) as {id?:string};const cid=editor.item?.id||saved.id;if(cid)await fetch("/api/avatar/"+encodeURIComponent(cid),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({failedKey})}).catch(()=>undefined);}
-      setEditor(null);setNotice(editor.item?"Cambios guardados":"Registro creado");await load();
+      closeEditor();setNotice(editor.item?"Cambios guardados":"Registro creado");await load();
     }catch(e){setError(e instanceof Error?e.message:"Error guardando");}finally{setSaving(false);}
   };
   const remove=async(resource:string,item:Item)=>{
@@ -206,8 +302,23 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   const visibleSections=sections.filter(s=>["home","contacts","activity","finance"].includes(s.id));
   const activeAddType=({contacts:"contacts",activity:"activities-event"} as Partial<Record<Section,string>>)[section];
   const chooseAdd=(resource:string)=>{
+    if(resource==="timer"){
+      if(layerOf(window.history.state)==="add"){
+        armTimer.current=true;setAddMenuOpen(false);setHistLayer(null);
+        if(closeLayer(window.history)){
+          const token=window.history.state;
+          window.setTimeout(()=>{
+            if(!armTimer.current)return;
+            if(window.history.state!==token||layerOf(window.history.state)!=="add")return;
+            armTimer.current=false;window.history.replaceState(null,"",buildUrl(navRef.current));setHistLayer(null);window.dispatchEvent(new CustomEvent("serpix:timer-start"));
+          },200);
+          return;
+        }
+      }
+      window.dispatchEvent(new CustomEvent("serpix:timer-start"));
+      return;
+    }
     setAddMenuOpen(false);
-    if(resource==="timer"){window.dispatchEvent(new CustomEvent("serpix:timer-start"));return;}
     if(resource==="transactions-income"||resource==="transactions-expense"){
       if(accounts.length===0){openEditor("accounts");setNotice("Creá una cuenta primero para registrar movimientos.");return;}
       openEditor("transactions");
@@ -222,46 +333,120 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
     {id:"tasks",label:"Tarea",icon:ListPlus,onSelect:()=>chooseAdd("tasks")},
     {id:"activities-event",label:"Evento",icon:CalendarDays,onSelect:()=>chooseAdd("activities-event")},
     {id:"activities-note",label:"Nota",icon:NotebookPen,onSelect:()=>chooseAdd("activities-note")},
-    {id:"transactions-income",label:"Factura",icon:ReceiptText,onSelect:()=>{setAddMenuOpen(false);setEditor(null);docs.openNew("invoice");}},
+    {id:"transactions-income",label:"Factura",icon:ReceiptText,onSelect:()=>{setAddMenuOpen(false);setEditorState(null);docs.openNew("invoice");}},
     {id:"transactions-expense",label:"Gasto",icon:TrendingDown,onSelect:()=>chooseAdd("transactions-expense")},
     {id:"timer",label:"Temporizador",icon:Timer,onSelect:()=>chooseAdd("timer")},
     {id:"accounts",label:"Cuenta",icon:WalletCards,onSelect:()=>chooseAdd("accounts")},
   ];
   const toggleTask=async(task:Item)=>{if(taskPending)return;setTaskPending(task.id);const status=task.status==="done"?"todo":"done";const r=await fetch("/api/data/tasks/"+encodeURIComponent(task.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:task.title,description:task.description,status,priority:task.priority,projectId:task.projectId||null,contactId:task.contactId||null,dueDate:task.dueDate||null})});if(!r.ok){setError("No se pudo actualizar la tarea");setTaskPending(null);return;}await load();setTaskPending(null);};
   const createTaskForContact=(contact:Item)=>{openEditor("tasks");setValues(v=>({...v,contactId:contact.id,title:"",description:""}));};
+  const noteOpen=section==="activity"&&!!nav.noteId&&(histLayer==="note"||histLayer===null);
+  useLayoutEffect(()=>{
+    const onPop=()=>{
+      let next=parseNav(window.location.search);
+      if(next.section==="admin"&&!isAdmin){next=DEFAULT_NAV;window.history.replaceState(window.history.state,"",buildUrl(next));}
+      applyNav(next);
+      const layer=layerOf(window.history.state);
+      setHistLayer(layer);
+      setAddMenuOpen(layer==="add");
+      if(layer!=="editor"&&layer!=="edit"&&!next.edit)setEditorState(null);
+      if(layer!=="doc")docsRef.current.close();
+      setTimerView(view=>{if(layer==="timer")return view==="sheet"? "sheet":"closed";if(layer==="timer-stop")return view==="stopping"?"stopping":"closed";return "closed";});
+      if(armTimer.current){armTimer.current=false;window.dispatchEvent(new CustomEvent("serpix:timer-start"));}
+    };
+    window.addEventListener("popstate",onPop);
+    if(!booted.current){
+      booted.current=true;
+      let parsed=parseNav(window.location.search);
+      if(parsed.section==="admin"&&!isAdmin)parsed=DEFAULT_NAV;
+      const url=buildUrl(parsed);
+      const here=window.location.pathname+window.location.search;
+      const layer=layerOf(window.history.state);
+      const overlay=layer==="add"||layer==="editor"||layer==="timer"||layer==="timer-stop"||layer==="doc";
+      if(overlay){
+        const token=window.history.state;
+        let popped=false;
+        const mark=()=>{popped=true;};
+        window.addEventListener("popstate",mark);
+        window.history.back();
+        window.setTimeout(()=>{
+          window.removeEventListener("popstate",mark);
+          if(!popped&&window.history.state===token&&layerOf(window.history.state)){
+            window.history.replaceState(null,"",url);
+            setHistLayer(null);setAddMenuOpen(false);setEditorState(null);setTimerView("closed");
+          }
+        },0);
+        applyNav(parsed);setHistLayer(null);setAddMenuOpen(false);setEditorState(null);setTimerView("closed");
+      }else{
+        if(url!==here)window.history.replaceState(layer?{serpixLayer:layer}:window.history.state,"",url);
+        applyNav(parsed);setHistLayer(layer);
+      }
+    }
+    return()=>window.removeEventListener("popstate",onPop);
+  },[isAdmin]);
+  useLayoutEffect(()=>{
+    if(!dataReady||!nav.edit)return;
+    const {resource,id}=nav.edit;
+    const item=itemsOf(resource,{contacts,projects,tasks,accounts,transactions,activities}).find(x=>x.id===id);
+    if(!item){
+      const next=parseNav(buildSearch({...navRef.current,edit:null}));
+      refineHistory(window.history,buildUrl(next));applyNav(next);setEditorState(null);
+      return;
+    }
+    const ed=editorRef.current;
+    if(ed?.resource===resource&&ed.item?.id===id)return;
+    if(resource==="activities")setActivityKind(item.kind==="event"?"event":"note");
+    setValues(editorSeed(resource,item,accounts));setNoteTab("write");setEditorState({resource,item});
+  },[dataReady,nav.edit,contacts,projects,tasks,accounts,transactions,activities]);
+  useLayoutEffect(()=>{
+    if(!dataReady||nav.section!=="activity"||!nav.noteId)return;
+    if(activities.some(a=>a.id===nav.noteId&&a.kind!=="event"))return;
+    const next=parseNav(buildSearch({...navRef.current,noteId:null}));
+    refineHistory(window.history,buildUrl(next));applyNav(next);
+  },[dataReady,nav.section,nav.noteId,activities]);
+  useEffect(()=>{
+    if(loading||nav.section!=="contacts"||nav.contactsView!=="list"||!nav.contactId)return;
+    const el=document.getElementById("contact-"+nav.contactId);
+    if(!el)return;
+    if(seenContact.current===nav.contactId)return;
+    el.scrollIntoView({block:"center",behavior:"auto"});
+    seenContact.current=nav.contactId;
+    const c=contacts.find(x=>x.id===nav.contactId);
+    if(c)void autoLoadAvatar(c);
+  },[loading,nav.section,nav.contactsView,nav.contactId,contacts]);
   return <main className="app-shell">
-    <aside className="sidebar"><a className="logo" href="/dashboard"><span className="brand-mark small"><img src="/icons/logo-128.v5.png" alt="" width="36" height="36" /></span><span>Serpix</span></a><div className="side-caption">ESPACIO DE TRABAJO</div><nav aria-label="Secciones principales">{visibleSections.map(s=>{const Icon=NavIcons[s.id];return <button key={s.id} className={"nav-item "+(section===s.id?"active":"")} aria-current={section===s.id?"page":undefined} aria-label={s.label} title={s.label} onClick={()=>{setSection(s.id);setEditor(null);setError("");setAddMenuOpen(false);setProfileMenuOpen(false);}}><span className="nav-symbol"><Icon size={19} strokeWidth={1.9}/>{s.id==="contacts"&&unreadInquiries>0&&<i className="nav-badge" aria-label={unreadInquiries+" solicitudes sin leer"}>{unreadInquiries>9?"9+":unreadInquiries}</i>}</span><span>{s.label}</span></button>;})}<div className="profile-nav-wrap" ref={profileMenuRef}>{profileMenuOpen&&<div className="profile-menu" id="serpix-profile-menu" role="group" aria-label="Menú de cuenta"><div className="profile-menu-heading"><strong>{name}</strong><small>{email}</small><span>{isAdmin?"Administrador":"Usuario"}</span></div><button type="button" className="profile-menu-item theme-menu-toggle" role="switch" aria-checked={theme==="dark"} onClick={toggleTheme}>{theme==="dark"?<Moon size={18}/>:<Sun size={18}/>}<span>Modo oscuro</span><span className={"theme-switch "+(theme==="dark"?"on":"")}><span/></span></button><PushToggle onMessage={(m,k)=>k==="ok"?setNotice(m):setError(m)}/>{isAdmin&&<button type="button" className="profile-menu-item" onClick={()=>{setSection("admin");setEditor(null);setProfileMenuOpen(false);window.scrollTo({top:0,behavior:"smooth"});}}><ShieldCheck size={18}/> Administración</button>}<div className="profile-menu-divider"/><SignOutButton/></div>}<button type="button" className={"nav-item profile-nav-item "+(profileMenuOpen?"active":"")} aria-label="Abrir menú de cuenta" aria-controls="serpix-profile-menu" aria-expanded={profileMenuOpen} title={name+" · Cuenta"} onClick={()=>setProfileMenuOpen(v=>!v)}><span className="profile-nav-avatar"><span className="profile-avatar-fallback">{name.trim().slice(0,1).toUpperCase()}</span>{image&&<img src={image} alt="" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/>}</span><span>Perfil</span></button></div></nav></aside>
-    <section className="main-area" aria-busy={loading}><div className="workspace-actions"><div className="add-menu-wrap"><button ref={addTriggerRef} className={"add-trigger "+(addMenuOpen?"is-open":"")} onClick={()=>setAddMenuOpen(v=>!v)} aria-label="Agregar" aria-controls="serpix-add-sheet" aria-expanded={addMenuOpen} title="Agregar"><Plus size={23} strokeWidth={2.7}/></button></div></div><AddSheet open={addMenuOpen} onClose={closeAddMenu} actions={addActions} activeId={activeAddType} triggerRef={addTriggerRef}/>
+    <aside className="sidebar"><a className="logo" href="/dashboard"><span className="brand-mark small"><img src="/icons/logo-128.v5.png" alt="" width="36" height="36" /></span><span>Serpix</span></a><div className="side-caption">ESPACIO DE TRABAJO</div><nav aria-label="Secciones principales">{visibleSections.map(s=>{const Icon=NavIcons[s.id];return <button key={s.id} className={"nav-item "+(section===s.id?"active":"")} aria-current={section===s.id?"page":undefined} aria-label={s.label} title={s.label} onClick={()=>go({section:s.id})}><span className="nav-symbol"><Icon size={19} strokeWidth={1.9}/>{s.id==="contacts"&&unreadInquiries>0&&<i className="nav-badge" aria-label={unreadInquiries+" solicitudes sin leer"}>{unreadInquiries>9?"9+":unreadInquiries}</i>}</span><span>{s.label}</span></button>;})}<div className="profile-nav-wrap" ref={profileMenuRef}>{profileMenuOpen&&<div className="profile-menu" id="serpix-profile-menu" role="group" aria-label="Menú de cuenta"><div className="profile-menu-heading"><strong>{name}</strong><small>{email}</small><span>{isAdmin?"Administrador":"Usuario"}</span></div><button type="button" className="profile-menu-item theme-menu-toggle" role="switch" aria-checked={theme==="dark"} onClick={toggleTheme}>{theme==="dark"?<Moon size={18}/>:<Sun size={18}/>}<span>Modo oscuro</span><span className={"theme-switch "+(theme==="dark"?"on":"")}><span/></span></button><PushToggle onMessage={(m,k)=>k==="ok"?setNotice(m):setError(m)}/>{isAdmin&&<button type="button" className="profile-menu-item" onClick={()=>{go({section:"admin"});window.scrollTo({top:0,behavior:"smooth"});}}><ShieldCheck size={18}/> Administración</button>}<div className="profile-menu-divider"/><SignOutButton/></div>}<button type="button" className={"nav-item profile-nav-item "+(profileMenuOpen?"active":"")} aria-label="Abrir menú de cuenta" aria-controls="serpix-profile-menu" aria-expanded={profileMenuOpen} title={name+" · Cuenta"} onClick={()=>setProfileMenuOpen(v=>!v)}><span className="profile-nav-avatar"><span className="profile-avatar-fallback">{name.trim().slice(0,1).toUpperCase()}</span>{image&&<img src={image} alt="" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/>}</span><span>Perfil</span></button></div></nav></aside>
+    <section className="main-area" aria-busy={loading}><div className="workspace-actions"><div className="add-menu-wrap"><button ref={addTriggerRef} className={"add-trigger "+(addMenuOpen?"is-open":"")} onClick={toggleAdd} aria-label="Agregar" aria-controls="serpix-add-sheet" aria-expanded={addMenuOpen} title="Agregar"><Plus size={23} strokeWidth={2.7}/></button></div></div><AddSheet open={addMenuOpen} onClose={closeAddMenu} actions={addActions} activeId={activeAddType} triggerRef={addTriggerRef}/>
       {error&&<div className="toast error" role="alert" aria-live="assertive">{error}<button onClick={()=>setError("")} aria-label="Cerrar notificación">×</button></div>}{notice&&<div className="toast success" role="status" aria-live="polite">{notice}<button onClick={()=>setNotice("")} aria-label="Cerrar notificación">×</button></div>}
       {loading?<div className="loading" role="status" aria-live="polite">Cargando tu espacio…</div>:<>
       {section==="home"&&<>
-        <div className="home-head"><h2>Buen día, {name.split(" ")[0]}.</h2><button type="button" className={"home-inbox "+(unreadInquiries>0?"has-new":"")} title={unreadInquiries>0?unreadInquiries+" solicitudes nuevas del portfolio":"Solicitudes del portfolio"} aria-label={unreadInquiries>0?unreadInquiries+" solicitudes nuevas del portfolio":"Solicitudes del portfolio"} onClick={()=>{setSection("contacts");setContactsTab("inquiries");setEditor(null);}}><Inbox size={17} aria-hidden="true"/>{unreadInquiries>0&&<i className="nav-badge">{unreadInquiries>9?"9+":unreadInquiries}</i>}</button><span className="home-date" title={new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}><CalendarDays size={14} aria-hidden="true"/>{new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}).replace(",","")}</span></div>
+        <div className="home-head"><h2>Buen día, {name.split(" ")[0]}.</h2><button type="button" className={"home-inbox "+(unreadInquiries>0?"has-new":"")} title={unreadInquiries>0?unreadInquiries+" solicitudes nuevas del portfolio":"Solicitudes del portfolio"} aria-label={unreadInquiries>0?unreadInquiries+" solicitudes nuevas del portfolio":"Solicitudes del portfolio"} onClick={()=>go({section:"contacts",contactsView:"inquiries"})}><Inbox size={17} aria-hidden="true"/>{unreadInquiries>0&&<i className="nav-badge">{unreadInquiries>9?"9+":unreadInquiries}</i>}</button><span className="home-date" title={new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}><CalendarDays size={14} aria-hidden="true"/>{new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}).replace(",","")}</span></div>
         <div className="home-kpis" role="group" aria-label="Resumen">
-          {homeKpis.map(k=>{const Icon=k.icon;return <button type="button" key={k.id} className="home-kpi" data-tip={k.tip} title={k.tip} aria-label={k.tip} onClick={()=>{setSection(k.go);setEditor(null);}}><Icon size={18} strokeWidth={2.1} aria-hidden="true"/><strong>{k.value}</strong></button>;})}
+          {homeKpis.map(k=>{const Icon=k.icon;return <button type="button" key={k.id} className="home-kpi" data-tip={k.tip} title={k.tip} aria-label={k.tip} onClick={()=>go({section:k.go})}><Icon size={18} strokeWidth={2.1} aria-hidden="true"/><strong>{k.value}</strong></button>;})}
         </div>
         {docs.homeAlert}
-        <section className="panel home-panel"><div className="home-panel-head"><h3>Próximas tareas</h3><button type="button" className="icon-link" title="Ver agenda" aria-label="Ver agenda" onClick={()=>setSection("activity")}><ArrowRight size={18} aria-hidden="true"/></button></div>
+        <section className="panel home-panel"><div className="home-panel-head"><h3>Próximas tareas</h3><button type="button" className="icon-link" title="Ver agenda" aria-label="Ver agenda" onClick={()=>go({section:"activity"})}><ArrowRight size={18} aria-hidden="true"/></button></div>
           {homeTasks.length===0?<p className="empty-copy" title="Creá una con el botón +">Sin tareas abiertas</p>:homeTasks.map(t=>{const overdue=!!t.dueDate&&String(t.dueDate)<todayKey;return <div className="home-task" key={t.id}>
             <button type="button" className={"home-check "+String(t.priority)} title={"Marcar como hecha · Prioridad "+labelStatus(t.priority).toLowerCase()} aria-label={"Marcar como hecha: "+String(t.title)} disabled={!!taskPending} onClick={()=>void toggleTask(t)}/>
-            <button type="button" className="home-task-title" title={String(t.title)} onClick={()=>setSection("activity")}>{String(t.title)}</button>
+            <button type="button" className="home-task-title" title={String(t.title)} onClick={()=>go({section:"activity"})}>{String(t.title)}</button>
             <span className="home-task-meta">
               {t.contactName&&<span className="home-meta-icon" title={"Contacto: "+String(t.contactName)} aria-label={"Contacto: "+String(t.contactName)} tabIndex={0}><UserRound size={14} aria-hidden="true"/></span>}
               {t.status==="in_progress"&&<span className="home-meta-icon" title="En curso" aria-label="En curso" tabIndex={0}><Clock size={14} aria-hidden="true"/></span>}
               <span className={"home-meta-date"+(overdue?" overdue":"")} title={t.dueDate?(overdue?"Vencida · ":"Vence ")+dateLabel(t.dueDate):"Sin fecha"} aria-label={t.dueDate?(overdue?"Vencida · ":"Vence ")+dateLabel(t.dueDate):"Sin fecha"} tabIndex={0}>{t.dueDate?<>{overdue&&<AlertCircle size={13} aria-hidden="true"/>}{String(t.dueDate).slice(8,10)+"/"+String(t.dueDate).slice(5,7)}</>:<CalendarOff size={14} aria-hidden="true"/>}</span>
             </span></div>;})}
         </section>
-        <section className="panel home-panel"><div className="home-panel-head"><h3>Movimientos recientes</h3><button type="button" className="icon-link" title="Ver finanzas" aria-label="Ver finanzas" onClick={()=>setSection("finance")}><ArrowRight size={18} aria-hidden="true"/></button></div>
+        <section className="panel home-panel"><div className="home-panel-head"><h3>Movimientos recientes</h3><button type="button" className="icon-link" title="Ver finanzas" aria-label="Ver finanzas" onClick={()=>go({section:"finance"})}><ArrowRight size={18} aria-hidden="true"/></button></div>
           {transactions.length===0?<p className="empty-copy" title="Registrá uno desde Finanzas">Sin movimientos</p>:transactions.slice(0,4).map(t=><div className="home-task" key={t.id}><span className={"money-sign "+String(t.kind)} title={t.kind==="income"?"Ingreso":"Gasto"} aria-label={t.kind==="income"?"Ingreso":"Gasto"}>{t.kind==="income"?"+":"−"}</span><span className="home-task-title static" title={String(t.accountName)+" · "+dateLabel(t.occurredAt)}>{String(t.category)}</span><b className={t.kind==="income"?"positive":"negative"}>{money(Number(t.amountMinor),String(t.currency))}</b></div>)}
         </section></>}
-      {section==="contacts"&&<><SectionIntro title="CRM" description="Relaciones comerciales, contactos y oportunidades. Datos privados de tu cuenta."/><div className="segmented-field crm-tabs" role="group" aria-label="Contactos o solicitudes"><button type="button" className={contactsTab==="list"?"selected":""} aria-pressed={contactsTab==="list"} title="Tus contactos" onClick={()=>setContactsTab("list")}><Users size={15} aria-hidden="true"/> Contactos</button><button type="button" className={contactsTab==="inquiries"?"selected":""} aria-pressed={contactsTab==="inquiries"} title="Solicitudes que llegan desde el formulario del portfolio" onClick={()=>setContactsTab("inquiries")}><Inbox size={15} aria-hidden="true"/> Solicitudes{unreadInquiries>0&&<i className="tab-count">{unreadInquiries}</i>}</button></div>{contactsTab==="inquiries"?<Inquiries items={inquiries} openId={openInquiry} onAction={inquiryAction} onViewContact={()=>setContactsTab("list")}/>:<><div className="contact-filters"><div className="segmented-field wrap contact-filter" role="group" aria-label="Filtrar por relación">{([["all","Todos","Todos los contactos"],["client","Clientes","Contactos que son o pueden ser clientes"],["partner","Socios","Contactos que son o pueden ser socios"],["supplier","Proveedores","Contactos que son o pueden ser proveedores"],["none","Sin relación","Contactos sin ninguna relación marcada"]] as [string,string,string][]).map(([id,label,tip])=><button type="button" key={id} title={tip} className={roleFilter===id?"selected":""} aria-pressed={roleFilter===id} onClick={()=>setRoleFilter(id)}>{label}</button>)}</div><div className="segmented-field contact-filter state-filter" role="group" aria-label="Filtrar por estado">{([["any","Todos","Potenciales y confirmados"],["potential","Potenciales","Solo potenciales"],["confirmed","Confirmados","Solo confirmados"]] as [string,string,string][]).map(([id,label,tip])=><button type="button" key={id} title={tip} className={stateFilter===id?"selected":""} aria-pressed={stateFilter===id} disabled={roleFilter==="none"} onClick={()=>setStateFilter(id as "any"|RelationState)}>{label}</button>)}</div></div><div className="contact-list">{contacts.length===0?<div className="panel"><Empty text="Todavía no hay contactos. Creá el primero para empezar a organizar tus relaciones."/></div>:contacts.filter(c=>{const r=contactRelations(c.relations,c.role);if(roleFilter==="all")return stateFilter==="any"||Object.values(r).includes(stateFilter);if(roleFilter==="none")return Object.keys(r).length===0;const st=r[roleFilter as RelationKey];return !!st&&(stateFilter==="any"||st===stateFilter);}).map(c=><details className="panel contact-card" key={c.id} onToggle={e=>{if((e.currentTarget as HTMLDetailsElement).open)void autoLoadAvatar(c);}}><summary><ContactAvatar c={c}/><span className="contact-summary-main"><strong>{String(c.name)}</strong><small>{String(c.companyName|| (c.kind==="company"?"Empresa":"Persona"))}</small></span><RelationBadges relations={contactRelations(c.relations,c.role)}/><span className="contact-chevron">⌄</span></summary><div className="contact-details"><div className="contact-facts">{c.email&&<a href={"mailto:"+String(c.email)}>{String(c.email)}</a>}{String(c.phone||"").replace(/[^\d]/g,"").length>3&&<a href={"tel:"+String(c.phone).replace(/[^\d+]/g,"")}>{String(c.phone)}</a>}{waNumber(c.phone)&&!socialHref("whatsapp",c.whatsappUrl)&&<a href={"https://wa.me/"+waNumber(c.phone)} target="_blank" rel="noreferrer" title="Abrir WhatsApp con este teléfono">WhatsApp</a>}{socialHref("x",c.xUrl)&&<a href={socialHref("x",c.xUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.xUrl)}>X</a>}{socialHref("instagram",c.instagramUrl)&&<a href={socialHref("instagram",c.instagramUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.instagramUrl)}>Instagram</a>}{socialHref("telegram",c.telegramUrl)&&<a href={socialHref("telegram",c.telegramUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.telegramUrl)}>Telegram</a>}{socialHref("whatsapp",c.whatsappUrl)&&<a href={socialHref("whatsapp",c.whatsappUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.whatsappUrl)}>WhatsApp</a>}{socialHref("linkedin",c.linkedinUrl)&&<a href={socialHref("linkedin",c.linkedinUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.linkedinUrl)}>LinkedIn</a>}{socialHref("github",c.githubUrl)&&<a href={socialHref("github",c.githubUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.githubUrl)}>GitHub</a>}</div>{c.notes&&<p className="contact-notes">{String(c.notes)}</p>}<div className="contact-related"><strong>Tareas vinculadas</strong>{tasks.filter(t=>t.contactId===c.id).length===0?<small>Sin tareas asociadas</small>:tasks.filter(t=>t.contactId===c.id).map(t=><span key={t.id}>{String(t.title)} · {labelStatus(t.status)}</span>)}</div>{activities.filter(a=>String(a.contactIds||"").split(",").includes(String(c.id))).length>0&&<div className="contact-related"><strong>Eventos y notas</strong>{activities.filter(a=>String(a.contactIds||"").split(",").includes(String(c.id))).map(a=><span key={a.id}>{a.kind==="event"?"Evento":"Nota"} · {String(a.title)} · {dateLabel(String(a.occurredAt).slice(0,10))}</span>)}</div>}<div className="contact-actions"><button className="secondary-button compact" onClick={()=>createTaskForContact(c)}>+ Crear tarea</button><Actions onEdit={()=>openEditor("contacts",c)} onDelete={()=>void remove("contacts",c)}/></div></div></details>)}</div></>}</>}
-      {section==="activity"&&<Agenda tasks={tasks} activities={activities} taskPending={taskPending} timeByTask={timeByTask} onToggleTask={t=>void toggleTask(t)} onEditTask={t=>openEditor("tasks",t)} onEditActivity={a=>{setActivityKind(a.kind==="event"?"event":"note");openEditor("activities",a);}} onDeleteTask={t=>void remove("tasks",t)} onDeleteActivity={a=>void remove("activities",a)}/>}
+      {section==="contacts"&&<><SectionIntro title="CRM" description="Relaciones comerciales, contactos y oportunidades. Datos privados de tu cuenta."/><div className="segmented-field crm-tabs" role="group" aria-label="Contactos o solicitudes"><button type="button" className={contactsTab==="list"?"selected":""} aria-pressed={contactsTab==="list"} title="Tus contactos" onClick={()=>go({contactsView:"list"})}><Users size={15} aria-hidden="true"/> Contactos</button><button type="button" className={contactsTab==="inquiries"?"selected":""} aria-pressed={contactsTab==="inquiries"} title="Solicitudes que llegan desde el formulario del portfolio" onClick={()=>go({contactsView:"inquiries"})}><Inbox size={15} aria-hidden="true"/> Solicitudes{unreadInquiries>0&&<i className="tab-count">{unreadInquiries}</i>}</button></div>{contactsTab==="inquiries"?<Inquiries items={inquiries} openId={openInquiry} onAction={inquiryAction} onOpenChange={id=>refineNav({inquiryId:id})} onViewContact={()=>go({contactsView:"list"})}/>:<><div className="contact-filters"><div className="segmented-field wrap contact-filter" role="group" aria-label="Filtrar por relación">{([["all","Todos","Todos los contactos"],["client","Clientes","Contactos que son o pueden ser clientes"],["partner","Socios","Contactos que son o pueden ser socios"],["supplier","Proveedores","Contactos que son o pueden ser proveedores"],["none","Sin relación","Contactos sin ninguna relación marcada"]] as [string,string,string][]).map(([id,label,tip])=><button type="button" key={id} title={tip} className={roleFilter===id?"selected":""} aria-pressed={roleFilter===id} onClick={()=>refineNav({role:id as NavState["role"]})}>{label}</button>)}</div><div className="segmented-field contact-filter state-filter" role="group" aria-label="Filtrar por estado">{([["any","Todos","Potenciales y confirmados"],["potential","Potenciales","Solo potenciales"],["confirmed","Confirmados","Solo confirmados"]] as [string,string,string][]).map(([id,label,tip])=><button type="button" key={id} title={tip} className={stateFilter===id?"selected":""} aria-pressed={stateFilter===id} disabled={roleFilter==="none"} onClick={()=>refineNav({relState:id as NavState["relState"]})}>{label}</button>)}</div></div><div className="contact-list">{contacts.length===0?<div className="panel"><Empty text="Todavía no hay contactos. Creá el primero para empezar a organizar tus relaciones."/></div>:contacts.filter(c=>{const r=contactRelations(c.relations,c.role);if(roleFilter==="all")return stateFilter==="any"||Object.values(r).includes(stateFilter);if(roleFilter==="none")return Object.keys(r).length===0;const st=r[roleFilter as RelationKey];return !!st&&(stateFilter==="any"||st===stateFilter);}).map(c=><details className="panel contact-card" key={c.id} id={"contact-"+c.id} open={nav.contactId===c.id} onToggle={e=>{const el=e.currentTarget as HTMLDetailsElement;if(el.open===(navRef.current.contactId===c.id))return;refineNav({contactId:el.open?c.id:null});if(el.open)void autoLoadAvatar(c);}}><summary><ContactAvatar c={c}/><span className="contact-summary-main"><strong>{String(c.name)}</strong><small>{String(c.companyName|| (c.kind==="company"?"Empresa":"Persona"))}</small></span><RelationBadges relations={contactRelations(c.relations,c.role)}/><span className="contact-chevron">⌄</span></summary><div className="contact-details"><div className="contact-facts">{c.email&&<a href={"mailto:"+String(c.email)}>{String(c.email)}</a>}{String(c.phone||"").replace(/[^\d]/g,"").length>3&&<a href={"tel:"+String(c.phone).replace(/[^\d+]/g,"")}>{String(c.phone)}</a>}{waNumber(c.phone)&&!socialHref("whatsapp",c.whatsappUrl)&&<a href={"https://wa.me/"+waNumber(c.phone)} target="_blank" rel="noreferrer" title="Abrir WhatsApp con este teléfono">WhatsApp</a>}{socialHref("x",c.xUrl)&&<a href={socialHref("x",c.xUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.xUrl)}>X</a>}{socialHref("instagram",c.instagramUrl)&&<a href={socialHref("instagram",c.instagramUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.instagramUrl)}>Instagram</a>}{socialHref("telegram",c.telegramUrl)&&<a href={socialHref("telegram",c.telegramUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.telegramUrl)}>Telegram</a>}{socialHref("whatsapp",c.whatsappUrl)&&<a href={socialHref("whatsapp",c.whatsappUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.whatsappUrl)}>WhatsApp</a>}{socialHref("linkedin",c.linkedinUrl)&&<a href={socialHref("linkedin",c.linkedinUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.linkedinUrl)}>LinkedIn</a>}{socialHref("github",c.githubUrl)&&<a href={socialHref("github",c.githubUrl)||undefined} target="_blank" rel="noreferrer" title={String(c.githubUrl)}>GitHub</a>}</div>{c.notes&&<p className="contact-notes">{String(c.notes)}</p>}<div className="contact-related"><strong>Tareas vinculadas</strong>{tasks.filter(t=>t.contactId===c.id).length===0?<small>Sin tareas asociadas</small>:tasks.filter(t=>t.contactId===c.id).map(t=><span key={t.id}>{String(t.title)} · {labelStatus(t.status)}</span>)}</div>{activities.filter(a=>String(a.contactIds||"").split(",").includes(String(c.id))).length>0&&<div className="contact-related"><strong>Eventos y notas</strong>{activities.filter(a=>String(a.contactIds||"").split(",").includes(String(c.id))).map(a=><span key={a.id}>{a.kind==="event"?"Evento":"Nota"} · {String(a.title)} · {dateLabel(String(a.occurredAt).slice(0,10))}</span>)}</div>}<div className="contact-actions"><button className="secondary-button compact" onClick={()=>createTaskForContact(c)}>+ Crear tarea</button><Actions onEdit={()=>openEditor("contacts",c)} onDelete={()=>void remove("contacts",c)}/></div></div></details>)}</div></>}</>}
+      {section==="activity"&&<Agenda tasks={tasks} activities={activities} taskPending={taskPending} timeByTask={timeByTask} tab={nav.agendaTab} filter={nav.agendaKind} month={nav.month} day={nav.day} noteId={nav.noteId} noteOpen={noteOpen} onNav={(patch,mode)=>{if(mode==="push")go(patch);else refineNav(patch);}} onOpenNote={openNote} onCloseNote={closeNote} onToggleTask={t=>void toggleTask(t)} onEditTask={t=>openEditor("tasks",t)} onEditActivity={a=>{setActivityKind(a.kind==="event"?"event":"note");openEditor("activities",a);}} onDeleteTask={t=>void remove("tasks",t)} onDeleteActivity={a=>void remove("activities",a)}/>}
       {section==="finance"&&<><SectionIntro title="Finanzas" description="Cuentas, ingresos y gastos. Importes guardados en centavos para evitar errores de redondeo."/><div className="finance-summary"><div className="panel"><small>Ingresos registrados · ARS</small><strong className="positive">{money(finTotals?.ARS.incomeMinor??0,"ARS")}</strong></div><div className="panel"><small>Gastos registrados · ARS</small><strong className="negative">{money(finTotals?.ARS.expenseMinor??0,"ARS")}</strong></div><div className="panel"><small>Ingresos registrados · USD</small><strong className="positive">{money(finTotals?.USD.incomeMinor??0,"USD")}</strong></div><div className="panel"><small>Gastos registrados · USD</small><strong className="negative">{money(finTotals?.USD.expenseMinor??0,"USD")}</strong></div></div><TimeEntriesPanel entries={timeEntries} onDeleted={dropEntry} onError={setError}/><RecurringPanel rules={rules} onChanged={()=>void load(true)} onError={setError} onNotice={setNotice} onEdit={r=>openEditor("recurring",r as unknown as Item)}/>{docs.panel}<div className="finance-layout"><section className="panel"><div className="panel-title"><h2>Cuentas</h2><button className="text-button" onClick={()=>openEditor("accounts")}>+ Agregar</button></div>{accounts.map(a=><div className="account-line" key={a.id}><div><strong>{String(a.name)}</strong><small>{String(a.currency)}</small></div><b>{money(Number(a.balanceMinor),String(a.currency))}</b><Actions onEdit={()=>openEditor("accounts",a)} onDelete={()=>void remove("accounts",a)}/></div>)}{accounts.length===0&&<Empty text="Creá una cuenta para registrar movimientos."/>}</section><section className="panel"><div className="panel-title"><h2>Últimos movimientos</h2><button type="button" className="text-button scan-ticket-button" title="Cargar un gasto desde la foto de un ticket" aria-label="Escanear ticket" onClick={()=>chooseAdd("transactions-expense")}><ScanLine size={14} aria-hidden="true"/> Escanear ticket</button></div>{transactions.map((t,i)=>{const mk=String(t.occurredAt||"").slice(0,7);const first=i===0||String(transactions[i-1].occurredAt||"").slice(0,7)!==mk;return <div key={t.id} className={toneClass(mk)}>{first&&mk&&<MonthHeading day={mk+"-01"}/>}<div className="list-line"><span className={"money-sign "+String(t.kind)}>{t.kind==="income"?"+":"−"}</span><div><strong>{String(t.category)}</strong><small>{String(t.description||t.accountName)} · {dateLabel(t.occurredAt)}{!!t.recurringId&&<> <RecurringBadge/></>}{!!t.receiptId&&<> <a className="receipt-link" href={"/api/receipts/"+encodeURIComponent(String(t.receiptId))} target="_blank" rel="noreferrer" title="Ver el ticket" aria-label="Ver el ticket"><Paperclip size={12} aria-hidden="true"/></a></>}</small></div><b className={t.kind==="income"?"positive":"negative"}>{money(Number(t.amountMinor),String(t.currency))}</b><Actions onEdit={()=>openEditor("transactions",t)} onDelete={()=>void remove("transactions",t)}/></div></div>;})}{transactions.length===0&&<Empty text="No hay movimientos registrados."/>}{finTotals&&transactions.length<finTotals.transactionCount&&<button type="button" className="text-button" title="Cargar 250 movimientos más" aria-label="Cargar 250 movimientos más" onClick={()=>{const next=txLimit+250;txLimitRef.current=next;setTxLimit(next);void load(true);}}>Ver más</button>}</section></div></>}
       {section==="admin"&&isAdmin&&<><SectionIntro title="Administración" description="Aprobá o rechazá solicitudes de acceso al espacio."/><AdminUsers/></>}
       </>}
     </section>
-{editor&&<div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setEditor(null);}}><section className={"editor-modal"+(editor.resource==="activities"&&activityKind==="note"?" is-note":"")} role="dialog" aria-modal="true" aria-labelledby="editor-title"><div className="panel-title"><div><p className="eyebrow">{editor.item?"EDITAR REGISTRO":"NUEVO REGISTRO"}</p><h2 id="editor-title">{editor.resource==="contacts"?"Contacto":editor.resource==="projects"?"Proyecto":editor.resource==="tasks"?"Tarea":editor.resource==="accounts"?"Cuenta":editor.resource==="activities"?(activityKind==="event"?"Evento":"Nota"):editor.resource==="recurring"?"Movimiento recurrente":"Movimiento financiero"}</h2></div><button className="icon-button" onClick={()=>setEditor(null)} aria-label="Cerrar">×</button></div>{editor.resource==="activities"&&<div className="activity-type-switch" role="group" aria-label="Tipo de registro"><button type="button" className={activityKind==="event"?"selected":""} aria-pressed={activityKind==="event"} onClick={()=>setActivityKind("event")}>Evento</button><button type="button" className={activityKind==="note"?"selected":""} aria-pressed={activityKind==="note"} onClick={()=>setActivityKind("note")}>Nota</button></div>}{editor.resource==="activities"&&activityKind==="note"&&<div className="segmented-field note-editor-tabs" role="group" aria-label="Modo de edición"><button type="button" className={noteTab==="write"?"selected":""} aria-pressed={noteTab==="write"} onClick={()=>setNoteTab("write")}>Escribir</button><button type="button" className={noteTab==="preview"?"selected":""} aria-pressed={noteTab==="preview"} onClick={()=>setNoteTab("preview")}>Vista previa</button></div>}{editor.resource==="transactions"&&values.kind!=="income"&&<ReceiptField receiptId={values.receiptId||""} onScanned={onScanned} onRemove={()=>setValues(v=>({...v,receiptId:""}))} onError={setError}/>}<div className="form-grid">{fields.map(f=>f.type==="avatar"?<AvatarField key={f.key} label={f.label} item={editor.item} values={values} setValues={setValues} onError={setError}/>:f.type==="relations"?<RelationsField key={f.key} label={f.label} value={values[f.key]||"{}"} onChange={v=>setValues(vs=>({...vs,[f.key]:v}))}/>:<label className={f.type==="textarea"?"span-2":""} key={f.key}>{f.label}{f.type==="textarea"&&editor.resource==="activities"&&activityKind==="note"&&noteTab==="preview"?<div className="note-preview">{values[f.key]?<Markdown source={values[f.key]}/>:<p className="empty-copy">Nada para mostrar todavía.</p>}</div>:f.type==="textarea"?<textarea rows={editor.resource==="activities"?14:4} placeholder={editor.resource==="activities"?"Markdown: # Título, **negrita**, - listas, [enlace](https://…)":undefined} required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>:f.type==="segmented"?<span className={"segmented-field"+((f.options||[]).length>3?" wrap":"")} role="group" aria-label={f.label}>{(f.options||[]).map(o=><button type="button" key={o.value} className={values[f.key]===o.value?"selected":""} aria-pressed={values[f.key]===o.value} onClick={()=>setValues(v=>({...v,[f.key]:o.value}))}>{o.label}</button>)}</span>:f.type==="select"?<select required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}><option value="">— Seleccionar —</option>{(f.options||(f.key==="projectId"?projects.map(p=>({value:String(p.id),label:String(p.name)})):f.key==="contactId"?contacts.map(c=>({value:String(c.id),label:String(c.name)})):f.key==="accountId"?accounts.map(a=>({value:String(a.id),label:String(a.name)+" ("+String(a.currency)+")"})):[])).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>:<span className="input-action"><input type={f.type||"text"} required={f.required} min={f.type==="number"?"0":undefined} step={f.type==="number"?"0.01":undefined} placeholder={f.placeholder} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>{editor.resource==="contacts"&&<FieldLookup k={f.key} values={values}/>}</span>}</label>)}</div>{editor.resource==="transactions"&&!editor.item?.recurringId&&<RecurrenceField frequency={values.recurrence||""} endDate={values.recurrenceEnd||""} onChange={patch=>setValues(v=>({...v,...patch}))}/>}{editor.resource==="activities"&&<div className="activity-contact-picker"><strong>Contactos relacionados</strong><div className="activity-contact-options">{contacts.map(contact=><label key={contact.id}><input type="checkbox" checked={(values.contactIds||"").split(",").includes(contact.id)} onChange={e=>setValues(v=>{const ids=new Set((v.contactIds||"").split(",").filter(Boolean));if(e.target.checked)ids.add(contact.id);else ids.delete(contact.id);return {...v,contactIds:[...ids].join(",")};})}/><span>{String(contact.name)}</span></label>)}</div></div>}<div className="modal-actions"><button className="secondary-button" onClick={()=>setEditor(null)}>Cancelar</button><button className="primary-button" disabled={saving} onClick={()=>void save()}>{saving?"Guardando…":"Guardar"}</button></div></section></div>}
+{editor&&<div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)closeEditor();}}><section className={"editor-modal"+(editor.resource==="activities"&&activityKind==="note"?" is-note":"")} role="dialog" aria-modal="true" aria-labelledby="editor-title"><div className="panel-title"><div><p className="eyebrow">{editor.item?"EDITAR REGISTRO":"NUEVO REGISTRO"}</p><h2 id="editor-title">{editor.resource==="contacts"?"Contacto":editor.resource==="projects"?"Proyecto":editor.resource==="tasks"?"Tarea":editor.resource==="accounts"?"Cuenta":editor.resource==="activities"?(activityKind==="event"?"Evento":"Nota"):editor.resource==="recurring"?"Movimiento recurrente":"Movimiento financiero"}</h2></div><button className="icon-button" onClick={closeEditor} aria-label="Cerrar">×</button></div>{editor.resource==="activities"&&<div className="activity-type-switch" role="group" aria-label="Tipo de registro"><button type="button" className={activityKind==="event"?"selected":""} aria-pressed={activityKind==="event"} onClick={()=>setActivityKind("event")}>Evento</button><button type="button" className={activityKind==="note"?"selected":""} aria-pressed={activityKind==="note"} onClick={()=>setActivityKind("note")}>Nota</button></div>}{editor.resource==="activities"&&activityKind==="note"&&<div className="segmented-field note-editor-tabs" role="group" aria-label="Modo de edición"><button type="button" className={noteTab==="write"?"selected":""} aria-pressed={noteTab==="write"} onClick={()=>setNoteTab("write")}>Escribir</button><button type="button" className={noteTab==="preview"?"selected":""} aria-pressed={noteTab==="preview"} onClick={()=>setNoteTab("preview")}>Vista previa</button></div>}{editor.resource==="transactions"&&values.kind!=="income"&&<ReceiptField receiptId={values.receiptId||""} onScanned={onScanned} onRemove={()=>setValues(v=>({...v,receiptId:""}))} onError={setError}/>}<div className="form-grid">{fields.map(f=>f.type==="avatar"?<AvatarField key={f.key} label={f.label} item={editor.item} values={values} setValues={setValues} onError={setError}/>:f.type==="relations"?<RelationsField key={f.key} label={f.label} value={values[f.key]||"{}"} onChange={v=>setValues(vs=>({...vs,[f.key]:v}))}/>:<label className={f.type==="textarea"?"span-2":""} key={f.key}>{f.label}{f.type==="textarea"&&editor.resource==="activities"&&activityKind==="note"&&noteTab==="preview"?<div className="note-preview">{values[f.key]?<Markdown source={values[f.key]}/>:<p className="empty-copy">Nada para mostrar todavía.</p>}</div>:f.type==="textarea"?<textarea rows={editor.resource==="activities"?14:4} placeholder={editor.resource==="activities"?"Markdown: # Título, **negrita**, - listas, [enlace](https://…)":undefined} required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>:f.type==="segmented"?<span className={"segmented-field"+((f.options||[]).length>3?" wrap":"")} role="group" aria-label={f.label}>{(f.options||[]).map(o=><button type="button" key={o.value} className={values[f.key]===o.value?"selected":""} aria-pressed={values[f.key]===o.value} onClick={()=>setValues(v=>({...v,[f.key]:o.value}))}>{o.label}</button>)}</span>:f.type==="select"?<select required={f.required} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}><option value="">— Seleccionar —</option>{(f.options||(f.key==="projectId"?projects.map(p=>({value:String(p.id),label:String(p.name)})):f.key==="contactId"?contacts.map(c=>({value:String(c.id),label:String(c.name)})):f.key==="accountId"?accounts.map(a=>({value:String(a.id),label:String(a.name)+" ("+String(a.currency)+")"})):[])).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>:<span className="input-action"><input type={f.type||"text"} required={f.required} min={f.type==="number"?"0":undefined} step={f.type==="number"?"0.01":undefined} placeholder={f.placeholder} value={values[f.key]||""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}/>{editor.resource==="contacts"&&<FieldLookup k={f.key} values={values}/>}</span>}</label>)}</div>{editor.resource==="transactions"&&!editor.item?.recurringId&&<RecurrenceField frequency={values.recurrence||""} endDate={values.recurrenceEnd||""} onChange={patch=>setValues(v=>({...v,...patch}))}/>}{editor.resource==="activities"&&<div className="activity-contact-picker"><strong>Contactos relacionados</strong><div className="activity-contact-options">{contacts.map(contact=><label key={contact.id}><input type="checkbox" checked={(values.contactIds||"").split(",").includes(contact.id)} onChange={e=>setValues(v=>{const ids=new Set((v.contactIds||"").split(",").filter(Boolean));if(e.target.checked)ids.add(contact.id);else ids.delete(contact.id);return {...v,contactIds:[...ids].join(",")};})}/><span>{String(contact.name)}</span></label>)}</div></div>}<div className="modal-actions"><button className="secondary-button" onClick={closeEditor}>Cancelar</button><button className="primary-button" disabled={saving} onClick={()=>void save()}>{saving?"Guardando…":"Guardar"}</button></div></section></div>}
     {docs.modal}
-    <TimerHost timer={timer} skewMs={timerSkew} view={timerView} tasks={tasks} onView={setTimerView} onTimer={publishTimer} onEntry={publishEntry} onNotice={setNotice} onError={setError}/>
+    <TimerHost timer={timer} skewMs={timerSkew} view={timerView} tasks={tasks} onView={onTimerView} onTimer={publishTimer} onEntry={publishEntry} onNotice={setNotice} onError={setError}/>
   </main>;
 }
 function Empty({text}:{text:string}){return <p className="empty-copy">{text}</p>}

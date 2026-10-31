@@ -23,21 +23,20 @@ const budgetChip = (json: string | null) => {
   } catch { return null; }
 };
 
-export default function Inquiries({ items, openId, onAction, onViewContact }: { items: Inquiry[]; openId: string | null; onAction: (id: string, action: "read" | "unread" | "archive" | "unarchive" | "convert") => Promise<void>; onViewContact: () => void }) {
+export default function Inquiries({ items, openId, onOpenChange, onAction, onViewContact }: { items: Inquiry[]; openId: string | null; onOpenChange: (id: string | null) => void; onAction: (id: string, action: "read" | "unread" | "archive" | "unarchive" | "convert") => Promise<void>; onViewContact: () => void }) {
   const [filter, setFilter] = useState<Filter>("new");
-  const [open, setOpen] = useState<string | null>(openId);
   const [busy, setBusy] = useState<string | null>(null);
   const unread = items.filter(i => i.status === "new").length;
-  const shown = useMemo(() => items.filter(i => i.id === open && filter !== "archived" && i.status !== "archived" ? true : (filter === "new" ? i.status === "new" : filter === "archived" ? i.status === "archived" : i.status !== "archived")), [items, filter, open]);
+  const shown = useMemo(() => items.filter(i => i.id === openId && filter !== "archived" && i.status !== "archived" ? true : (filter === "new" ? i.status === "new" : filter === "archived" ? i.status === "archived" : i.status !== "archived")), [items, filter, openId]);
   const run = async (id: string, action: Parameters<typeof onAction>[1]) => { setBusy(id); try { await onAction(id, action); } finally { setBusy(null); } };
-  const toggle = (i: Inquiry) => { const next = open === i.id ? null : i.id; setOpen(next); if (next && i.status === "new") void run(i.id, "read"); };
+  const toggle = (i: Inquiry) => { const next = openId === i.id ? null : i.id; onOpenChange(next); if (next && i.status === "new") void run(i.id, "read"); };
   const tabs: [Filter, string, string][] = [["new", `Nuevas${unread ? ` (${unread})` : ""}`, "Sin leer"], ["all", "Todas", "Todas menos archivadas"], ["archived", "Archivadas", "Solicitudes archivadas"]];
   return <div className="inq">
     <div className="segmented-field inq-filter" role="group" aria-label="Filtrar solicitudes">{tabs.map(([id, label, tip]) => <button type="button" key={id} title={tip} className={filter === id ? "selected" : ""} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>)}</div>
     {shown.length === 0 ? <div className="panel inq-empty"><Inbox size={22} aria-hidden="true" /><p className="empty-copy">{filter === "new" ? "No hay solicitudes sin leer." : filter === "archived" ? "No hay solicitudes archivadas." : "Todavía no llegó ninguna solicitud desde el portfolio."}</p></div> : <div className="inq-list">
       {shown.map((i, idx) => {
         const mk = monthKey(i.createdAt), newMonth = idx === 0 || monthKey(shown[idx - 1].createdAt) !== mk;
-        const isOpen = open === i.id, chip = budgetChip(i.budgetJson), disabled = busy === i.id;
+        const isOpen = openId === i.id, chip = budgetChip(i.budgetJson), disabled = busy === i.id;
         return <Fragment key={i.id}>{newMonth && <MonthHeading day={mk + "-01"} loose />}<article id={"inq-" + i.id} className={"panel inq-card " + (i.status === "new" ? "unread " : "") + (isOpen ? "open" : "")}>
           <button type="button" className="inq-head" aria-expanded={isOpen} title={isOpen ? "Cerrar" : "Abrir"} onClick={() => toggle(i)}>
             <span className="inq-dot" aria-hidden="true" title={i.status === "new" ? "Sin leer" : ""} />

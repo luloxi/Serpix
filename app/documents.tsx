@@ -66,7 +66,7 @@ export function StatusBadge({ doc, today }: { doc: Pick<Doc, "type" | "status" |
 export function useDocuments(o: {
   contacts: Contact[]; accounts: Account[]; issuer: { name: string; email: string | null };
   onNotice: (m: string) => void; onError: (m: string) => void; onChanged: () => void;
-}): { panel: ReactNode; modal: ReactNode; homeAlert: ReactNode; openNew: (type: DocType) => void; overdueCount: number } {
+}): { panel: ReactNode; modal: ReactNode; homeAlert: ReactNode; openNew: (type: DocType) => void; overdueCount: number; open: boolean; close: () => void } {
   const { contacts, accounts, issuer, onNotice, onError, onChanged } = o;
   const [docs, setDocs] = useState<Doc[]>([]);
   const [today, setToday] = useState(() => new Date().toLocaleDateString("sv-SE"));
@@ -322,5 +322,6 @@ export function useDocuments(o: {
     </div>
   );
 
-  return { panel, modal, homeAlert, openNew, overdueCount: overdue.length };
+  const close = () => { setDraft(null); setPay(null); setImportList(null); };
+  return { panel, modal, homeAlert, openNew, overdueCount: overdue.length, open: draft !== null, close };
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { safeNext } from "@/lib/nav";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -10,9 +11,10 @@ export default function LoginPage() {
   async function signIn() {
     setLoading(true);
     setError("");
+    const next = safeNext(new URLSearchParams(window.location.search).get("next"), window.location.origin);
     const result = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/",
+      callbackURL: next,
       errorCallbackURL: "/login?error=oauth",
     });
     if (result.error) {
