@@ -4,5 +4,5 @@
 /icons/*
   Cache-Control: public,max-age=31536000,immutable
 
-/manifest-v4.webmanifest
+/manifest-v5.webmanifest
   Cache-Control: public,max-age=0,must-revalidate

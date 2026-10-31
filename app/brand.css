@@ -117,17 +117,12 @@
 :root[data-theme] .icon-button{background:color-mix(in srgb,var(--ink) 5%,transparent)!important;border:0!important;color:var(--ink);cursor:pointer}
 :root[data-theme] .icon-button:hover{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)}
 
-/* + button (FAB): pure black disc, the Serpix ouroboros ring around it (public/icons/fab-ouro-*.png, ~6 KB, no $), duck-yellow plus, no halo. Variant via <html data-fab="A|B|C"> (preview only; A is the default). */
-:root[data-theme] .add-trigger{border:0!important;outline:0;background-color:#000!important;background-image:var(--fab-ring,url(/icons/fab-ouro-a.v1.png))!important;background-size:100% 100%!important;background-repeat:no-repeat!important;background-position:center!important;color:var(--brand-yellow)!important;box-shadow:0 6px 18px rgb(0 0 0/.4),0 0 0 1px rgb(255 255 255/.07)!important;cursor:pointer;transition:transform .15s,box-shadow .15s}
+/* + button (FAB): pure black disc, thick Serpix ouroboros ring around it (public/icons/fab-ring.v5.png, ~7 KB, no $), duck-yellow plus, no halo. */
+:root[data-theme] .add-trigger{border:0!important;outline:0;background-color:#000!important;background-image:url(/icons/fab-ring.v5.png)!important;background-size:100% 100%!important;background-repeat:no-repeat!important;background-position:center!important;color:var(--brand-yellow)!important;box-shadow:0 6px 18px rgb(0 0 0/.4),0 0 0 1px rgb(255 255 255/.07)!important;cursor:pointer;transition:transform .15s,box-shadow .15s}
 :root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;box-shadow:0 8px 24px rgb(171 150 255/.5),0 0 0 1px rgb(255 255 255/.1)!important}
 :root[data-theme] .add-trigger:active{transform:scale(.96)!important}
 :root[data-theme] .add-trigger:focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:3px!important}
-:root[data-theme] .add-trigger svg{width:26px!important;height:26px!important;stroke-width:3.2;filter:none}
-/* B: thicker ouroboros, head visible; smaller plus fits the narrower hole */
-:root[data-theme][data-fab="B"] .add-trigger{--fab-ring:url(/icons/fab-ouro-b.v1.png)}
-:root[data-theme][data-fab="B"] .add-trigger svg{width:23px!important;height:23px!important;stroke-width:3.4}
-/* C: simple conic ring (cyan tail -> violet -> pink head, small gap at the top), no image */
-:root[data-theme][data-fab="C"] .add-trigger{--fab-ring:radial-gradient(circle closest-side,transparent 0 88%,#000 90%),radial-gradient(circle closest-side,#000 0 67%,transparent 69%),conic-gradient(from 12deg,var(--brand-cyan) 0,var(--brand-violet) 48%,var(--brand-pink) 93%,transparent 93.2%)}
+:root[data-theme] .add-trigger svg{width:23px!important;height:23px!important;stroke-width:3.4;filter:none}
 :root[data-theme] .agenda-fab button,:root[data-theme] .agenda-fab .secondary-button{cursor:pointer}
 
 /* Inputs: hairline, brand focus */
