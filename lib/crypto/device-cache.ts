@@ -23,6 +23,14 @@ export class DeviceWipeBlockedError extends Error {
   }
 }
 
+/** `open()` did not succeed before the timeout, or the open was blocked. */
+export class DeviceOpenTimeoutError extends Error {
+  constructor() {
+    super("device database open timed out");
+    this.name = "DeviceOpenTimeoutError";
+  }
+}
+
 const connections = new Map<IDBFactory, Set<IDBDatabase>>();
 
 function watch(idb: IDBFactory, db: IDBDatabase): void {
@@ -68,8 +76,16 @@ async function knownDatabases(idb: IDBFactory): Promise<string[] | null> {
   return rows.map((row) => row.name ?? "").filter((name) => name.length > 0);
 }
 
-function openDb(idb: IDBFactory): Promise<IDBDatabase> {
+function openDb(idb: IDBFactory, timeoutMs = DEVICE_WIPE_BLOCKED_MS): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (follow: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      follow();
+    };
+    const timer = setTimeout(() => finish(() => reject(new DeviceOpenTimeoutError())), timeoutMs);
     const request = idb.open(DEVICE_DB_NAME, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -80,9 +96,10 @@ function openDb(idb: IDBFactory): Promise<IDBDatabase> {
     request.onsuccess = () => {
       const db = request.result;
       watch(idb, db);
-      resolve(db);
+      finish(() => resolve(db));
     };
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
+    request.onerror = () => finish(() => reject(request.error ?? new Error("IndexedDB open failed")));
+    request.onblocked = () => finish(() => reject(new DeviceOpenTimeoutError()));
   });
 }
 
@@ -135,13 +152,13 @@ export async function cacheDek(options: {
 }
 
 /** Raw DEK bytes, or null when this device has no cache for `userId`. Caller wipes the buffer. */
-export async function loadCachedDek(options: { userId: string; idb?: IDBFactory }): Promise<Uint8Array | null> {
+export async function loadCachedDek(options: { userId: string; idb?: IDBFactory; openTimeoutMs?: number }): Promise<Uint8Array | null> {
   assertUserId(options.userId);
   const idb = options.idb ?? globalThis.indexedDB;
   if (!idb) return null;
   const names = await knownDatabases(idb);
   if (names && !names.includes(DEVICE_DB_NAME)) return null;
-  const db = await openDb(idb);
+  const db = await openDb(idb, options.openTimeoutMs);
   try {
     const tx = db.transaction(DEVICE_STORE, "readonly");
     const store = tx.objectStore(DEVICE_STORE);
@@ -175,10 +192,10 @@ export async function loadCachedDek(options: { userId: string; idb?: IDBFactory 
  * is absent: opening would create it. `databases()` missing means we cannot
  * tell, so we do not create one either.
  */
-async function dropStoredRecords(idb: IDBFactory): Promise<void> {
+async function dropStoredRecords(idb: IDBFactory, timeoutMs: number): Promise<void> {
   const names = await knownDatabases(idb);
   if (!names?.includes(DEVICE_DB_NAME)) return;
-  const db = await openDb(idb);
+  const db = await openDb(idb, timeoutMs);
   try {
     if (!db.objectStoreNames.contains(DEVICE_STORE)) return;
     const tx = db.transaction(DEVICE_STORE, "readwrite");
@@ -213,15 +230,16 @@ function deleteDeviceDatabase(idb: IDBFactory, blockedTimeoutMs: number): Promis
 }
 
 /** Delete the device database. Sign-out calls this. Missing databases are not an error. */
-export async function clearDeviceCache(options?: { idb?: IDBFactory; blockedTimeoutMs?: number }): Promise<void> {
+export async function clearDeviceCache(options?: { idb?: IDBFactory; blockedTimeoutMs?: number; openTimeoutMs?: number }): Promise<void> {
   const idb = options?.idb ?? globalThis.indexedDB;
   if (!idb) return;
   const blockedTimeoutMs = options?.blockedTimeoutMs ?? DEVICE_WIPE_BLOCKED_MS;
+  const openTimeoutMs = options?.openTimeoutMs ?? DEVICE_WIPE_BLOCKED_MS;
   closeOwnConnections(idb);
   try {
-    await dropStoredRecords(idb);
+    await dropStoredRecords(idb, openTimeoutMs);
   } catch {
-    // The database may still be deletable. A blocked delete rejects below.
+    // An open that never returns must not skip deleteDatabase or the cookie clear.
   }
   closeOwnConnections(idb);
   await deleteDeviceDatabase(idb, blockedTimeoutMs);

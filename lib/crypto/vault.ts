@@ -234,7 +234,7 @@ export async function addPasskeyWrap(input: {
 }
 
 /** Drop the in-memory DEK and the device cache. `pagehide` does not do this. */
-export async function signOut(options?: { idb?: IDBFactory; vault?: Vault; blockedTimeoutMs?: number }): Promise<void> {
+export async function signOut(options?: { idb?: IDBFactory; vault?: Vault; blockedTimeoutMs?: number; openTimeoutMs?: number }): Promise<void> {
   (options?.vault ?? vault).clear();
-  await clearDeviceCache({ idb: options?.idb, blockedTimeoutMs: options?.blockedTimeoutMs });
+  await clearDeviceCache({ idb: options?.idb, blockedTimeoutMs: options?.blockedTimeoutMs, openTimeoutMs: options?.openTimeoutMs });
 }

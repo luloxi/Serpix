@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { IDBFactory, IDBVersionChangeEvent } from "fake-indexeddb";
 import { bytesToBase64Url } from "../lib/crypto/bytes.ts";
 import { importDek, Vault } from "../lib/crypto/dek.ts";
-import { DEVICE_DB_NAME, DEVICE_WIPE_BLOCKED_MS, DeviceWipeBlockedError, cacheDek, clearDeviceCache, loadCachedDek } from "../lib/crypto/device-cache.ts";
+import { DEVICE_DB_NAME, DEVICE_WIPE_BLOCKED_MS, DeviceOpenTimeoutError, DeviceWipeBlockedError, cacheDek, clearDeviceCache, loadCachedDek } from "../lib/crypto/device-cache.ts";
+import { runSignOut } from "../lib/e2e/sign-out.ts";
 import { DecryptError, openBytes, sealBytes } from "../lib/crypto/envelope.ts";
 import { signOut, vault } from "../lib/crypto/vault.ts";
 import { bytesToHex, hexToBytes } from "./helpers/codec.ts";
@@ -232,4 +233,53 @@ test("this tab closes its own connection on versionchange", async () => {
   await loadCachedDek({ userId, idb: wrapped }).catch(() => undefined);
   assert.equal(saw, true);
   assert.equal(usableAfter, false);
+});
+
+function hangingOpen(onblocked = false): { idb: IDBFactory; deleted: () => boolean } {
+  let deleted = false;
+  const idb = {
+    open() {
+      const request: { onblocked?: () => void } = {};
+      if (onblocked) queueMicrotask(() => request.onblocked?.());
+      return request;
+    },
+    deleteDatabase() {
+      deleted = true;
+      const request = { onsuccess: null as null | (() => void), onerror: null, onblocked: null };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+    async databases() {
+      return [{ name: DEVICE_DB_NAME }];
+    },
+  };
+  return { idb: idb as unknown as IDBFactory, deleted: () => deleted };
+}
+
+test("an IndexedDB open that never resolves times out and sign-out still clears the cookie path", async () => {
+  const hung = hangingOpen();
+  await assert.rejects(
+    () => loadCachedDek({ userId, idb: hung.idb, openTimeoutMs: 30 }),
+    (error: unknown) => error instanceof DeviceOpenTimeoutError,
+  );
+  await clearDeviceCache({ idb: hung.idb, openTimeoutMs: 30, blockedTimeoutMs: 30 });
+  assert.equal(hung.deleted(), true);
+
+  const blocked = hangingOpen(true);
+  await assert.rejects(
+    () => loadCachedDek({ userId, idb: blocked.idb, openTimeoutMs: 2_000 }),
+    (error: unknown) => error instanceof DeviceOpenTimeoutError,
+  );
+
+  const order: string[] = [];
+  const result = await runSignOut({
+    removePush: async () => { order.push("push"); },
+    e2eActive: true,
+    wipeVault: () => clearDeviceCache({ idb: hangingOpen().idb, openTimeoutMs: 20, blockedTimeoutMs: 20 }),
+    uninstallFetch: () => { order.push("fetch"); },
+    closeEngine: async () => { order.push("engine"); },
+    authSignOut: async () => { order.push("auth"); },
+  });
+  assert.deepEqual(order, ["push", "fetch", "engine", "auth"]);
+  assert.equal(result.deviceWipeFailed, false);
 });
