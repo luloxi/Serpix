@@ -183,6 +183,42 @@ test("a common password repeated two or more times is capped like the word itsel
   assert.equal(passwordStrength("passwordpasswordx").issues.includes("common"), false);
 });
 
+function fullwidth(value: string): string {
+  return Array.from(value).map((char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return code >= 0x21 && code <= 0x7e ? String.fromCodePoint(code + 0xfee0) : char;
+  }).join("");
+}
+
+test("an email, its local part, or that part with digits is capped at 1", () => {
+  const email = "user123@gmail.com";
+  assert.equal(codePointLength(email), 17);
+  const asPassword = passwordStrength(email, [email]);
+  assert.ok(asPassword.score <= 1);
+  assert.ok(asPassword.issues.includes("user-input"));
+  assert.throws(() => validateRecoveryPassword(email, [email]), PasswordPolicyError);
+
+  const localEmail = "qzvmhtrwkdjxpnbc@gmail.com";
+  for (const password of ["qzvmhtrwkdjxpnbc", "qzvmhtrwkdjxpnbc2026", "2026qzvmhtrwkdjxpnbc", "QZVMHTRWKDJXPNBC"]) {
+    const hit = passwordStrength(password, [localEmail]);
+    assert.ok(hit.score <= 1, password + " " + hit.score);
+    assert.ok(hit.issues.includes("user-input"), password);
+    assert.throws(() => validateRecoveryPassword(password, [localEmail]), PasswordPolicyError);
+  }
+  const wide = passwordStrength(fullwidth(email), [email]);
+  assert.ok(wide.score <= 1);
+  assert.ok(wide.issues.includes("user-input"));
+  assert.throws(() => validateRecoveryPassword(fullwidth("USER123@GMAIL.COM"), [email]), PasswordPolicyError);
+
+  const phrase = passwordStrength("Keep-luciano@example.com");
+  const inside = passwordStrength("Keep-luciano@example.com", ["luciano@example.com"]);
+  assert.equal(inside.score, phrase.score - 1);
+  assert.ok(inside.score > 1);
+  assert.equal(validateRecoveryPassword("Tr0pic-Moon-42", [email]).score >= 3, true);
+  assert.equal(validateRecoveryPassword("correct horse bat", [email]).score, 3);
+  assert.equal(passwordStrength("qzvmhtrwkdjxpnbc").score, 3);
+});
+
 test("password wrap round trip, wrong password, and stored m", { timeout: 180_000 }, async () => {
   const wrap = await createPasswordWrap(dek, "Correct-Horse-99", {
     ...ctx,

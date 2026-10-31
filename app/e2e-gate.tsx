@@ -297,6 +297,8 @@ export default function E2eGate({ userId, encryptionMode, name, email, image }: 
   const check = onboardingValidation({
     score: strength.score,
     issues: strength.issues,
+    email,
+    userInputs: [email, name],
     password,
     confirm,
     understood,

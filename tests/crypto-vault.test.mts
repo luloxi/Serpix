@@ -182,6 +182,21 @@ test("remember stores wrapped material and sign-out clears it", { timeout: 240_0
   }
 });
 
+test("a password that is the account email is rejected before Argon2", async () => {
+  const started = performance.now();
+  await assert.rejects(
+    () => createVault({
+      userId,
+      email: "user123@gmail.com",
+      password: "user123@gmail.com",
+      wrapIds: { password: "pw-1" },
+      deps: { appUrl, timer: fast },
+    }),
+    PasswordPolicyError,
+  );
+  assert.ok(performance.now() - started < 500);
+});
+
 test("a weak recovery password is rejected before Argon2", async () => {
   const started = performance.now();
   await assert.rejects(
