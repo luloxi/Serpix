@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/auth";
+import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
+import { attachReceipt } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
 const tableByResource = { contacts: "contacts", projects: "projects", tasks: "tasks", accounts: "financial_accounts", transactions: "financial_transactions", activities: "activities" } as const;
@@ -72,7 +74,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         const accountId=str(b.accountId,80), contactId=nullable(b.contactId,80);
         if(!(await db.prepare("SELECT id FROM financial_accounts WHERE id=? AND user_id=?").bind(accountId,userId).first())) return NextResponse.json({error:"Cuenta inválida"},{status:400});
         if(contactId && !(await db.prepare("SELECT id FROM contacts WHERE id=? AND user_id=?").bind(contactId,userId).first())) return NextResponse.json({error:"Contacto inválido"},{status:400});
-        result=await db.prepare("UPDATE financial_transactions SET account_id=?,contact_id=?,kind=?,amount_minor=?,category=?,description=?,occurred_at=? WHERE id=? AND user_id=?").bind(accountId,contactId,pick(b.kind,["income","expense"] as const,"expense"),amount,category,nullable(b.description),str(b.occurredAt,10)||new Date().toISOString().slice(0,10),id,userId).run(); break;
+        const kind=pick(b.kind,["income","expense"] as const,"expense"), occurredAt=str(b.occurredAt,10)||todayInBuenosAires(now);
+        if(!isDateKey(occurredAt)) return NextResponse.json({error:"Fecha inválida"},{status:400});
+        const existingTx=await db.prepare("SELECT recurring_id AS recurringId FROM financial_transactions WHERE id=? AND user_id=?").bind(id,userId).first<{recurringId:string|null}>();
+        const recurrence=existingTx&&!existingTx.recurringId?parseRecurrence(b.recurrence,b.recurrenceEnd,occurredAt):null;
+        if(typeof recurrence==="string") return NextResponse.json({error:recurrence},{status:400});
+        result=await db.prepare("UPDATE financial_transactions SET account_id=?,contact_id=?,kind=?,amount_minor=?,category=?,description=?,occurred_at=? WHERE id=? AND user_id=?").bind(accountId,contactId,kind,amount,category,nullable(b.description),occurredAt,id,userId).run();
+        if(result.meta.changes>0){
+          const receiptId=nullable(b.receiptId,80);
+          if(receiptId) await attachReceipt(db,userId,id,receiptId);
+          else if(b.removeReceipt===true) await db.prepare("DELETE FROM receipts WHERE transaction_id=? AND user_id=?").bind(id,userId).run();
+          if(recurrence){
+            await createRuleForTransaction(db,userId,id,{accountId,contactId,kind,amountMinor:amount,category,description:nullable(b.description),anchorDate:occurredAt,recurrence},now);
+            await generateDue(db,userId,todayInBuenosAires(now),now);
+          }
+        }
+        break;
       }
     }
     if(result.meta.changes===0) return NextResponse.json({error:"Registro no encontrado"},{status:404});

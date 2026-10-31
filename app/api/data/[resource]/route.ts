@@ -5,6 +5,8 @@ import { getAuth } from "@/lib/auth";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { ACCOUNTS_SQL } from "@/lib/finance";
+import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
+import { attachReceipt } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
 const resources = ["contacts", "projects", "tasks", "accounts", "transactions", "activities"] as const;
@@ -37,7 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
     const url = new URL(request.url);
     const limit = pageInt(url.searchParams.get("limit"), 250, 1, 5000);
     const offset = pageInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
-    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName, t.recurring_id AS recurringId, (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id LIMIT 1) AS receiptId FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
     const result = await db.prepare(query).bind(userId, limit, offset).all();
     return NextResponse.json({ items: result.results });
   }
@@ -107,7 +109,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
         if (!account) return NextResponse.json({error:"Cuenta inválida"}, {status:400});
         const contactId = nullable(body.contactId,80);
         if (contactId && !(await db.prepare("SELECT id FROM contacts WHERE id=? AND user_id=?").bind(contactId,userId).first())) return NextResponse.json({error:"Contacto inválido"}, {status:400});
-        await db.prepare("INSERT INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,userId,accountId,contactId,oneOf(body.kind,["income","expense"] as const,"expense"),amount,category,nullable(body.description),str(body.occurredAt,10) || new Date().toISOString().slice(0,10),now).run(); break;
+        const kind = oneOf(body.kind,["income","expense"] as const,"expense"), occurredAt = str(body.occurredAt,10) || todayInBuenosAires(now);
+        if (!isDateKey(occurredAt)) return NextResponse.json({error:"Fecha inválida"}, {status:400});
+        const recurrence = parseRecurrence(body.recurrence, body.recurrenceEnd, occurredAt);
+        if (typeof recurrence === "string") return NextResponse.json({error:recurrence}, {status:400});
+        await db.prepare("INSERT INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,userId,accountId,contactId,kind,amount,category,nullable(body.description),occurredAt,now).run();
+        const receiptId = nullable(body.receiptId,80);
+        if (receiptId) await attachReceipt(db,userId,id,receiptId);
+        if (recurrence) {
+          await createRuleForTransaction(db,userId,id,{accountId,contactId,kind,amountMinor:amount,category,description:nullable(body.description),anchorDate:occurredAt,recurrence},now);
+          await generateDue(db,userId,todayInBuenosAires(now),now);
+        }
+        break;
       }
     }
     return NextResponse.json({ ok: true, id }, { status: 201 });

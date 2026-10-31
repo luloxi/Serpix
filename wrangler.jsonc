@@ -22,7 +22,9 @@
     "VAPID_PUBLIC_KEY": "BFUYqMDu8-xW7U64g_TaoIRf-dxjWybTTuIW0F4H-44QLVecap-EcYKwVQkYQ6n-U2DOtevfT4Fsdg1rWrf541o",
     // Secrets (wrangler secret put, never here): BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, PORTFOLIO_INBOUND_SECRET, VAPID_PRIVATE_KEY
   },
-  // Daily overdue-invoice push (free Cron Trigger): 12:00 UTC = 09:00 America/Buenos_Aires.
+  // Workers AI (receipt reading). Free tier: 10,000 neurons/day; model in lib/receipt.ts.
+  "ai": { "binding": "AI" },
+  // One free Cron Trigger, 12:00 UTC = 09:00 America/Buenos_Aires: overdue-invoice push, due recurring movements, unattached-receipt purge.
   "triggers": { "crons": ["0 12 * * *"] },
   "observability": { "enabled": true }
 }

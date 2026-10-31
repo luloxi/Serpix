@@ -1,0 +1,30 @@
+/* Ticket scanning and recurring movements. Brand tokens only (see brand.css). */
+.receipt-field{display:grid;gap:10px;margin:0 0 16px;padding:12px 14px;border:1.5px dashed var(--brand-violet-mid);border-radius:14px;background:var(--brand-violet-soft)}
+.receipt-head{display:grid;gap:3px}
+.receipt-head strong{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink)}
+.receipt-head small{font-size:13px;color:var(--muted);line-height:1.4}
+.receipt-actions{display:flex;flex-wrap:wrap;gap:6px}
+.receipt-btn{display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:12.5px;font-weight:650;text-decoration:none;cursor:pointer}
+.receipt-btn:hover:not(:disabled){border-color:var(--brand-violet);background:var(--brand-violet-soft)}
+.receipt-btn:disabled{cursor:not-allowed;opacity:.55}
+.receipt-btn.danger{color:var(--brand-pink-ink)}
+.receipt-btn:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.receipt-link{display:inline-flex;vertical-align:middle;color:var(--brand-violet-ink);cursor:pointer}
+.scan-ticket-button{display:inline-flex;align-items:center;gap:5px;color:var(--brand-violet-ink)!important;font-size:12px!important;cursor:pointer}
+
+.recurrence-field{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.recurrence-field .field-label{display:flex;align-items:center;gap:6px}
+.recurrence-end{display:grid;gap:6px;font-size:13px}
+.recurrence-hint{font-size:12px;color:var(--muted);line-height:1.4}
+
+.recurring-badge{display:inline-flex;align-items:center;gap:3px;background:var(--brand-cyan-soft)!important;color:var(--brand-cyan-ink)!important;font-size:10px!important;padding:2px 7px!important;vertical-align:middle}
+.recurring-panel{margin-bottom:14px}
+.recurring-panel .panel-title h2{display:flex;align-items:center;gap:6px}
+.recurring-line{flex-wrap:wrap}
+.recurring-line.is-paused,.recurring-line.is-ended{opacity:.7}
+.recurring-status{font-size:10px!important}
+.recurring-status.active{background:var(--brand-cyan-soft)!important;color:var(--brand-cyan-ink)!important}
+.recurring-status.paused{background:var(--brand-yellow-soft)!important;color:var(--brand-yellow-ink)!important}
+.recurring-status.ended{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)!important}
+.recurring-line .row-actions button{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.recurring-line .row-actions button:disabled{cursor:not-allowed;opacity:.5}

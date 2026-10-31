@@ -3,6 +3,7 @@ import "./globals.css";
 import "./brand.css";
 import "./urgency.css";
 import "./documents.css";
+import "./gastos.css";
 
 export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
