@@ -5,7 +5,8 @@ import AdminUsers from "@/app/admin/users";
 import Agenda, { Markdown } from "@/app/agenda";
 import { AvatarError, autoAvatar, autoEligible, fetchAvatar, handleOf, sourcesKey, toSmallWebp, waNumber, type AvatarSource } from "@/lib/avatar-client";
 import { contactRelations, RELATION_KEYS, RELATION_LABEL, type RelationKey, type RelationState, type Relations } from "@/lib/relations";
-import { ArrowRight, AlertCircle, CalendarOff, Clock, UserRound, ListChecks, CalendarClock, House, Users, Wallet, ShieldCheck, Sun, Moon, Plus, ContactRound, ListPlus, WalletCards, ArrowLeftRight, CalendarDays, NotebookPen, Check, Inbox, MessageCircle, Search } from "lucide-react";
+import { ArrowRight, AlertCircle, CalendarOff, Clock, UserRound, ListChecks, CalendarClock, House, Users, Wallet, ShieldCheck, Sun, Moon, Plus, ContactRound, ListPlus, WalletCards, CalendarDays, NotebookPen, ReceiptText, TrendingDown, Timer, Inbox, MessageCircle, Search } from "lucide-react";
+import AddSheet, { type AddSheetAction } from "@/app/add-sheet";
 import Inquiries, { type Inquiry } from "@/app/inquiries";
 import PushToggle from "@/app/push-toggle";
 import MonthHeading from "@/app/month-heading";
@@ -48,6 +49,8 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   const [addMenuOpen,setAddMenuOpen]=useState(false);
   const [profileMenuOpen,setProfileMenuOpen]=useState(false);
   const profileMenuRef=useRef<HTMLDivElement>(null);
+  const addTriggerRef=useRef<HTMLButtonElement>(null);
+  const closeAddMenu=useCallback(()=>setAddMenuOpen(false),[]);
   const pollingRef=useRef(false);
   const [inquiries,setInquiries]=useState<Inquiry[]>([]),[contactsTab,setContactsTab]=useState<"list"|"inquiries">("list"),[openInquiry,setOpenInquiry]=useState<string|null>(null);
   const unreadInquiries=inquiries.filter(i=>i.status==="new").length;
@@ -70,7 +73,7 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   useEffect(()=>{const saved=window.localStorage.getItem("serpix-theme");const initial=saved==="dark"?"dark":"light";setTheme(initial);document.documentElement.dataset.theme=initial;document.documentElement.style.colorScheme=initial;},[]);
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(""),3200);return()=>window.clearTimeout(timer);},[notice]);
   useEffect(()=>{if(!error)return;const timer=window.setTimeout(()=>setError(""),4500);return()=>window.clearTimeout(timer);},[error]);
-  useEffect(()=>{if(!addMenuOpen&&!profileMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape"){setAddMenuOpen(false);setProfileMenuOpen(false);}};const closeOnOutside=(event:PointerEvent)=>{if(profileMenuOpen&&profileMenuRef.current&&!profileMenuRef.current.contains(event.target as Node))setProfileMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);document.addEventListener("pointerdown",closeOnOutside);return()=>{window.removeEventListener("keydown",closeOnEscape);document.removeEventListener("pointerdown",closeOnOutside);};},[addMenuOpen,profileMenuOpen]);
+  useEffect(()=>{if(!profileMenuOpen)return;const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==="Escape")setProfileMenuOpen(false);};const closeOnOutside=(event:PointerEvent)=>{if(profileMenuRef.current&&!profileMenuRef.current.contains(event.target as Node))setProfileMenuOpen(false);};window.addEventListener("keydown",closeOnEscape);document.addEventListener("pointerdown",closeOnOutside);return()=>{window.removeEventListener("keydown",closeOnEscape);document.removeEventListener("pointerdown",closeOnOutside);};},[profileMenuOpen]);
   const inquiryAction=async(id:string,action:"read"|"unread"|"archive"|"unarchive"|"convert")=>{const r=await fetch("/api/inquiries/"+encodeURIComponent(id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action})});const j=await r.json().catch(()=>({})) as {error?:string;existed?:boolean};if(!r.ok){setError(j.error||"No se pudo actualizar la solicitud");return;}if(action==="convert"){setNotice(j.existed?"Ya había un contacto con ese mail: la solicitud quedó vinculada.":"Contacto creado desde la solicitud.");await load(true);}else{const ir=await fetch("/api/inquiries",{cache:"no-store"});if(ir.ok)setInquiries((await ir.json() as {items:Inquiry[]}).items);}};
   useEffect(()=>{const id=new URLSearchParams(window.location.search).get("solicitudes");if(id){setSection("contacts");setContactsTab("inquiries");setOpenInquiry(id);window.history.replaceState(null,"","/dashboard");}},[]);
   useEffect(()=>{if(!openInquiry||contactsTab!=="inquiries"||section!=="contacts")return;const t=window.setTimeout(()=>document.getElementById("inq-"+openInquiry)?.scrollIntoView({block:"center",behavior:"smooth"}),300);return()=>window.clearTimeout(t);},[openInquiry,contactsTab,section,inquiries.length]);
@@ -154,23 +157,35 @@ export default function Workspace({name,email,image,isAdmin}:{name:string;email:
   };
   const fields=editor?(editor.resource==="contacts"?contactFields:editor.resource==="projects"?projectFields:editor.resource==="tasks"?taskFields:editor.resource==="accounts"?accountFields:editor.resource==="activities"?activityFields:transactionFields):[];
   const visibleSections=sections.filter(s=>["home","contacts","activity","finance"].includes(s.id));
-  const activeAddType=({contacts:"contacts",projects:"projects",tasks:"tasks",activity:"activities-event",finance:"transactions"} as Partial<Record<Section,string>>)[section];
-  const addOptions=[
-    {id:"contacts",label:"Contacto",icon:ContactRound},
-
-    {id:"tasks",label:"Tarea",icon:ListPlus},
-    {id:"activities-event",label:"Evento",icon:CalendarDays},
-    {id:"activities-note",label:"Nota",icon:NotebookPen},
-    {id:"accounts",label:"Cuenta",icon:WalletCards},
-    {id:"transactions",label:"Movimiento",icon:ArrowLeftRight},
+  const activeAddType=({contacts:"contacts",activity:"activities-event"} as Partial<Record<Section,string>>)[section];
+  const chooseAdd=(resource:string)=>{
+    setAddMenuOpen(false);
+    if(resource==="timer"){window.dispatchEvent(new CustomEvent("serpix:timer-start"));return;}
+    if(resource==="transactions-income"||resource==="transactions-expense"){
+      if(accounts.length===0){openEditor("accounts");setNotice("Creá una cuenta primero para registrar movimientos.");return;}
+      openEditor("transactions");
+      setValues(v=>resource==="transactions-income"?{...v,kind:"income",category:"Factura"}:{...v,kind:"expense"});
+      return;
+    }
+    if(resource==="activities-event"||resource==="activities-note"){setActivityKind(resource==="activities-event"?"event":"note");openEditor("activities");return;}
+    openEditor(resource);
+  };
+  const addActions:AddSheetAction[]=[
+    {id:"contacts",label:"Contacto",icon:ContactRound,onSelect:()=>chooseAdd("contacts")},
+    {id:"tasks",label:"Tarea",icon:ListPlus,onSelect:()=>chooseAdd("tasks")},
+    {id:"activities-event",label:"Evento",icon:CalendarDays,onSelect:()=>chooseAdd("activities-event")},
+    {id:"activities-note",label:"Nota",icon:NotebookPen,onSelect:()=>chooseAdd("activities-note")},
+    {id:"transactions-income",label:"Factura",icon:ReceiptText,onSelect:()=>chooseAdd("transactions-income")},
+    {id:"transactions-expense",label:"Gasto",icon:TrendingDown,onSelect:()=>chooseAdd("transactions-expense")},
+    {id:"timer",label:"Temporizador",icon:Timer,onSelect:()=>chooseAdd("timer")},
+    {id:"accounts",label:"Cuenta",icon:WalletCards,onSelect:()=>chooseAdd("accounts")},
   ];
-  const chooseAdd=(resource:string)=>{setAddMenuOpen(false);if(resource==="activities-event"||resource==="activities-note"){setActivityKind(resource==="activities-event"?"event":"note");openEditor("activities");}else openEditor(resource);};
   const toggleTask=async(task:Item)=>{if(taskPending)return;setTaskPending(task.id);const status=task.status==="done"?"todo":"done";const r=await fetch("/api/data/tasks/"+encodeURIComponent(task.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:task.title,description:task.description,status,priority:task.priority,projectId:task.projectId||null,contactId:task.contactId||null,dueDate:task.dueDate||null})});if(!r.ok){setError("No se pudo actualizar la tarea");setTaskPending(null);return;}await load();setTaskPending(null);};
   const createTaskForContact=(contact:Item)=>{openEditor("tasks");setValues(v=>({...v,contactId:contact.id,title:"",description:""}));};
   const currencyTotals=(kind:"income"|"expense",currency:"ARS"|"USD")=>transactions.filter(t=>t.kind===kind&&t.currency===currency).reduce((sum,t)=>sum+Number(t.amountMinor||0),0);
   return <main className="app-shell">
     <aside className="sidebar"><a className="logo" href="/dashboard"><span className="brand-mark small"><img src="/icons/logo-128.v4.png" alt="" width="36" height="36" /></span><span>Serpix</span></a><div className="side-caption">ESPACIO DE TRABAJO</div><nav aria-label="Secciones principales">{visibleSections.map(s=>{const Icon=NavIcons[s.id];return <button key={s.id} className={"nav-item "+(section===s.id?"active":"")} aria-current={section===s.id?"page":undefined} aria-label={s.label} title={s.label} onClick={()=>{setSection(s.id);setEditor(null);setError("");setAddMenuOpen(false);setProfileMenuOpen(false);}}><span className="nav-symbol"><Icon size={19} strokeWidth={1.9}/>{s.id==="contacts"&&unreadInquiries>0&&<i className="nav-badge" aria-label={unreadInquiries+" solicitudes sin leer"}>{unreadInquiries>9?"9+":unreadInquiries}</i>}</span><span>{s.label}</span></button>;})}<div className="profile-nav-wrap" ref={profileMenuRef}>{profileMenuOpen&&<div className="profile-menu" id="serpix-profile-menu" role="group" aria-label="Menú de cuenta"><div className="profile-menu-heading"><strong>{name}</strong><small>{email}</small><span>{isAdmin?"Administrador":"Usuario"}</span></div><button type="button" className="profile-menu-item theme-menu-toggle" role="switch" aria-checked={theme==="dark"} onClick={toggleTheme}>{theme==="dark"?<Moon size={18}/>:<Sun size={18}/>}<span>Modo oscuro</span><span className={"theme-switch "+(theme==="dark"?"on":"")}><span/></span></button><PushToggle onMessage={(m,k)=>k==="ok"?setNotice(m):setError(m)}/>{isAdmin&&<button type="button" className="profile-menu-item" onClick={()=>{setSection("admin");setEditor(null);setProfileMenuOpen(false);window.scrollTo({top:0,behavior:"smooth"});}}><ShieldCheck size={18}/> Administración</button>}<div className="profile-menu-divider"/><SignOutButton/></div>}<button type="button" className={"nav-item profile-nav-item "+(profileMenuOpen?"active":"")} aria-label="Abrir menú de cuenta" aria-controls="serpix-profile-menu" aria-expanded={profileMenuOpen} title={name+" · Cuenta"} onClick={()=>setProfileMenuOpen(v=>!v)}><span className="profile-nav-avatar"><span className="profile-avatar-fallback">{name.trim().slice(0,1).toUpperCase()}</span>{image&&<img src={image} alt="" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/>}</span><span>Perfil</span></button></div></nav></aside>
-    <section className="main-area" aria-busy={loading}><div className="workspace-actions"><div className="add-menu-wrap"><button className={"add-trigger "+(addMenuOpen?"is-open":"")} onClick={()=>setAddMenuOpen(v=>!v)} aria-label="Agregar" aria-controls="serpix-add-options" aria-expanded={addMenuOpen} title="Agregar"><Plus size={23} strokeWidth={2.7}/></button>{addMenuOpen&&<div className="add-menu" id="serpix-add-options" role="group" aria-label="Qué querés agregar">{addOptions.map(option=>{const Icon=option.icon;const active=activeAddType===option.id;return <button key={option.id} type="button" className={"add-menu-item "+(active?"context-active":"")} aria-pressed={active} onClick={()=>chooseAdd(option.id)}><Icon size={18} strokeWidth={2}/><span>Agregar {option.label.toLowerCase()}</span>{active&&<span className="context-indicator">En esta sección</span>}</button>;})}</div>}</div></div>
+    <section className="main-area" aria-busy={loading}><div className="workspace-actions"><div className="add-menu-wrap"><button ref={addTriggerRef} className={"add-trigger "+(addMenuOpen?"is-open":"")} onClick={()=>setAddMenuOpen(v=>!v)} aria-label="Agregar" aria-controls="serpix-add-sheet" aria-expanded={addMenuOpen} title="Agregar"><Plus size={23} strokeWidth={2.7}/></button></div></div><AddSheet open={addMenuOpen} onClose={closeAddMenu} actions={addActions} activeId={activeAddType} triggerRef={addTriggerRef}/>
       {error&&<div className="toast error" role="alert" aria-live="assertive">{error}<button onClick={()=>setError("")} aria-label="Cerrar notificación">×</button></div>}{notice&&<div className="toast success" role="status" aria-live="polite">{notice}<button onClick={()=>setNotice("")} aria-label="Cerrar notificación">×</button></div>}
       {loading?<div className="loading" role="status" aria-live="polite">Cargando tu espacio…</div>:<>
       {section==="home"&&<>

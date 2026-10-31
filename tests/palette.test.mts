@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toneForMonth, toneForDate, toneClass, TONES } from "../lib/palette.ts";
+import { toneForMonth, toneForDate, toneClass, toneForIndex, TONES } from "../lib/palette.ts";
 import { addDays, dayChip, monthLabel, shortDate, todayBA } from "../lib/agenda-dates.ts";
 
 test("a month always has the same tone, year-independent, and all tones are used", () => {
@@ -10,6 +10,21 @@ test("a month always has the same tone, year-independent, and all tones are used
   assert.equal(toneClass("2026-10-30"), "tone-" + toneForMonth(9));
   assert.equal(toneForDate("sin fecha"), "pink");
   assert.equal(toneForMonth(-1), toneForMonth(11));
+});
+
+test("toneForIndex rotates the logo tones and wraps negatives", () => {
+  assert.deepEqual(
+    Array.from({ length: 8 }, (_, i) => toneForIndex(i)),
+    ["pink", "cyan", "yellow", "violet", "pink", "cyan", "yellow", "violet"],
+  );
+  assert.equal(toneForIndex(0), TONES[0]);
+  assert.equal(toneForIndex(3), "violet");
+  assert.equal(toneForIndex(4), "pink");
+  assert.equal(toneForIndex(-1), "violet");
+  assert.equal(toneForIndex(-2), "yellow");
+  assert.equal(toneForIndex(-4), "pink");
+  assert.equal(toneForIndex(-5), "violet");
+  assert.equal(toneForIndex(1.9), "cyan");
 });
 
 test("agenda dates: Buenos Aires today, month once, day chips without the month", () => {
