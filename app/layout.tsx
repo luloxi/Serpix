@@ -6,6 +6,7 @@ import "./urgency.css";
 import "./documents.css";
 import "./gastos.css";
 import "./e2e.css";
+import "./contacts.css";
 import { E2eEngineSlot } from "./e2e-slot";
 
 export const metadata: Metadata = {

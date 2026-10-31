@@ -1,0 +1,13 @@
+/* Where a contact was met. The form stays one column on a phone; options sit in normal flow so the modal can scroll them. */
+.event-field{display:grid;gap:7px}
+.editor-modal .event-field input.event-field-input{min-height:44px;font-size:16px;cursor:text}
+.event-suggest{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.event-suggest li{margin:0;padding:0}
+.event-suggest button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:8px 12px;border:0;background:transparent;color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+.event-suggest button small{color:var(--muted);font-size:12px;white-space:nowrap}
+.event-suggest button[aria-selected="true"]{background:color-mix(in srgb, var(--accent) 16%, transparent)}
+.event-suggest button:disabled{cursor:not-allowed;opacity:.55}
+.contact-summary-main .contact-met{display:block;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.contact-met-detail{display:grid;gap:4px}
+.contact-met-line,.contact-met-note{margin:0;font-size:13px;line-height:1.45;color:var(--muted)}
+.contact-met-note{white-space:pre-wrap;overflow-wrap:anywhere}
