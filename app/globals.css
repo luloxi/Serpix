@@ -1081,3 +1081,8 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .calendar[class*="tone-"] .calendar-day.is-selected{background:var(--ink);color:var(--surface);box-shadow:0 0 0 2px var(--tone-text)}
 .tx-month{margin:6px 0 0}
 .month-head.loose{background:transparent;padding:6px 2px 2px;margin:4px 0 0}
+
+.input-action{display:flex;gap:8px;align-items:stretch}
+.input-action input{flex:1;min-width:0}
+.field-lookup{display:grid;place-items:center;width:44px;flex:none;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--accent);cursor:pointer;text-decoration:none}
+.field-lookup:hover{border-color:var(--accent)}

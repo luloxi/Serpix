@@ -34,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!row) return Response.json({ error: "Not found" }, { status: 404 });
   if (row.data && !String(row.source || "").startsWith("auto:")) return Response.json({ error: "La foto ya fue elegida" }, { status: 409 });
   const av = avatarChange(body);
-  if (av && /^auto:(x|telegram|github|linkedin|email)$/.test(av.source)) {
+  if (av && /^auto:(x|telegram|github|linkedin|whatsapp|email)$/.test(av.source)) {
     await env.DB.prepare("UPDATE contacts SET avatar_data=?, avatar_source=?, avatar_tried_at=NULL, avatar_tried_key=NULL, updated_at=? WHERE id=? AND user_id=?").bind(av.data, av.source, Date.now(), id, session.user.id).run();
     return Response.json({ ok: true });
   }

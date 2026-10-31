@@ -1,6 +1,7 @@
-export type AvatarSource = "x" | "telegram" | "github" | "linkedin" | "email";
+export type AvatarSource = "x" | "telegram" | "github" | "linkedin" | "whatsapp" | "email";
+type HandleSource = Exclude<AvatarSource, "email" | "whatsapp">;
 
-const RULES: Record<Exclude<AvatarSource, "email">, { hosts: RegExp; pathPrefix?: string; valid: RegExp; provider: string }> = {
+const RULES: Record<HandleSource, { hosts: RegExp; pathPrefix?: string; valid: RegExp; provider: string }> = {
   x: { hosts: /^(www\.)?(x|twitter)\.com$/i, valid: /^[A-Za-z0-9_]{1,30}$/, provider: "x" },
   telegram: { hosts: /^(www\.)?(t\.me|telegram\.me)$/i, valid: /^[A-Za-z0-9_]{3,64}$/, provider: "telegram" },
   github: { hosts: /^(www\.)?github\.com$/i, valid: /^[A-Za-z0-9-]{1,39}$/, provider: "github" },
@@ -8,7 +9,7 @@ const RULES: Record<Exclude<AvatarSource, "email">, { hosts: RegExp; pathPrefix?
 };
 
 /** "@user", "user" or a profile URL -> the bare handle, or null when it does not look like one. */
-export function handleOf(source: Exclude<AvatarSource, "email">, raw: string | undefined): string | null {
+export function handleOf(source: HandleSource, raw: string | undefined): string | null {
   const v = (raw || "").trim();
   if (!v) return null;
   const rule = RULES[source];
@@ -25,6 +26,25 @@ export function handleOf(source: Exclude<AvatarSource, "email">, raw: string | u
   return rule.valid.test(candidate) ? candidate : null;
 }
 
+/**
+ * Phone -> international digits for wa.me and the WhatsApp photo lookup, or null if it does not look like a number.
+ * Argentine mobiles use 54 + 9 + area + number: "+54 11 5555-1234" and "11 5555 1234" both become 5491155551234.
+ */
+export function waNumber(raw: unknown): string | null {
+  let d = String(raw ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (d.length < 8 || d.length > 15) return null;
+  if (d.startsWith("54")) { if (!d.startsWith("549") && d.length === 12) d = "549" + d.slice(2); }
+  else if (d.length === 10 || (d.length === 11 && d.startsWith("0"))) d = "549" + d.replace(/^0/, "");
+  return d.length >= 8 && d.length <= 15 ? d : null;
+}
+
+/** SHA-256 of the generic silhouette unavatar returns (as a 200 PNG) for numbers without a public WhatsApp photo. */
+const WA_PLACEHOLDER = "697e2baa034c7c55c89a6e2080eb946a6de789fc293718d4ba1caa5a97e7dd29";
+async function sha256Bytes(blob: Blob): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function sha256Hex(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text.trim().toLowerCase()));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -36,6 +56,10 @@ export async function avatarUrl(source: AvatarSource, value: string | undefined)
     const email = (value || "").trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return null;
     return `https://gravatar.com/avatar/${await sha256Hex(email)}?d=404&s=256`;
+  }
+  if (source === "whatsapp") {
+    const n = waNumber(value);
+    return n ? `https://unavatar.io/whatsapp/phone:${n}?fallback=false` : null;
   }
   const handle = handleOf(source, value);
   return handle ? `https://unavatar.io/${RULES[source].provider}/${encodeURIComponent(handle)}?fallback=false` : null;
@@ -61,7 +85,8 @@ export async function toSmallWebp(blob: Blob, size = 256): Promise<string> {
 }
 
 export class AvatarError extends Error {
-  constructor(public code: "none" | "limited" | "network", message: string) { super(message); }
+  code: "none" | "limited" | "network";
+  constructor(code: "none" | "limited" | "network", message: string) { super(message); this.code = code; }
 }
 export const MSG_NONE = "Esa red no tiene foto disponible";
 const RASTER = /^image\/(jpeg|png|webp|gif|avif)$/i;
@@ -79,11 +104,13 @@ export async function fetchAvatar(source: AvatarSource, value: string | undefine
   if (!RASTER.test(type)) throw new AvatarError("none", MSG_NONE);
   const blob = await res.blob();
   if (blob.size < 200 || blob.size > 4_000_000) throw new AvatarError("none", MSG_NONE);
+  // For WhatsApp unavatar ignores fallback=false and answers 200 with its default silhouette: compare with the known bytes.
+  if (source === "whatsapp" && (await sha256Bytes(blob)) === WA_PLACEHOLDER) throw new AvatarError("none", MSG_NONE);
   try { return await toSmallWebp(blob); } catch { throw new AvatarError("none", MSG_NONE); }
 }
 
 export const AUTO_ORDER: { id: AvatarSource; field: string }[] = [
-  { id: "github", field: "githubUrl" }, { id: "x", field: "xUrl" }, { id: "telegram", field: "telegramUrl" }, { id: "linkedin", field: "linkedinUrl" }, { id: "email", field: "email" },
+  { id: "github", field: "githubUrl" }, { id: "x", field: "xUrl" }, { id: "telegram", field: "telegramUrl" }, { id: "linkedin", field: "linkedinUrl" }, { id: "whatsapp", field: "phone" }, { id: "email", field: "email" },
 ];
 
 /** Stable fingerprint of the networks/email available, used to avoid retrying the same failed lookup. */
@@ -92,6 +119,7 @@ export async function sourcesKey(values: Record<string, unknown>): Promise<strin
   for (const o of AUTO_ORDER) {
     const raw = String(values[o.field] ?? "");
     if (o.id === "email") { if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw.trim())) parts.push("email:" + raw.trim().toLowerCase()); }
+    else if (o.id === "whatsapp") { const n = waNumber(raw); if (n) parts.push("whatsapp:" + n); }
     else { const h = handleOf(o.id, raw); if (h) parts.push(o.id + ":" + h.toLowerCase()); }
   }
   return parts.join("|");
@@ -107,7 +135,7 @@ export function autoEligible(c: Record<string, unknown>, key: string): boolean {
 
 export type AutoResult = { source: AvatarSource; data: string } | "none" | "limited" | "network";
 
-/** Try GitHub, X, Telegram, LinkedIn, then the email's Gravatar; the first valid photo wins. */
+/** Try GitHub, X, Telegram, LinkedIn, WhatsApp (by phone), then the email's Gravatar; the first valid photo wins. */
 export async function autoAvatar(values: Record<string, unknown>): Promise<AutoResult> {
   let network = false;
   for (const o of AUTO_ORDER) {
