@@ -256,7 +256,7 @@ test("invalid email writes nothing", async () => {
 test("e2e mode lists nothing and writes nothing", async () => {
   const { db, d1 } = setup();
   contact(db, "keep", "owner", "Original", "ana@ex.test", 5, { phone: "1", company: "Acme" });
-  db.exec("ALTER TABLE user ADD COLUMN encryption_mode TEXT");
+  try { db.exec("ALTER TABLE user ADD COLUMN encryption_mode TEXT"); } catch { /* column already exists since migration 0015 */ }
   db.prepare("UPDATE user SET encryption_mode='e2e' WHERE id='owner'").run();
   resetEncryptionModeCache();
   const before = rows(db);
@@ -270,14 +270,14 @@ test("e2e mode lists nothing and writes nothing", async () => {
   assert.deepEqual(await upsertContactByEmail(d1, OWNER, { email: "otra@ex.test", name: "Otra" }), { status: "skipped_e2e" });
   assert.deepEqual(rows(db), before);
 
-  db.prepare("UPDATE user SET encryption_mode=NULL WHERE id='owner'").run();
+  try { db.prepare("UPDATE user SET encryption_mode=NULL WHERE id='owner'").run(); } catch { /* NOT NULL since migration 0015 */ }
   assert.deepEqual(await upsertContactByEmail(d1, OWNER, { email: "otra@ex.test" }), { status: "skipped_e2e" });
   assert.deepEqual(rows(db), before);
 });
 
 test("server encryption mode still syncs", async () => {
   const { db, d1 } = setup();
-  db.exec("ALTER TABLE user ADD COLUMN encryption_mode TEXT");
+  try { db.exec("ALTER TABLE user ADD COLUMN encryption_mode TEXT"); } catch { /* column already exists since migration 0015 */ }
   db.prepare("UPDATE user SET encryption_mode='server' WHERE id='owner'").run();
   resetEncryptionModeCache();
   contact(db, "keep", "owner", "Ana", "ana@ex.test", 5);
