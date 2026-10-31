@@ -1,25 +1,27 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Landing from "@/app/landing";
 import { getAuth } from "@/lib/auth";
+import { homeQuery, homeTarget, landingLang, type HomeSearchParams } from "@/lib/home";
+
 export const dynamic = "force-dynamic";
 
-type SearchParams = { [key: string]: string | string[] | undefined };
+export const metadata: Metadata = {
+  title: "Serpix",
+  description: "Herramienta gratis que Luciano armó para él y sus amigos. Contactos, agenda, cuentas en ARS y USD, y comprobantes internos. Solo por invitación.",
+};
 
-function searchSuffix(searchParams: SearchParams): string {
- const params = new URLSearchParams();
- for (const [key, value] of Object.entries(searchParams)) {
-  if (typeof value === "string") params.append(key, value);
-  else if (Array.isArray(value)) for (const item of value) params.append(key, item);
- }
- const query = params.toString();
- return query ? `?${query}` : "";
-}
-
-export default async function HomePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
- const auth = await getAuth();
- const session = await auth.api.getSession({ headers: await headers() });
- const query = searchSuffix(await searchParams);
- if (!session) redirect("/login?next=" + encodeURIComponent("/" + query));
- if (session.user.approvalStatus !== "approved") redirect("/pending");
- redirect("/dashboard" + query);
+export default async function HomePage({ searchParams }: { searchParams: Promise<HomeSearchParams> }) {
+  const params = await searchParams;
+  const query = homeQuery(params);
+  const auth = await getAuth();
+  const session = await auth.api.getSession({ headers: await headers() });
+  const target = homeTarget({
+    session,
+    approvalStatus: session ? session.user.approvalStatus : null,
+    query,
+  });
+  if ("redirect" in target) redirect(target.redirect);
+  return <Landing initialLang={landingLang(params)} />;
 }

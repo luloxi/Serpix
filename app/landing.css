@@ -1,0 +1,218 @@
+/* Public landing. Tokens only, so light and dark follow html[data-theme]. */
+
+.landing {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.landing-accent {
+  height: 3px;
+  background: var(--brand-gradient);
+}
+
+.landing-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+}
+
+.landing-lang {
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.landing-lang:hover {
+  background: var(--brand-violet-soft);
+  color: var(--brand-violet-ink);
+}
+
+.landing-main {
+  flex: 1;
+  width: min(100% - 32px, 28rem);
+  margin: 0 auto;
+  padding: 12px 0 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.landing-mark {
+  padding: 3px;
+  border-radius: 26px;
+  background: var(--brand-gradient);
+  line-height: 0;
+}
+
+.landing-logo {
+  display: block;
+  width: 88px;
+  height: 88px;
+  border-radius: 23px;
+  object-fit: cover;
+}
+
+.landing h1 {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.landing-lead {
+  margin: 0;
+  max-width: 28ch;
+  text-wrap: balance;
+}
+
+.landing-invite {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.landing-enter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 22rem;
+  min-height: 48px;
+  margin-top: 1.25rem;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--brand-pink);
+  color: var(--on-brand);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.landing-enter:hover {
+  background: var(--brand-violet);
+  color: var(--on-brand);
+}
+
+.landing-note {
+  margin: 0.85rem 0 0;
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  text-wrap: balance;
+}
+
+.landing-block,
+.landing-limits {
+  width: 100%;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.landing-block h2,
+.landing-limits h2 {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.landing-features,
+.landing-limits ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.landing-features li,
+.landing-limits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.landing-features li::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-top: 0.45em;
+  border-radius: 50%;
+  flex: none;
+  background: var(--brand-pink);
+}
+
+.landing-features li:nth-child(4n + 2)::before { background: var(--brand-cyan); }
+.landing-features li:nth-child(4n + 3)::before { background: var(--brand-yellow); }
+.landing-features li:nth-child(4n + 4)::before { background: var(--brand-violet); }
+
+.landing-limits {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.landing-limits li::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-top: 0.45em;
+  border-radius: 2px;
+  flex: none;
+  background: var(--brand-violet-mid);
+}
+
+.landing-footer {
+  padding: 8px 16px max(24px, env(safe-area-inset-bottom));
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.landing-footer p { margin: 0.25rem 0; }
+
+.landing-footer a {
+  color: var(--brand-violet-ink);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.landing-footer a:hover { color: var(--brand-pink-ink); }
+
+.landing :is(a, button) { cursor: pointer; }
+.landing :is(button:disabled, a[aria-disabled="true"]) { cursor: not-allowed; }
+
+.landing :is(a, button):focus-visible {
+  outline: 2px solid var(--brand-violet);
+  outline-offset: 3px;
+}
+
+@media (min-width: 720px) {
+  .landing-main { padding-top: 28px; }
+  .landing-logo { width: 104px; height: 104px; border-radius: 26px; }
+  .landing-mark { border-radius: 30px; }
+  .landing h1 { font-size: 2.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-enter { transition: none; }
+}
