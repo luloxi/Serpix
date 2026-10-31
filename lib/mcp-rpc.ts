@@ -15,6 +15,9 @@ export type Contact = {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  metEvent: string | null;
+  metEventAt: string | null;
+  metNote: string | null;
   updatedAt: number;
 };
 export type Task = {
@@ -54,6 +57,8 @@ const COMPANY_MAX = 160;
 const EMAIL_MAX = 254;
 const PHONE_MAX = 80;
 const NOTES_MAX = 5000;
+const MET_EVENT_MAX = 200;
+const MET_NOTE_MAX = 5000;
 const TITLE_MAX = 200;
 const DESCRIPTION_MAX = 5000;
 const BODY_MAX = 30000;
@@ -235,6 +240,15 @@ function requiredText(value: unknown, max: number, label: string): { ok: true; v
   return { ok: true, value: text };
 }
 
+function optionalDate(value: unknown, label: string): { ok: true; value: string | null } | { ok: false; message: string } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  if (typeof value !== "string") return { ok: false, message: "invalid " + label };
+  const text = value.trim();
+  if (!text) return { ok: true, value: null };
+  if (!isDateKey(text)) return { ok: false, message: "invalid " + label };
+  return { ok: true, value: text };
+}
+
 function optionalText(value: unknown, max: number, label: string): { ok: true; value: string | null } | { ok: false; message: string } {
   if (value === undefined || value === null) return { ok: true, value: null };
   if (typeof value !== "string") return { ok: false, message: "invalid " + label };
@@ -258,7 +272,7 @@ async function contactOwned(db: D1Like, userId: string, id: string): Promise<boo
   return row != null;
 }
 
-type ContactRow = { id: string; kind: string; name: string; company: string | null; email: string | null; phone: string | null; notes: string | null; updatedAt: number | bigint };
+type ContactRow = { id: string; kind: string; name: string; company: string | null; email: string | null; phone: string | null; notes: string | null; metEvent: string | null; metEventAt: string | null; metNote: string | null; updatedAt: number | bigint };
 type TaskRow = { id: string; title: string; description: string | null; status: string; priority: string; dueDate: string | null; contactId: string | null; updatedAt: number | bigint };
 type EventRow = { id: string; title: string; body: string | null; occurredAt: string; updatedAt: number | bigint };
 type InquiryRow = { id: string; name: string; email: string; message: string; status: string; source: string; createdAt: number | bigint; readAt: number | bigint | null };
@@ -273,6 +287,9 @@ function mapContact(row: ContactRow): Contact {
     email: textOrNull(row.email),
     phone: textOrNull(row.phone),
     notes: textOrNull(row.notes),
+    metEvent: textOrNull(row.metEvent),
+    metEventAt: textOrNull(row.metEventAt),
+    metNote: textOrNull(row.metNote),
     updatedAt: num(row.updatedAt),
   };
 }
@@ -306,7 +323,7 @@ function mapInquiry(row: InquiryRow): Inquiry {
   };
 }
 
-const CONTACT_SELECT = "SELECT id, kind, name, company_name AS company, email, phone, notes, updated_at AS updatedAt FROM contacts";
+const CONTACT_SELECT = "SELECT id, kind, name, company_name AS company, email, phone, notes, met_event AS metEvent, met_event_at AS metEventAt, met_note AS metNote, updated_at AS updatedAt FROM contacts";
 const TASK_SELECT = "SELECT id, title, description, status, priority, due_date AS dueDate, contact_id AS contactId, updated_at AS updatedAt FROM tasks";
 const EVENT_SELECT = "SELECT a.id, a.title, a.body, a.occurred_at AS occurredAt, a.updated_at AS updatedAt FROM activities a";
 const INQUIRY_SELECT = "SELECT id, name, email, message, status, source, created_at AS createdAt, read_at AS readAt FROM inquiries";
@@ -386,13 +403,19 @@ export async function createContact(db: D1Like, ownerEmail: string | undefined, 
     if (!company.ok) return invalid(company.message);
     const notes = optionalText(body.notes, NOTES_MAX, "notes");
     if (!notes.ok) return invalid(notes.message);
+    const metEvent = optionalText(body.metEvent, MET_EVENT_MAX, "metEvent");
+    if (!metEvent.ok) return invalid(metEvent.message);
+    const metNote = optionalText(body.metNote, MET_NOTE_MAX, "metNote");
+    if (!metNote.ok) return invalid(metNote.message);
+    const metEventAt = optionalDate(body.metEventAt, "metEventAt");
+    if (!metEventAt.ok) return invalid(metEventAt.message);
     const id = crypto.randomUUID();
     const now = Date.now();
     const storedKind = kind.value ?? "person";
     await db.prepare(
-      "INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,relations,github_url,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-    ).bind(id, owner.userId, storedKind, name.value, company.value, email.value, phone.value, notes.value, 0, "potential", "{}", null, null, null, null, null, null, now, now).run();
-    return ok({ id, kind: storedKind, name: name.value, company: company.value, email: email.value, phone: phone.value, notes: notes.value, updatedAt: now });
+      "INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,met_event,met_event_at,met_note,is_potential,role,relations,github_url,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).bind(id, owner.userId, storedKind, name.value, company.value, email.value, phone.value, notes.value, metEvent.value, metEventAt.value, metNote.value, 0, "potential", "{}", null, null, null, null, null, null, now, now).run();
+    return ok({ id, kind: storedKind, name: name.value, company: company.value, email: email.value, phone: phone.value, notes: notes.value, metEvent: metEvent.value, metEventAt: metEventAt.value, metNote: metNote.value, updatedAt: now });
   });
 }
 

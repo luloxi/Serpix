@@ -14,6 +14,14 @@ type Resource = typeof resources[number];
 function validResource(value: string): value is Resource { return resources.includes(value as Resource); }
 function str(value: unknown, max = 5000): string { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function nullable(value: unknown, max = 5000): string | null { return str(value, max) || null; }
+/** Strict YYYY-MM-DD, or null when empty. `undefined` means the value is not a date. */
+function eventAt(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  if (!text) return null;
+  return isDateKey(text) ? text : undefined;
+}
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T { return allowed.includes(value as T) ? value as T : fallback; }
 function pageInt(raw: string | null, fallback: number, min: number, max: number): number {
   if (raw == null || raw.trim() === "") return fallback;
@@ -37,7 +45,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
   }
   let query: string;
   switch (resource) {
-    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, relations, github_url AS githubUrl, CASE WHEN avatar_data IS NOT NULL THEN 1 ELSE 0 END AS hasAvatar, avatar_source AS avatarSource, avatar_tried_at AS avatarTriedAt, avatar_tried_key AS avatarTriedKey, updated_at AS updatedAt, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
+    case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, met_event AS metEvent, met_event_at AS metEventAt, met_note AS metNote, is_potential AS isPotential, role, relations, github_url AS githubUrl, CASE WHEN avatar_data IS NOT NULL THEN 1 ELSE 0 END AS hasAvatar, avatar_source AS avatarSource, avatar_tried_at AS avatarTriedAt, avatar_tried_key AS avatarTriedKey, updated_at AS updatedAt, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
     case "projects": query = "SELECT id, name, description, status, start_date AS startDate, due_date AS dueDate, created_at AS createdAt FROM projects WHERE user_id = ? ORDER BY updated_at DESC"; break;
     case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id AND p.user_id = t.user_id LEFT JOIN contacts c ON c.id = t.contact_id AND c.user_id = t.user_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
     case "accounts": query = ACCOUNTS_SQL; break;
@@ -59,8 +67,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
     switch (resource) {
       case "contacts": {
         const name = str(body.name, 160); if (!name) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+        const metAt = eventAt(body.metEventAt); if (metAt === undefined) return NextResponse.json({ error: "Fecha de evento inválida" }, { status: 400 });
         const rel = sanitizeRelations(body.relations);
-        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,is_potential,role,relations,github_url,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),body.isPotential ? 1 : 0,legacyRole(rel),JSON.stringify(rel),nullable(body.githubUrl,500),nullable(body.xUrl,500),nullable(body.instagramUrl,500),nullable(body.telegramUrl,500),nullable(body.whatsappUrl,500),nullable(body.linkedinUrl,500),now,now).run();
+        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,company_name,email,phone,notes,met_event,met_event_at,met_note,is_potential,role,relations,github_url,x_url,instagram_url,telegram_url,whatsapp_url,linkedin_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,userId,oneOf(body.kind,["person","company"] as const,"person"),name,nullable(body.companyName,160),nullable(body.email,254),nullable(body.phone,80),nullable(body.notes),nullable(body.metEvent,200),metAt,nullable(body.metNote,5000),body.isPotential ? 1 : 0,legacyRole(rel),JSON.stringify(rel),nullable(body.githubUrl,500),nullable(body.xUrl,500),nullable(body.instagramUrl,500),nullable(body.telegramUrl,500),nullable(body.whatsappUrl,500),nullable(body.linkedinUrl,500),now,now).run();
         { const av = avatarChange(body); if (av) await db.prepare("UPDATE contacts SET avatar_data=?, avatar_source=? WHERE id=? AND user_id=?").bind(av.data, av.source, id, userId).run(); }
         break;
       }

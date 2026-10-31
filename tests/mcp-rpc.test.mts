@@ -428,3 +428,32 @@ test("McpRpc is a named WorkerEntrypoint and the logic module stays pure", () =>
   const wrangler = readFileSync(join(root, "wrangler.jsonc"), "utf8");
   assert.match(wrangler, /"MCP_OWNER_EMAIL"\s*:\s*"lucianoolivabianco@gmail.com"/);
 });
+
+test("createContact stores metEvent, metEventAt and metNote", async () => {
+  const { db, d1 } = setup();
+  const omitted = await createContact(d1, OWNER, { name: "Sin evento" });
+  assert.equal(omitted.ok, true);
+  if (!omitted.ok) return;
+  assert.equal(omitted.data.metEvent, null);
+  assert.equal(omitted.data.metEventAt, null);
+  assert.equal(omitted.data.metNote, null);
+  const created = await createContact(d1, OWNER, { name: "Con evento", metEvent: "  Meetup  ", metEventAt: " 2026-10-31 ", metNote: "  hablamos " });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  assert.equal(created.data.metEvent, "Meetup");
+  assert.equal(created.data.metEventAt, "2026-10-31");
+  assert.equal(created.data.metNote, "hablamos");
+  const listed = await listContacts(d1, OWNER, {});
+  assert.equal(listed.ok, true);
+  if (!listed.ok) return;
+  const row = listed.data.items.find((item) => item.id === created.data.id);
+  assert.equal(row?.metEvent, "Meetup");
+  assert.equal(row?.metEventAt, "2026-10-31");
+  assert.equal(row?.metNote, "hablamos");
+  const before = count(db, "contacts");
+  assert.equal(errorOf(await createContact(d1, OWNER, { name: "X", metEvent: "e".repeat(201) })).message, "invalid metEvent");
+  assert.equal(errorOf(await createContact(d1, OWNER, { name: "X", metNote: "n".repeat(5001) })).message, "invalid metNote");
+  assert.equal(errorOf(await createContact(d1, OWNER, { name: "X", metEventAt: "2026-02-31" })).message, "invalid metEventAt");
+  assert.equal(errorOf(await createContact(d1, OWNER, { name: "X", metEventAt: "ayer" })).message, "invalid metEventAt");
+  assert.equal(count(db, "contacts"), before);
+});
