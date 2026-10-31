@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Maximize2, NotebookPen } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Clock, Maximize2, NotebookPen } from "lucide-react";
 import MonthHeading from "@/app/month-heading";
 import { dayChip, shortDate, todayBA } from "@/lib/agenda-dates";
 import { toneClass } from "@/lib/palette";
+import { formatTracked } from "@/lib/timer";
 
 export type AgendaItem = Record<string, string | number | boolean | null | undefined> & { id: string };
 type Tab = "general" | "calendar" | "list";
@@ -59,10 +60,11 @@ export function Markdown({ source }: { source: string }) {
   return <div className="markdown">{blocks}</div>;
 }
 
-export default function Agenda({ tasks, activities, onToggleTask, onEditTask, onEditActivity, onDeleteTask, onDeleteActivity, taskPending }: {
+export default function Agenda({ tasks, activities, onToggleTask, onEditTask, onEditActivity, onDeleteTask, onDeleteActivity, taskPending, timeByTask = {} }: {
   tasks: AgendaItem[]; activities: AgendaItem[];
   onToggleTask: (t: AgendaItem) => void; onEditTask: (t: AgendaItem) => void; onEditActivity: (a: AgendaItem) => void;
   onDeleteTask: (t: AgendaItem) => void; onDeleteActivity: (a: AgendaItem) => void; taskPending?: string | null;
+  timeByTask?: Record<string, number>;
 }) {
   const [tab, setTab] = useState<Tab>("general");
   const [filter, setFilter] = useState<"all" | Kind>("all");
@@ -84,8 +86,9 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
   const byDay = useMemo(() => { const m = new Map<string, Entry[]>(); for (const e of entries) if (e.day) m.set(e.day, [...(m.get(e.day) || []), e]); return m; }, [entries]);
   const isOpenTask = (e: Entry) => e.kind === "task" && e.source.status !== "done" && e.source.status !== "cancelled";
 
-  const renderRow = (e: Entry, overdueDate?: string) => {
+  const renderRow = (e: Entry, overdueDate?: string, withTracked = true) => {
     const done = e.kind === "task" && e.source.status === "done";
+    const tracked = withTracked && e.kind === "task" ? timeByTask[e.source.id] || 0 : 0;
     return <div className={"agenda-row kind-" + e.kind + (done ? " is-done" : "")}>
       {e.kind === "task"
         ? <button type="button" className="checklist-toggle" aria-label={done ? "Marcar pendiente" : "Marcar como hecha"} title={done ? "Marcar pendiente" : "Marcar como hecha"} aria-pressed={done} disabled={taskPending === e.source.id} onClick={() => onToggleTask(e.source)}>{done ? <Check size={16} /> : null}</button>
@@ -94,6 +97,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
         <strong>{e.title}</strong>
         {e.sub && <small>{e.sub}</small>}
       </button>
+      {tracked > 0 && <span className="agenda-tracked" title="Tiempo registrado en esta tarea" aria-label={"Tiempo registrado en esta tarea: " + formatTracked(tracked)}><Clock size={13} strokeWidth={1.75} aria-hidden="true" />{formatTracked(tracked)}</span>}
       {e.time && <time className="agenda-time" title="Hora">{e.time}</time>}
       {overdueDate && <time className="agenda-time is-overdue" title="Venció el">{overdueDate}</time>}
     </div>;
@@ -257,7 +261,7 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
         <div className="calendar-legend" aria-hidden="true"><span><i className="agenda-dot kind-task" />Tarea</span><span><i className="agenda-dot kind-event" />Evento</span><span><i className="agenda-dot kind-note" />Nota</span></div>
       </section>
       <section className={"panel agenda-group " + toneClass(selected)}><h3 className="month-head"><span className="month-text">{dayLabel(selected)}</span></h3>
-        {(byDay.get(selected) || []).sort(sortAsc).map(e => <div key={e.key} className="agenda-row-wrap">{renderRow(e)}</div>)}
+        {(byDay.get(selected) || []).sort(sortAsc).map(e => <div key={e.key} className="agenda-row-wrap">{renderRow(e, undefined, false)}</div>)}
         {!(byDay.get(selected) || []).length && <p className="empty-copy">Sin registros este día.</p>}
       </section>
     </>}
