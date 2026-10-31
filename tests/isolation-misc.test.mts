@@ -26,6 +26,7 @@ const COVERED = [
   "inbound/portfolio/route.ts",
   "inquiries/route.ts",
   "inquiries/[id]/route.ts",
+  "integrations/cuentix/events/route.ts",
   "invites/redeem/route.ts",
   "push/subscribe/route.ts",
   "receipts/scan/route.ts",
@@ -75,6 +76,7 @@ async function api() {
     push: await import("../app/api/push/subscribe/route.ts"),
     scan: await import("../app/api/receipts/scan/route.ts"),
     receipt: await import("../app/api/receipts/[id]/route.ts"),
+    cuentix: await import("../app/api/integrations/cuentix/events/route.ts"),
     rules: await import("../app/api/recurring/route.ts"),
     rule: await import("../app/api/recurring/[id]/route.ts"),
   };
@@ -119,6 +121,7 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "POST", mod: routes.scan, url: base + "/api/receipts/scan" },
     { method: "GET", mod: routes.receipt, url: base + "/api/receipts/x", params: { id: "x" } },
     { method: "DELETE", mod: routes.receipt, url: base + "/api/receipts/x", params: { id: "x" } },
+    { method: "POST", mod: routes.cuentix, url: base + "/api/integrations/cuentix/events", json: {} },
     { method: "GET", mod: routes.rules, url: base + "/api/recurring" },
     { method: "PATCH", mod: routes.rule, url: base + "/api/recurring/x", params: { id: "x" }, json: { action: "pause" } },
     { method: "DELETE", mod: routes.rule, url: base + "/api/recurring/x", params: { id: "x" } },
@@ -188,6 +191,29 @@ test("portfolio inbound ignores the session and rejects a missing secret", async
     assert.ok(missing.status === 401 || missing.status === 403, String(missing.status));
     const wrong = await call(inbound, "POST", base + "/api/inbound/portfolio", { json: { name: "X", email: "a@b.co", message: "hola" }, headers: { "x-serpix-secret": "nope" } });
     assert.ok(wrong.status === 401 || wrong.status === 403, String(wrong.status));
+    assert.equal(sessionReads(), 0);
+    assertSame(db, before);
+  });
+});
+
+test("cuentix sync ignores the session and a bad signature writes nothing", async () => {
+  await locked(async () => {
+    const { db, d1 } = seedWorld();
+    setEnv(d1, { CUENTIX_SYNC_SECRET: "test-secret-not-real", CUENTIX_SYNC_OWNER_EMAIL: A + "@test.local" });
+    asUser(B, "user", "approved");
+    const route = await import("../app/api/integrations/cuentix/events/route.ts");
+    const before = snap(db);
+    resetSessionReads();
+    const res = await call(route, "POST", base + "/api/integrations/cuentix/events", {
+      text: "{}",
+      headers: {
+        "x-sync-timestamp": String(Date.now()),
+        "x-sync-nonce": "00112233445566778899aabbccddeeff",
+        "x-sync-signature": "v1=" + "ab".repeat(32),
+      },
+    });
+    assert.equal(res.status, 401);
+    assert.deepEqual(res.body, { error: "unauthorized" });
     assert.equal(sessionReads(), 0);
     assertSame(db, before);
   });

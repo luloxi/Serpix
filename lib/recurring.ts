@@ -1,5 +1,6 @@
 // Recurring movements: pure date math plus the generator (no Next.js or Cloudflare imports, so node:test can load it).
 import type { D1Like } from "./finance.ts";
+import { reconcileManual } from "./cuentix-sync.ts";
 
 export const FREQUENCIES = ["weekly", "monthly", "yearly"] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
@@ -128,9 +129,11 @@ export async function generateDue(db: D1Like, userId: string | null, today: stri
   for (const rule of rows) {
     const dates = dueDates({ anchorDate: rule.anchor_date, frequency: rule.frequency, endDate: rule.end_date, fromDate: rule.from_date, generatedThrough: rule.generated_through }, today);
     for (const date of dates) {
+      const id = crypto.randomUUID();
       const result = await db.prepare("INSERT OR IGNORE INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at,recurring_id,recurring_period) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
-        .bind(crypto.randomUUID(), rule.user_id, rule.account_id, rule.contact_id, rule.kind, rule.amount_minor, rule.category, rule.description, date, now, rule.id, date).run();
+        .bind(id, rule.user_id, rule.account_id, rule.contact_id, rule.kind, rule.amount_minor, rule.category, rule.description, date, now, rule.id, date).run();
       created += result.meta.changes;
+      if (result.meta.changes) await reconcileManual(db, rule.user_id, id, now);
     }
     const limit = rule.end_date && rule.end_date < today ? rule.end_date : today;
     // If the per-run cap cut the list short, advance only to the last date handled so the next run continues.

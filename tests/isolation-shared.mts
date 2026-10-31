@@ -39,7 +39,7 @@ export const ids = {
   pushB: "https://push.example.test/device-user-b",
 };
 
-const TABLES = ["user", "contacts", "projects", "tasks", "financial_accounts", "financial_transactions", "receipts", "recurring_rules", "activities", "activity_contacts", "inquiries", "push_subscriptions", "timer_state", "time_entries", "documents", "document_items", "document_time_entries", "contact_relationships", "session", "invites"];
+const TABLES = ["user", "contacts", "projects", "tasks", "financial_accounts", "financial_transactions", "receipts", "recurring_rules", "activities", "activity_contacts", "inquiries", "push_subscriptions", "timer_state", "time_entries", "documents", "document_items", "document_time_entries", "contact_relationships", "session", "invites", "integration_nonces"];
 
 function userRow(db: DatabaseSync, id: string, name: string) {
   db.prepare("INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt,role,approvalStatus) VALUES (?,?,?,?,?,?,?,?)").run(id, name, id + "@test.local", 1, 1, 1, "user", "approved");

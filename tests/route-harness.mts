@@ -53,14 +53,17 @@ export async function call(
   routeModule: Record<string, Handler>,
   method: string,
   url: string,
-  opts: { json?: unknown; form?: FormData; params?: Record<string, string>; headers?: Record<string, string> } = {},
+  opts: { json?: unknown; form?: FormData; text?: string; params?: Record<string, string>; headers?: Record<string, string> } = {},
 ) {
   const handler = routeModule[method];
   if (!handler) throw new Error("Missing " + method + " on route");
   const headers = new Headers(opts.headers);
   let body: BodyInit | undefined;
   if (opts.form) body = opts.form;
-  else if (opts.json !== undefined) {
+  else if (opts.text !== undefined) {
+    if (!headers.has("content-type")) headers.set("content-type", "application/json");
+    body = opts.text;
+  } else if (opts.json !== undefined) {
     headers.set("content-type", "application/json");
     body = JSON.stringify(opts.json);
   }

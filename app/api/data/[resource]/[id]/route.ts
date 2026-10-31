@@ -3,6 +3,7 @@ import { avatarChange } from "@/lib/avatar";
 import { updateAccount } from "@/lib/finance";
 import { NextResponse } from "next/server";
 import { approvedContext, unauthorized } from "@/lib/session";
+import { clearCounterpartLink, reconcileManual, unlinkTransaction } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
@@ -60,6 +61,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         break;
       }
       case "transactions": {
+        if(b.unlink===true){
+          const unlinked=await unlinkTransaction(db,userId,id,now);
+          return NextResponse.json(unlinked.body,{status:unlinked.status});
+        }
         const amount=Number(b.amountMinor), category=str(b.category,80);
         if(!Number.isSafeInteger(amount)||amount<=0||!category) return NextResponse.json({error:"Importe o categoría inválidos"},{status:400});
         const accountId=str(b.accountId,80), contactId=nullable(b.contactId,80);
@@ -69,8 +74,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         if(!isDateKey(occurredAt)) return NextResponse.json({error:"Fecha inválida"},{status:400});
         const receiptIdEarly=nullable(b.receiptId,80);
         if(receiptIdEarly && !(await receiptLinkable(db,userId,receiptIdEarly,id))) return NextResponse.json({error:"Ticket inválido"},{status:400});
-        const existingTx=await db.prepare("SELECT recurring_id AS recurringId FROM financial_transactions WHERE id=? AND user_id=?").bind(id,userId).first<{recurringId:string|null}>();
-        const recurrence=existingTx&&!existingTx.recurringId?parseRecurrence(b.recurrence,b.recurrenceEnd,occurredAt):null;
+        const existingTx=await db.prepare("SELECT source, deleted_at AS deletedAt, recurring_id AS recurringId, kind, amount_minor AS amountMinor, occurred_at AS occurredAt, account_id AS accountId FROM financial_transactions WHERE id=? AND user_id=?").bind(id,userId).first<{source:string|null;deletedAt:number|null;recurringId:string|null;kind:string;amountMinor:number;occurredAt:string;accountId:string}>();
+        if(!existingTx||existingTx.deletedAt!=null) return NextResponse.json({error:"Registro no encontrado"},{status:404});
+        if(existingTx.source){
+          if(kind!==existingTx.kind||amount!==Number(existingTx.amountMinor)||occurredAt!==existingTx.occurredAt||accountId!==existingTx.accountId) return NextResponse.json({error:"El importe, la fecha y el tipo se editan en Cuentix"},{status:400});
+          if(b.recurrence&&b.recurrence!=="none"&&b.recurrence!=="") return NextResponse.json({error:"Los movimientos de Cuentix no se repiten desde acá"},{status:400});
+        }
+        const recurrence=!existingTx.recurringId?parseRecurrence(b.recurrence,b.recurrenceEnd,occurredAt):null;
         if(typeof recurrence==="string") return NextResponse.json({error:recurrence},{status:400});
         result=await db.prepare("UPDATE financial_transactions SET account_id=?,contact_id=?,kind=?,amount_minor=?,category=?,description=?,occurred_at=? WHERE id=? AND user_id=?").bind(accountId,contactId,kind,amount,category,nullable(b.description),occurredAt,id,userId).run();
         if(result.meta.changes>0){
@@ -81,6 +91,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
             await createRuleForTransaction(db,userId,id,{accountId,contactId,kind,amountMinor:amount,category,description:nullable(b.description),anchorDate:occurredAt,recurrence},now);
             await generateDue(db,userId,todayInBuenosAires(now),now);
           }
+          await reconcileManual(db,userId,id,now);
         }
         break;
       }
@@ -99,6 +110,15 @@ export async function DELETE(_request:Request,{params}:{params:Promise<{resource
   const ctx=await approvedContext(); if(!ctx) return unauthorized();
   const table=tableByResource[resource as Resource];
   try {
+    if(resource==="transactions"){
+      const row=await ctx.db.prepare("SELECT source, linked_to AS linkedTo FROM financial_transactions WHERE id=? AND user_id=?").bind(id,ctx.userId).first<{source:string|null;linkedTo:string|null}>();
+      if(!row) return NextResponse.json({error:"Registro no encontrado"},{status:404});
+      if(row.source) return NextResponse.json({error:"Este movimiento se borra desde Cuentix"},{status:409});
+      const removed=await ctx.db.prepare("DELETE FROM financial_transactions WHERE id=? AND user_id=?").bind(id,ctx.userId).run();
+      if(removed.meta.changes===0) return NextResponse.json({error:"Registro no encontrado"},{status:404});
+      await clearCounterpartLink(ctx.db,ctx.userId,row.linkedTo,Date.now());
+      return NextResponse.json({ok:true});
+    }
     const result=await ctx.db.prepare(`DELETE FROM ${table} WHERE id=? AND user_id=?`).bind(id,ctx.userId).run();
     if(result.meta.changes===0) return NextResponse.json({error:"Registro no encontrado"},{status:404});
     return NextResponse.json({ok:true});

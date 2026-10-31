@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { approvedContext, unauthorized } from "@/lib/session";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
-import { ACCOUNTS_SQL } from "@/lib/finance";
+import { ACCOUNTS_SQL, TX_VISIBLE } from "@/lib/finance";
+import { reconcileManual } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
@@ -30,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
     const url = new URL(request.url);
     const limit = pageInt(url.searchParams.get("limit"), 250, 1, 5000);
     const offset = pageInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
-    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName, t.recurring_id AS recurringId, (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id AND r.user_id = t.user_id LIMIT 1) AS receiptId FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id AND a.user_id = t.user_id LEFT JOIN contacts c ON c.id = t.contact_id AND c.user_id = t.user_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName, t.recurring_id AS recurringId, t.source AS source, t.linked_to AS linkedTo, t.excluded_from_totals AS excludedFromTotals, (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id AND r.user_id = t.user_id LIMIT 1) AS receiptId FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id AND a.user_id = t.user_id LEFT JOIN contacts c ON c.id = t.contact_id AND c.user_id = t.user_id WHERE t.user_id = ? AND " + TX_VISIBLE + " ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
     const result = await db.prepare(query).bind(userId, limit, offset).all();
     return NextResponse.json({ items: result.results });
   }
@@ -115,6 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
           await createRuleForTransaction(db,userId,id,{accountId,contactId,kind,amountMinor:amount,category,description:nullable(body.description),anchorDate:occurredAt,recurrence},now);
           await generateDue(db,userId,todayInBuenosAires(now),now);
         }
+        await reconcileManual(db, userId, id, now);
         break;
       }
     }

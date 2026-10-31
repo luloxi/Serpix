@@ -1,5 +1,6 @@
 // Presupuestos y facturas (comprobantes internos, NO fiscales). Pure helpers + D1 operations; no Next.js or Cloudflare imports so node:test can load them.
 import type { D1Bound } from "./finance.ts";
+import { reconcileManual } from "./cuentix-sync.ts";
 
 export const DOC_TYPES = ["quote", "invoice"] as const;
 export type DocType = (typeof DOC_TYPES)[number];
@@ -222,6 +223,7 @@ export async function payDocument(db: DocDb, userId: string, id: string, account
     await db.prepare("DELETE FROM financial_transactions WHERE id=? AND user_id=?").bind(txId, userId).run();
     return { status: 200, body: { ok: true, existed: true } };
   }
+  await reconcileManual(db, userId, txId, now);
   return { status: 200, body: { ok: true, transactionId: txId } };
 }
 
