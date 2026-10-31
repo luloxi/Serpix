@@ -55,7 +55,7 @@ type DeleteEvent = {
 
 type SyncEvent = UpsertEvent | DeleteEvent;
 
-type OwnerRow = { id: string; role: string; approvalStatus: string; encryptionEnabled?: unknown };
+type OwnerRow = { id: string; role: string; approvalStatus: string; encryption_mode?: string | null };
 
 type LinkRow = {
   id: string;
@@ -129,8 +129,8 @@ export function syncTimestampFresh(timestamp: string, now: number, skew = SYNC_M
 
 /**
  * Admin and approved only. Guests and other users are never the sync target.
- * GUARD: encrypted guests. The in-flight per-user encryption flag is not a column on main
- * (do not edit those files). When it exists, pass it as encryptionEnabled and this refuses the user.
+ * GUARD: encrypted guests. `user.encryption_mode` (migration 0015) is passed as encryptionEnabled
+ * (true for anything but 'server'); an encrypted user never receives Cuentix sync.
  */
 export function ownerIsSyncable(user: { role: string; approvalStatus: string; encryptionEnabled?: unknown }): boolean {
   if (user.role !== "admin" || user.approvalStatus !== "approved") return false;
@@ -397,10 +397,10 @@ export async function handleCuentixEvent(db: D1Like, input: CuentixSyncInput): P
   const email = input.ownerEmail?.trim().toLowerCase() ?? "";
   if (!email) return forbidden;
   try {
-    const owner = await db.prepare("SELECT id, role, approvalStatus FROM user WHERE lower(email)=? LIMIT 1").bind(email).first<OwnerRow>();
-    // GUARD: encrypted guests. Select the per-user encryption flag here once that column exists
-    // and pass it to ownerIsSyncable. Until then the flag is absent and only admin+approved pass.
-    if (!owner || !ownerIsSyncable(owner)) return forbidden;
+    const owner = await db.prepare("SELECT id, role, approvalStatus, encryption_mode FROM user WHERE lower(email)=? LIMIT 1").bind(email).first<OwnerRow>();
+    // GUARD: encrypted guests. encryption_mode is read with the owner and anything other than 'server'
+    // (a NULL or an unknown value included) is refused by ownerIsSyncable.
+    if (!owner || !ownerIsSyncable({ role: owner.role, approvalStatus: owner.approvalStatus, encryptionEnabled: owner.encryption_mode !== "server" })) return forbidden;
     if (parsed.event.type === "delete") return await applyDelete(db, owner.id, parsed.event, input.now);
     return await applyUpsert(db, owner.id, parsed.event, input.now);
   } catch {
