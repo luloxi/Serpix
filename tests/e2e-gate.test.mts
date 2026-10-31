@@ -295,6 +295,9 @@ test("onboarding submit matches validateRecoveryPassword", () => {
     { password: "luciano-serpix" },
     { password: "luciano-serpix", userInputs: ["luciano@example.com"] },
     { password: "Keep-luciano@example.com", userInputs: ["luciano@example.com"] },
+    { password: "passwordpassword" },
+    { password: "footballfootball" },
+    { password: "administradoradministrador" },
   ];
   for (const sample of samples) {
     const ui = check(sample.password, { userInputs: sample.userInputs });
@@ -306,6 +309,9 @@ test("onboarding submit matches validateRecoveryPassword", () => {
       accepted = false;
     }
     assert.equal(ui.canSubmit, accepted, sample.password);
+  }
+  for (const password of ["passwordpassword", "PASSWORDPASSWORD", "footballfootball"]) {
+    assert.equal(check(password).canSubmit, false, password);
   }
 });
 

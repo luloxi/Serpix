@@ -169,6 +169,20 @@ test("an email or its local part on a boundary lowers the score", () => {
   assert.equal(passwordStrength("luciano-serpix", ["other@example.com"]).score, 2);
 });
 
+test("a common password repeated two or more times is capped like the word itself", () => {
+  for (const password of ["passwordpassword", "PASSWORDPASSWORD", "PassWordPassword", "footballfootball", "administradoradministrador", "password".repeat(3)]) {
+    const result = passwordStrength(password);
+    assert.ok(result.score <= 1, password + " " + result.score);
+    assert.ok(result.issues.includes("common"), password);
+    assert.throws(() => validateRecoveryPassword(password), PasswordPolicyError);
+  }
+  assert.equal(passwordStrength("qzvmhtrwkdjxpnbc").score, 3);
+  assert.equal(passwordStrength("correct horse bat").score, 3);
+  assert.ok(passwordStrength("Tr0pic-Moon-42").score >= 3);
+  assert.equal(validateRecoveryPassword("opasopasopasopas").score, 3);
+  assert.equal(passwordStrength("passwordpasswordx").issues.includes("common"), false);
+});
+
 test("password wrap round trip, wrong password, and stored m", { timeout: 180_000 }, async () => {
   const wrap = await createPasswordWrap(dek, "Correct-Horse-99", {
     ...ctx,

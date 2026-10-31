@@ -294,6 +294,16 @@ function includesToken(haystack: string, token: string): boolean {
   return false;
 }
 
+/** True when the whole password is one COMMON entry repeated at least twice. */
+function isRepeatedCommon(lower: string): boolean {
+  for (const word of COMMON_PASSWORDS) {
+    if (word.length < 1 || lower.length % word.length !== 0) continue;
+    const times = lower.length / word.length;
+    if (times >= 2 && word.repeat(times) === lower) return true;
+  }
+  return false;
+}
+
 function userTokens(userInputs: readonly string[]): string[] {
   const tokens: string[] = [];
   for (const raw of userInputs) {
@@ -317,7 +327,7 @@ function userTokens(userInputs: readonly string[]): string[] {
  * plus 1 at 16 code points, plus 1 at 3 character classes and 1 at 4.
  * Then subtract 1 for a 4+ repeated run, a 4+ sequential/keyboard run,
  * or a userInputs token (email, its local part, or a name) on a boundary.
- * A common password, or anything under 12 code points, is capped at 1 ("weak").
+ * A common password, the same word repeated, or anything under 12 code points, is capped at 1 ("weak").
  * `low-score` is a score below 3. validateRecoveryPassword rejects it,
  * and also anything under 12 code points. There is no composition rule:
  * character classes only add to the score (NIST SP 800-63B advises against rules).
@@ -337,7 +347,7 @@ export function passwordStrength(password: string, userInputs: readonly string[]
   const repeated = hasRepeatedRun(normalised);
   const sequential = hasSequentialRun(normalised);
   const personal = userTokens(userInputs).some((token) => includesToken(lower, token));
-  const common = COMMON.has(lower);
+  const common = COMMON.has(lower) || isRepeatedCommon(lower);
   if (repeated) score -= 1;
   if (sequential) score -= 1;
   if (personal) score -= 1;
