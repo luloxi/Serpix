@@ -14,6 +14,119 @@ export class PrfUnsupportedError extends Error {
   }
 }
 
+/** authenticatorData flags did not show user presence and user verification. */
+export class UserVerificationError extends Error {
+  constructor(message = "the authenticator did not verify the user") {
+    super(message);
+    this.name = "UserVerificationError";
+  }
+}
+
+const UV_FLAG = 0x04;
+const UP_FLAG = 0x01;
+
+/** Reject a short authenticatorData or one whose UV or UP bit is off. */
+export function assertUserVerified(authData: Uint8Array): void {
+  if (authData.byteLength < 37) throw new UserVerificationError("authenticatorData is too short");
+  const flags = authData[32];
+  if ((flags & UP_FLAG) === 0 || (flags & UV_FLAG) === 0) throw new UserVerificationError();
+}
+
+function readCborInfo(bytes: Uint8Array, offset: number): { major: number; value: number; offset: number } {
+  if (offset >= bytes.length) throw new UserVerificationError("short attestation");
+  const head = bytes[offset];
+  offset += 1;
+  const major = head >> 5;
+  const info = head & 31;
+  let value = info;
+  if (info < 24) return { major, value, offset };
+  const width = info === 24 ? 1 : info === 25 ? 2 : info === 26 ? 4 : 0;
+  if (width === 0) throw new UserVerificationError("unsupported CBOR length");
+  if (offset + width > bytes.length) throw new UserVerificationError("short attestation");
+  value = 0;
+  for (let i = 0; i < width; i++) value = value * 256 + bytes[offset + i];
+  return { major, value, offset: offset + width };
+}
+
+function skipCbor(bytes: Uint8Array, offset: number): number {
+  const item = readCborInfo(bytes, offset);
+  offset = item.offset;
+  if (item.major === 0 || item.major === 1 || item.major === 7) return offset;
+  if (item.major === 2 || item.major === 3) {
+    if (offset + item.value > bytes.length) throw new UserVerificationError("short attestation");
+    return offset + item.value;
+  }
+  if (item.major === 4) {
+    for (let i = 0; i < item.value; i++) offset = skipCbor(bytes, offset);
+    return offset;
+  }
+  if (item.major === 5) {
+    for (let i = 0; i < item.value; i++) {
+      offset = skipCbor(bytes, offset);
+      offset = skipCbor(bytes, offset);
+    }
+    return offset;
+  }
+  if (item.major === 6) return skipCbor(bytes, offset);
+  throw new UserVerificationError("unsupported CBOR");
+}
+
+/** authData from a WebAuthn attestationObject (a CBOR map). */
+export function authDataFromAttestation(bytes: Uint8Array): Uint8Array {
+  const map = readCborInfo(bytes, 0);
+  if (map.major !== 5) throw new UserVerificationError("attestation is not a map");
+  let offset = map.offset;
+  for (let i = 0; i < map.value; i++) {
+    const key = readCborInfo(bytes, offset);
+    if (key.major === 3) {
+      offset = key.offset;
+      if (offset + key.value > bytes.length) throw new UserVerificationError("short attestation");
+      const name = new TextDecoder().decode(bytes.subarray(offset, offset + key.value));
+      offset += key.value;
+      if (name === "authData") {
+        const value = readCborInfo(bytes, offset);
+        if (value.major !== 2) throw new UserVerificationError("authData is not bytes");
+        offset = value.offset;
+        if (offset + value.value > bytes.length) throw new UserVerificationError("short attestation");
+        return bytes.slice(offset, offset + value.value);
+      }
+      offset = skipCbor(bytes, offset);
+    } else {
+      offset = skipCbor(bytes, offset);
+      offset = skipCbor(bytes, offset);
+    }
+  }
+  throw new UserVerificationError("attestation has no authData");
+}
+
+function bufferOf(value: unknown): Uint8Array | null {
+  if (!value) return null;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return null;
+}
+
+function requireVerified(credential: unknown, kind: "create" | "get"): void {
+  const response = (credential as { response?: { authenticatorData?: unknown; attestationObject?: unknown; getAuthenticatorData?: () => ArrayBuffer } }).response;
+  if (!response) throw new UserVerificationError();
+  if (kind === "get") {
+    const authData = bufferOf(response.authenticatorData);
+    if (!authData) throw new UserVerificationError();
+    assertUserVerified(authData);
+    return;
+  }
+  if (typeof response.getAuthenticatorData === "function") {
+    const produced = response.getAuthenticatorData();
+    const authData = bufferOf(produced);
+    if (!authData) throw new UserVerificationError();
+    assertUserVerified(authData);
+    return;
+  }
+  const attestation = bufferOf(response.attestationObject);
+  if (!attestation) throw new UserVerificationError();
+  assertUserVerified(authDataFromAttestation(attestation));
+}
+
 export type RegisteredPasskey = {
   credentialId: Uint8Array;
   prfSalt: Uint8Array;
@@ -147,6 +260,10 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
     wipe(prfSalt);
     throw new PrfUnsupportedError("the passkey ceremony was cancelled");
   }
+  try { requireVerified(created, "create"); } catch (err) {
+    wipe(prfSalt);
+    throw err;
+  }
   const fromCreate = readPrf(created);
   if (!fromCreate.rawId) {
     wipe(prfSalt);
@@ -186,6 +303,16 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
     wipe(fromCreate.rawId);
     throw err;
   }
+  if (!asserted) {
+    wipe(prfSalt);
+    wipe(fromCreate.rawId);
+    throw new PrfUnsupportedError("the passkey ceremony was cancelled");
+  }
+  try { requireVerified(asserted, "get"); } catch (err) {
+    wipe(prfSalt);
+    wipe(fromCreate.rawId);
+    throw err;
+  }
   const fromGet = readPrf(asserted);
   const output = acceptedPrf(fromGet, fromCreate.rawId);
   if (!output) {
@@ -208,6 +335,8 @@ export async function getPrfOutput(options: GetPrfOptions): Promise<Uint8Array> 
       extensions: prfExtension(options.prfSalt),
     },
   });
+  if (!asserted) throw new PrfUnsupportedError("the passkey ceremony was cancelled");
+  requireVerified(asserted, "get");
   const prf = readPrf(asserted);
   const output = acceptedPrf(prf, options.credentialId);
   if (!output) {

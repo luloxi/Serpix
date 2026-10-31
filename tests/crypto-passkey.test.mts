@@ -7,6 +7,9 @@ import { wipe } from "../lib/crypto/bytes.ts";
 import { DecryptError } from "../lib/crypto/envelope.ts";
 import {
   PrfUnsupportedError,
+  UserVerificationError,
+  assertUserVerified,
+  authDataFromAttestation,
   createPasskeyWrap,
   getPrfOutput,
   openPasskeyWrap,
@@ -59,6 +62,12 @@ function assertUserVerification(creation: CredentialCreationOptions | null, requ
   }
 }
 
+function verifiedAuthData(flags = 0x05): ArrayBuffer {
+  const bytes = new Uint8Array(37);
+  bytes[32] = flags;
+  return bytes.buffer;
+}
+
 function ceremony(rawId: ArrayBuffer | null, first: BufferSource | null, enabled = false) {
   const prf = first
     ? { enabled: true, results: { first } }
@@ -68,7 +77,7 @@ function ceremony(rawId: ArrayBuffer | null, first: BufferSource | null, enabled
   return {
     type: "public-key" as const,
     ...(rawId ? { rawId } : {}),
-    response: { clientDataJSON: new ArrayBuffer(0) },
+    response: { clientDataJSON: new ArrayBuffer(0), authenticatorData: verifiedAuthData(), getAuthenticatorData: () => verifiedAuthData() },
     getClientExtensionResults() {
       return prf ? { prf } : {};
     },
@@ -374,4 +383,68 @@ test("a get result whose rawId is not the requested credential is rejected and t
     PrfUnsupportedError,
   );
   assert.deepEqual(missingPrf, new Uint8Array(32));
+});
+
+function flags(value: number): Uint8Array {
+  const bytes = new Uint8Array(37);
+  bytes[32] = value;
+  return bytes;
+}
+
+function cborAttestation(auth: Uint8Array): Uint8Array {
+  const fmt = new TextEncoder().encode("fmt");
+  const none = new TextEncoder().encode("none");
+  const attStmt = new TextEncoder().encode("attStmt");
+  const name = new TextEncoder().encode("authData");
+  return Uint8Array.of(
+    0xa3,
+    0x60 + fmt.length, ...fmt,
+    0x60 + none.length, ...none,
+    0x60 + attStmt.length, ...attStmt,
+    0xa0,
+    0x60 + name.length, ...name,
+    0x58, auth.length, ...auth,
+  );
+}
+
+test("authenticatorData must have UP and UV, including inside attestation CBOR", async () => {
+  assertUserVerified(flags(0x05));
+  assert.throws(() => assertUserVerified(flags(0x01)), UserVerificationError);
+  assert.throws(() => assertUserVerified(flags(0x04)), UserVerificationError);
+  assert.throws(() => assertUserVerified(new Uint8Array(32)), UserVerificationError);
+  const extracted = authDataFromAttestation(cborAttestation(flags(0x05)));
+  assert.equal(extracted[32], 0x05);
+  assert.throws(() => assertUserVerified(authDataFromAttestation(cborAttestation(flags(0x01)))), UserVerificationError);
+
+  const auth = flags(0x01).buffer;
+  await assert.rejects(
+    () => registerPasskey({
+      userId: "user-1",
+      userName: "ada@example.com",
+      rpId,
+      challenge,
+      credentials: {
+        async create() {
+          return { rawId: new Uint8Array(16).buffer, response: { getAuthenticatorData: () => auth }, getClientExtensionResults: () => ({ prf: { enabled: true, results: { first: new Uint8Array(32).fill(3) } } }) };
+        },
+        async get() { return null; },
+      },
+    }),
+    UserVerificationError,
+  );
+  await assert.rejects(
+    () => getPrfOutput({
+      credentialId: new Uint8Array(16),
+      prfSalt: new Uint8Array(32).fill(4),
+      rpId,
+      challenge,
+      credentials: {
+        async create() { return null; },
+        async get() {
+          return { rawId: new Uint8Array(16).buffer, response: { authenticatorData: flags(0x04).buffer }, getClientExtensionResults: () => ({ prf: { results: { first: new Uint8Array(32).fill(3) } } }) };
+        },
+      },
+    }),
+    UserVerificationError,
+  );
 });

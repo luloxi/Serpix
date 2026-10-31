@@ -103,7 +103,7 @@ test("a new device unlocks with the recovery password and ignores a passkey with
             type: "public-key" as const,
             id: passkeyRow.credentialId ?? "x",
             rawId: rawId.buffer,
-            response: { clientDataJSON: new ArrayBuffer(2) },
+            response: { clientDataJSON: new ArrayBuffer(2), authenticatorData: Uint8Array.of(...new Array(32).fill(0), 0x05, 0, 0, 0, 0).buffer },
             getClientExtensionResults() { return {}; },
           };
         },

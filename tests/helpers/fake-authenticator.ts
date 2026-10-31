@@ -31,12 +31,23 @@ async function hmacPrf(secret: Uint8Array, salt: Uint8Array): Promise<Uint8Array
   return copyBytes(new Uint8Array(mac));
 }
 
+function authenticatorData(flags = 0x05): ArrayBuffer {
+  const bytes = new Uint8Array(37);
+  bytes[32] = flags;
+  return bytes.buffer;
+}
+
 function credential(rawId: Uint8Array<ArrayBuffer>, prf: { enabled?: boolean; results?: { first: ArrayBuffer } } | undefined) {
+  const authData = authenticatorData();
   return {
     type: "public-key" as const,
     id: bytesToBase64Url(rawId),
     rawId: rawId.buffer,
-    response: { clientDataJSON: utf8Encode("{}").buffer },
+    response: {
+      clientDataJSON: utf8Encode("{}").buffer,
+      authenticatorData: authData,
+      getAuthenticatorData: () => authData,
+    },
     getClientExtensionResults() {
       return prf ? { prf } : {};
     },
