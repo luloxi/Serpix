@@ -47,6 +47,35 @@ export const SECURITY_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
 } as const;
 
+/**
+ * HTML (and the RSC or action request that shares its URL) must not be stored.
+ * The CSP nonce is valid for that one response.
+ *
+ * Kept out of SECURITY_HEADERS. Those four are repeated for static assets in
+ * public/_headers, and assets stay cacheable.
+ */
+export const DOCUMENT_CACHE_CONTROL = "no-store";
+
+function isApiPath(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+/**
+ * Headers proxy.ts writes on the response. Cache-Control is added only for a
+ * non-API path that does not already have one.
+ *
+ * The proxy runs before the route. On OpenNext the proxy header replaces the
+ * route's (middleware wins at flush). Emitting no-store for /api would replace
+ * an avatar's `private, max-age=31536000, immutable` and any other route policy.
+ * Static files never reach the proxy.
+ */
+export function applyProxyHeaders(headers: Headers, { csp, pathname }: { csp: string; pathname: string }): void {
+  headers.set("Content-Security-Policy", csp);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+  if (isApiPath(pathname) || headers.has("cache-control")) return;
+  headers.set("Cache-Control", DOCUMENT_CACHE_CONTROL);
+}
+
 export function newNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);

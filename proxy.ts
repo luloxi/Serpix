@@ -1,22 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SECURITY_HEADERS, buildCsp, newNonce } from "./lib/csp";
+import { applyProxyHeaders, buildCsp, newNonce } from "./lib/csp";
 
 /**
  * Per-request nonce CSP. Next reads Content-Security-Policy on the *request*
  * during render and copies the nonce onto its own scripts. x-nonce is for the
  * theme script in app/layout.tsx. Static files are excluded so this proxy
  * never rewrites /_next/static, icons, the service worker, or the manifest.
+ * Document responses get Cache-Control: no-store via applyProxyHeaders.
  */
 export function proxy(request: NextRequest) {
   const nonce = newNonce();
-  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV === "development" });
+  const isDev = process.env.NODE_ENV === "development";
+  const csp = buildCsp({ nonce, isDev });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set("Content-Security-Policy", csp);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(name, value);
+  applyProxyHeaders(response.headers, { csp, pathname: request.nextUrl.pathname });
   return response;
 }
 
