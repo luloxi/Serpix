@@ -27,6 +27,8 @@ export const ARGON2_SLOW_MS = 2_000;
 
 export type Argon2Params = { m: number; t: number; p: number };
 
+type Argon2Derive = (password: string, salt: Uint8Array, params: Argon2Params) => Promise<Uint8Array>;
+
 export type PasswordStrength = {
   score: 0 | 1 | 2 | 3 | 4;
   label: "very weak" | "weak" | "fair" | "strong" | "very strong";
@@ -79,7 +81,7 @@ export type ElapsedTimer = { elapsed: () => number };
 export type PasswordWrapOptions = {
   userId: string;
   wrapId: string;
-  /** Monotonic clock in milliseconds. Two calls bracket the first derivation. Default: performance.now. */
+  /** Monotonic clock in milliseconds. Two calls bracket the measured derivation, after the warm-up. Default: performance.now. */
   now?: () => number;
   /**
    * When set, replaces the measured elapsed time. `{ elapsed: () => 2_500 }` forces the 46 MiB retry.
@@ -88,6 +90,13 @@ export type PasswordWrapOptions = {
   timer?: ElapsedTimer;
   /** First call is the 16-byte Argon2 salt; wrapDek then draws the HKDF salt and the nonce. */
   rng?: ByteRng;
+  /**
+   * Replaces Argon2id for the warm-up and the measured derivations.
+   * Production leaves this unset. The warm-up promise is cached for each
+   * derive function, so the default path compiles wasm once per module load.
+   * A warm-up rejection is ignored and the wrap is still created.
+   */
+  derive?: Argon2Derive;
 };
 
 /** Wide bounds for the primitive, including the published m=256 vector. Wraps use isAllowedArgon2Params. */
@@ -114,6 +123,31 @@ export async function deriveArgon2id(password: string, salt: Uint8Array, params:
   return copyBytes(hash);
 }
 
+/** Not the caller's password. hash-wasm compiles on the first call; this input only pays that cost. */
+const ARGON2_WARM_PASSWORD = "serpix-argon2-warm";
+const ARGON2_WARM_SALT = Uint8Array.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+const warmByDerive = new WeakMap<Argon2Derive, Promise<void>>();
+
+async function runArgon2Warm(derive: Argon2Derive): Promise<void> {
+  const salt = copyBytes(ARGON2_WARM_SALT);
+  try {
+    const hash = await derive(ARGON2_WARM_PASSWORD, salt, { m: 8, t: 1, p: 1 });
+    wipe(hash);
+  } finally {
+    wipe(salt);
+  }
+}
+
+/** One warm-up per derive function for the life of the module, including a rejection. */
+function warmArgon2(derive: Argon2Derive): Promise<void> {
+  const cached = warmByDerive.get(derive);
+  if (cached) return cached;
+  const pending = runArgon2Warm(derive);
+  warmByDerive.set(derive, pending);
+  return pending;
+}
+
 export async function createPasswordWrap(
   dekRaw: Uint8Array,
   password: string,
@@ -123,9 +157,18 @@ export async function createPasswordWrap(
   const kdfSalt = copyBytes(rng(16));
   if (kdfSalt.byteLength !== 16) throw new WrapError("argon2 salt must be 16 bytes");
   const now = options.now ?? (() => performance.now());
+  const derive = options.derive ?? deriveArgon2id;
+  // The first hash-wasm call compiles and instantiates the module. That cost
+  // is not part of the 64 MiB sample, or a fast device can be pushed over 2s
+  // and stored at 46 MiB. The promise is cached; a failure does not stop the wrap.
+  try {
+    await warmArgon2(derive);
+  } catch {
+    // The timed derivation below is the one that has to succeed.
+  }
   let memory: number = ARGON2_MEMORY_KIB;
   const started = now();
-  let ikm = await deriveArgon2id(password, kdfSalt, {
+  let ikm = await derive(password, kdfSalt, {
     m: memory,
     t: ARGON2_ITERATIONS,
     p: ARGON2_PARALLELISM,
@@ -139,7 +182,7 @@ export async function createPasswordWrap(
   if (elapsed > ARGON2_SLOW_MS) {
     wipe(ikm);
     memory = ARGON2_MEMORY_SLOW_KIB;
-    ikm = await deriveArgon2id(password, kdfSalt, {
+    ikm = await derive(password, kdfSalt, {
       m: memory,
       t: ARGON2_ITERATIONS,
       p: ARGON2_PARALLELISM,

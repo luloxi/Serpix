@@ -15,6 +15,7 @@ import {
   passwordStrength,
   validateRecoveryPassword,
   PasswordPolicyError,
+  type Argon2Params,
   type PasswordParams,
 } from "../lib/crypto/password.ts";
 import { WrapError, assertWrap, type Wrap } from "../lib/crypto/wrap.ts";
@@ -237,6 +238,185 @@ test("a timer of exactly 2000 ms keeps the 64 MiB parameter", { timeout: 120_000
     timer: { elapsed: () => 2000 },
   });
   assert.equal((wrap.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+});
+
+function fillRng(fill: number): (length: number) => Uint8Array {
+  return (length) => new Uint8Array(length).fill(fill);
+}
+
+function isWarmCost(params: Argon2Params): boolean {
+  return params.m === 8 && params.t === 1 && params.p === 1;
+}
+
+test("warm-up finishes before the clock and stays outside the timed window", async () => {
+  const events: string[] = [];
+  let clock = 0;
+  const warmHash = new Uint8Array(32).fill(7);
+  let warmSalt: Uint8Array | null = null;
+  const userPassword = "Correct-Horse-99";
+  const kdfSalt = new Uint8Array(16).fill(0xab);
+  let rngCalls = 0;
+  const wrap = await createPasswordWrap(dek, userPassword, {
+    ...ctx,
+    now: () => {
+      events.push("now");
+      return clock;
+    },
+    derive: async (password, salt, params) => {
+      if (isWarmCost(params)) {
+        events.push("warm");
+        assert.notEqual(password, userPassword);
+        assert.equal(salt.byteLength, 16);
+        assert.ok(salt.some((byte) => byte !== 0xab));
+        warmSalt = salt;
+        clock += 5_000;
+        return warmHash;
+      }
+      events.push(`derive:${params.m}`);
+      assert.equal(password, userPassword);
+      assert.equal(params.t, ARGON2_ITERATIONS);
+      assert.equal(params.p, ARGON2_PARALLELISM);
+      assert.deepEqual(Buffer.from(salt), Buffer.from(kdfSalt));
+      clock += 40;
+      return new Uint8Array(32).fill(9);
+    },
+    rng: (length) => {
+      rngCalls += 1;
+      if (rngCalls === 1) return kdfSalt.slice();
+      return new Uint8Array(length);
+    },
+  });
+  assert.equal((wrap.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.deepEqual(events, ["warm", "now", "derive:65536", "now"]);
+  assert.ok(warmSalt);
+  assert.ok(warmSalt.every((byte) => byte === 0));
+  assert.ok(warmHash.every((byte) => byte === 0));
+});
+
+test("warm-up uses one fixed dummy and runs once per derive", async () => {
+  async function sample(userPassword: string) {
+    const seen = { password: "", salt: new Uint8Array(), calls: 0 };
+    const derive = async (password: string, salt: Uint8Array, params: Argon2Params) => {
+      if (isWarmCost(params)) {
+        seen.calls += 1;
+        seen.password = password;
+        seen.salt = Uint8Array.from(salt);
+        assert.notEqual(password, userPassword);
+        assert.equal(salt.byteLength, 16);
+        assert.ok(salt.some((byte) => byte !== 0xcd));
+      } else {
+        assert.equal(password, userPassword);
+        assert.equal(params.m, ARGON2_MEMORY_KIB);
+        assert.deepEqual(Buffer.from(salt), Buffer.from(new Uint8Array(16).fill(0xcd)));
+      }
+      return new Uint8Array(32);
+    };
+    const options = { ...ctx, derive, timer: { elapsed: () => 50 }, rng: fillRng(0xcd) };
+    const first = await createPasswordWrap(dek, userPassword, options);
+    const second = await createPasswordWrap(dek, userPassword, options);
+    assert.equal((first.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+    assert.equal((second.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+    assert.equal(seen.calls, 1);
+    return seen;
+  }
+  const first = await sample("Correct-Horse-99");
+  const second = await sample("Another-Phrase-1");
+  assert.equal(first.password, second.password);
+  assert.deepEqual(first.salt, second.salt);
+});
+
+test("concurrent wraps share one in-flight warm-up", async () => {
+  let entered = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const derive = async (_password: string, _salt: Uint8Array, params: Argon2Params) => {
+    if (isWarmCost(params)) {
+      entered += 1;
+      await gate;
+    }
+    return new Uint8Array(32);
+  };
+  const options = { ...ctx, derive, timer: { elapsed: () => 10 }, rng: fillRng(0) };
+  const pending = Promise.all([
+    createPasswordWrap(dek, "Correct-Horse-99", options),
+    createPasswordWrap(dek, "Correct-Horse-99", options),
+  ]);
+  assert.equal(entered, 1);
+  release();
+  const [first, second] = await pending;
+  assert.equal((first.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.equal((second.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.equal(entered, 1);
+});
+
+test("a warm-up failure still creates the wrap and is not retried", async () => {
+  let attempts = 0;
+  let warmSalt: Uint8Array | null = null;
+  const derive = async (_password: string, salt: Uint8Array, params: Argon2Params) => {
+    if (isWarmCost(params)) {
+      attempts += 1;
+      warmSalt = salt;
+      throw new Error("wasm instantiate failed");
+    }
+    assert.equal(params.m, ARGON2_MEMORY_KIB);
+    return new Uint8Array(32);
+  };
+  const options = { ...ctx, derive, timer: { elapsed: () => 50 }, rng: fillRng(1) };
+  const first = await createPasswordWrap(dek, "Correct-Horse-99", options);
+  const second = await createPasswordWrap(dek, "Correct-Horse-99", options);
+  assert.equal((first.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.equal((second.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.equal(attempts, 1);
+  assert.ok(warmSalt);
+  assert.ok(warmSalt.every((byte) => byte === 0));
+});
+
+test("the injected timer is read after warm-up and still selects the slow cost", async () => {
+  const events: string[] = [];
+  const slow = await createPasswordWrap(dek, "Correct-Horse-99", {
+    ...ctx,
+    now: () => {
+      events.push("now");
+      return 0;
+    },
+    timer: {
+      elapsed: () => {
+        events.push("timer");
+        return 2001;
+      },
+    },
+    derive: async (_password, _salt, params) => {
+      events.push(`m=${params.m}`);
+      return new Uint8Array(32);
+    },
+    rng: fillRng(2),
+  });
+  assert.equal((slow.params as PasswordParams).m, ARGON2_MEMORY_SLOW_KIB);
+  assert.deepEqual(events, ["m=8", "now", "m=65536", "timer", "m=47104"]);
+
+  events.length = 0;
+  const kept = await createPasswordWrap(dek, "Correct-Horse-99", {
+    ...ctx,
+    now: () => {
+      events.push("now");
+      return 0;
+    },
+    timer: {
+      elapsed: () => {
+        events.push("timer");
+        return 2000;
+      },
+    },
+    derive: async (_password, _salt, params) => {
+      events.push(`m=${params.m}`);
+      return new Uint8Array(32);
+    },
+    rng: fillRng(3),
+  });
+  assert.equal((kept.params as PasswordParams).m, ARGON2_MEMORY_KIB);
+  assert.deepEqual(events, ["m=8", "now", "m=65536", "timer"]);
 });
 
 test("a timer above 2000 ms rewraps at 46 MiB and open uses that m", { timeout: 180_000 }, async () => {
