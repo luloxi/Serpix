@@ -10,6 +10,10 @@ test("generated local schema matches the migrations", () => {
   assert.match(LOCAL_SCHEMA_SQL, /avatar_data/);
   assert.match(LOCAL_SCHEMA_SQL, /excluded_from_totals/);
   assert.match(LOCAL_SCHEMA_SQL, /recurring_period/);
+  assert.match(LOCAL_SCHEMA_SQL, /met_event/);
+  assert.match(LOCAL_SCHEMA_SQL, /met_event_at/);
+  assert.match(LOCAL_SCHEMA_SQL, /met_note/);
+  assert.equal(LOCAL_SCHEMA_SQL.includes("luma_events"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("encryption_mode"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("integration_nonces"), false);
 });
