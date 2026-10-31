@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { mailtoxComposeUrl } from "@/lib/mailtox-url";
 import MonthHeading from "@/app/month-heading";
 import { Archive, ArchiveRestore, Mail, MailOpen, Reply, UserCheck, UserPlus, Inbox } from "lucide-react";
 
@@ -44,10 +45,10 @@ export default function Inquiries({ items, openId, onOpenChange, onAction, onVie
             <time className="inq-date" dateTime={new Date(i.createdAt).toISOString()}>{fmt(i.createdAt)}</time>
           </button>
           {isOpen && <div className="inq-body">
-            <p className="inq-meta"><a href={"mailto:" + i.email} title="Escribir a este mail">{i.email}</a>{chip && <span className="inq-chip" title="Presupuesto calculado por el visitante">{chip}</span>}{i.refCode && <span className="inq-chip" title="Código de referido">ref {i.refCode}</span>}</p>
+            <p className="inq-meta"><a href={mailtoxComposeUrl(i.email)} target="_blank" rel="noopener noreferrer" style={{ cursor: "pointer" }} title="Escribir a este mail">{i.email}</a>{chip && <span className="inq-chip" title="Presupuesto calculado por el visitante">{chip}</span>}{i.refCode && <span className="inq-chip" title="Código de referido">ref {i.refCode}</span>}</p>
             <p className="inq-text">{i.message}</p>
             <div className="inq-actions">
-              <a className="inq-btn primary" href={"mailto:" + i.email + "?subject=" + encodeURIComponent("Re: tu mensaje en lulox.com.ar")} title="Responder por mail" aria-label="Responder por mail"><Reply size={16} aria-hidden="true" /><span>Responder</span></a>
+              <a className="inq-btn primary" href={mailtoxComposeUrl(i.email, { subject: "Re: tu mensaje en lulox.com.ar" })} target="_blank" rel="noopener noreferrer" title="Responder por mail" aria-label="Responder por mail"><Reply size={16} aria-hidden="true" /><span>Responder</span></a>
               {i.contactId ? <button type="button" className="inq-btn" title="Ya es un contacto: ver contactos" aria-label="Ver contacto" onClick={onViewContact}><UserCheck size={16} aria-hidden="true" /><span>Contacto</span></button> : <button type="button" className="inq-btn" disabled={disabled} title="Convertir en contacto (crea uno nuevo)" aria-label="Convertir en contacto" onClick={() => void run(i.id, "convert")}><UserPlus size={16} aria-hidden="true" /><span>Convertir en contacto</span></button>}
               {i.status === "read" && <button type="button" className="inq-btn icon" disabled={disabled} title="Marcar como no leída" aria-label="Marcar como no leída" onClick={() => void run(i.id, "unread")}><Mail size={16} aria-hidden="true" /></button>}
               {i.status === "new" && <button type="button" className="inq-btn icon" disabled={disabled} title="Marcar como leída" aria-label="Marcar como leída" onClick={() => void run(i.id, "read")}><MailOpen size={16} aria-hidden="true" /></button>}
