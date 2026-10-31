@@ -1,7 +1,7 @@
-// Browser side of the PDF: loads the v5 logo, measures text with canvas and builds the file with lib/document-pdf.ts (no server, no paid service).
-import { buildDocumentPdf, fileName, formatMoney, type PdfDocData } from "@/lib/document-pdf";
+// Browser side of the PDF: loads the v5 logo (tinted to the accent) and builds the file with lib/document-pdf.ts (no server, no paid service).
+import { ACCENT, buildDocumentPdf, fileName, formatMoney, tintLogo, type PdfDocData } from "@/lib/document-pdf";
 import { itemsTotalMinor, formatNumber, typeLabel } from "@/lib/documents";
-import type { Font, PdfImage } from "@/lib/pdf";
+import type { PdfImage } from "@/lib/pdf";
 
 let logoPromise: Promise<PdfImage | undefined> | null = null;
 
@@ -10,7 +10,7 @@ async function deflate(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Logo v5 (thick ouroboros + yellow $ on black) as raw RGB, flattened over black, compressed with zlib. */
+/** Logo v5 as a single-color mark in the PDF accent (white background), zlib-compressed. */
 function loadLogo(): Promise<PdfImage | undefined> {
   logoPromise ??= (async () => {
     try {
@@ -23,27 +23,20 @@ function loadLogo(): Promise<PdfImage | undefined> {
       ctx.fillStyle = "#000"; ctx.fillRect(0, 0, size, size);
       ctx.drawImage(bmp, 0, 0, size, size);
       const rgba = ctx.getImageData(0, 0, size, size).data;
-      const rgb = new Uint8Array(size * size * 3);
-      for (let i = 0, j = 0; i < rgba.length; i += 4) { rgb[j++] = rgba[i]; rgb[j++] = rgba[i + 1]; rgb[j++] = rgba[i + 2]; }
+      const black = new Uint8Array(size * size * 3);
+      for (let i = 0, j = 0; i < rgba.length; i += 4) { black[j++] = rgba[i]; black[j++] = rgba[i + 1]; black[j++] = rgba[i + 2]; }
+      const rgb = tintLogo(black, ACCENT.brand);
       return { width: size, height: size, rgb, flate: await deflate(rgb) };
     } catch { return undefined; } // the PDF is still valid without the logo
   })();
   return logoPromise;
 }
 
-function canvasMeasure() {
-  const ctx = document.createElement("canvas").getContext("2d")!;
-  return (text: string, size: number, font: Font) => {
-    ctx.font = `${font === "bold" ? "700 " : ""}${size}px Helvetica, Arial, "Liberation Sans", sans-serif`;
-    return ctx.measureText(text).width;
-  };
-}
-
 export type ShareableDoc = PdfDocData & { id: string };
 
 export async function renderPdf(doc: PdfDocData, issuer: { name: string; email: string | null }, today: string): Promise<Blob> {
   const logo = await loadLogo();
-  const bytes = buildDocumentPdf(doc, { measure: canvasMeasure(), issuerName: issuer.name, issuerEmail: issuer.email, today, logo });
+  const bytes = buildDocumentPdf(doc, { issuerName: issuer.name, issuerEmail: issuer.email, today, logo });
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
 

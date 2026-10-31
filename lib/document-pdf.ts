@@ -1,9 +1,28 @@
-// Layout of a presupuesto / factura PDF with Serpix branding. Pure: caller supplies measure() and the optional logo.
-import { PdfDoc, wrapText, PAGE_W, PAGE_H, type Measure, type PdfImage, type PdfPage } from "./pdf.ts";
+// Layout of a presupuesto / factura PDF: white page, ONE accent color, grays for everything else. Pure: caller supplies the optional logo.
+import { PdfDoc, wrapText, helveticaMeasure, PAGE_W, PAGE_H, type Measure, type PdfImage, type PdfPage } from "./pdf.ts";
 import { formatNumber, typeLabel, lineTotalMinor, displayStatus, STATUS_LABEL, type DocType, type DocStatus, type DocCurrency } from "./documents.ts";
 
-export const BRAND = { pink: "#fe4aab", cyan: "#39c5ff", yellow: "#f6cd35", violet: "#ab96ff", ink: "#12111c" };
+/**
+ * The single accent of the PDF (--brand-cyan). `brand` is the Serpix color (logo, rules); `ink` is the same hue darkened until it passes
+ * WCAG AA (>= 4.5:1) on white, used for every piece of accent-colored text.
+ */
+export const ACCENT = { brand: "#39c5ff", ink: "#007bae" } as const;
+
+const TEXT = "#17171c", MUTED = "#62626e", FAINT = "#9a9aa6", HAIRLINE = "#e4e4ea";
 export const DISCLAIMER = "Comprobante interno · no es una factura fiscal (ARCA)";
+
+const hexToRgb = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+
+/** The v5 logo (thick ouroboros + $ on black) as a single-color mark: brightness becomes the amount of accent over white. */
+export function tintLogo(rgbOverBlack: Uint8Array, accentHex: string): Uint8Array {
+  const [r, g, b] = hexToRgb(accentHex);
+  const out = new Uint8Array(rgbOverBlack.length);
+  for (let i = 0; i < rgbOverBlack.length; i += 3) {
+    const m = Math.min(1, (Math.max(rgbOverBlack[i], rgbOverBlack[i + 1], rgbOverBlack[i + 2]) / 255) * 1.1);
+    out[i] = Math.round(255 - m * (255 - r)); out[i + 1] = Math.round(255 - m * (255 - g)); out[i + 2] = Math.round(255 - m * (255 - b));
+  }
+  return out;
+}
 
 export type PdfDocData = {
   type: DocType; number: number; status: DocStatus; issueDate: string; dueDate: string | null; currency: DocCurrency; notes: string | null; paidAt: string | null;
@@ -23,90 +42,83 @@ export function fileName(d: { type: DocType; number: number; contactName: string
   return `${typeLabel(d.type)}-${formatNumber(d.type, d.number)}${who ? "-" + who : ""}.pdf`;
 }
 
-export function buildDocumentPdf(d: PdfDocData, o: { measure: Measure; issuerName: string; issuerEmail?: string | null; today: string; logo?: PdfImage }): Uint8Array {
+export function buildDocumentPdf(d: PdfDocData, o: { measure?: Measure; issuerName: string; issuerEmail?: string | null; today: string; logo?: PdfImage }): Uint8Array {
   const number = formatNumber(d.type, d.number);
-  const doc = new PdfDoc(o.measure, { title: `${typeLabel(d.type)} ${number}`, author: o.issuerName });
+  const m = o.measure ?? helveticaMeasure;
+  const A = ACCENT;
+  const doc = new PdfDoc(m, { title: `${typeLabel(d.type)} ${number}`, author: o.issuerName });
   const logoIdx = o.logo ? doc.addImage(o.logo) : -1;
-  const L = 36, R = PAGE_W - 36, GRAY = "#5b5870", LINE = "#e6e2f4", SOFT = "#f3f0ff";
-  const m = o.measure;
+  const L = 56, R = PAGE_W - 56, TOP = PAGE_H - 56;
   let page = doc.addPage();
-  const footer = (p: PdfPage, n: number, of: number) => {
-    p.line(L, 52, R, 52, LINE);
-    p.text(L, 38, DISCLAIMER, { size: 8, color: GRAY });
-    p.text(R, 38, `Serpix · ${number} · ${n}/${of}`, { size: 8, color: GRAY, align: "right" });
-  };
+  const label = (p: PdfPage, x: number, y: number, t: string, align: "left" | "right" = "left") => p.text(x, y, t, { size: 7.5, font: "bold", color: FAINT, spacing: 0.9, align });
 
-  // Header band
-  page.rect(0, PAGE_H - 100, PAGE_W, 100, "#000000");
-  if (logoIdx >= 0) page.image(logoIdx, L, PAGE_H - 88, 76, 76);
-  const tx = logoIdx >= 0 ? L + 92 : L;
-  page.text(tx, PAGE_H - 52, typeLabel(d.type), { size: 26, font: "bold", color: "#ffffff" });
-  page.text(tx, PAGE_H - 74, `N° ${number}`, { size: 14, font: "bold", color: BRAND.yellow });
-  page.text(R, PAGE_H - 50, o.issuerName.slice(0, 40), { size: 12, font: "bold", color: "#ffffff", align: "right" });
-  if (o.issuerEmail) page.text(R, PAGE_H - 66, o.issuerEmail.slice(0, 50), { size: 9, color: "#c9c5dd", align: "right" });
-  const sw = PAGE_W / 4;
-  [BRAND.pink, BRAND.violet, BRAND.cyan, BRAND.yellow].forEach((c, i) => page.rect(i * sw, PAGE_H - 106, sw + 0.5, 6, c));
+  // Header: small monochrome mark on the left, issuer on the right.
+  if (logoIdx >= 0) page.image(logoIdx, L - 2, TOP - 34, 34, 34);
+  page.text(R, TOP - 10, o.issuerName.slice(0, 40), { size: 10.5, font: "bold", color: TEXT, align: "right" });
+  if (o.issuerEmail) page.text(R, TOP - 24, o.issuerEmail.slice(0, 50), { size: 9, color: MUTED, align: "right" });
+
+  // Title
+  page.text(L, TOP - 92, typeLabel(d.type), { size: 28, font: "bold", color: TEXT });
+  page.text(L, TOP - 114, `N° ${number}`, { size: 12, font: "bold", color: A.ink });
+  page.line(L, TOP - 134, R, TOP - 134, A.brand, 1);
 
   // Client + dates
-  let y = PAGE_H - 140;
-  page.text(L, y, "CLIENTE", { size: 8, font: "bold", color: "#6b53d9" });
-  page.text(L, y - 18, (d.contactName || "Sin cliente").slice(0, 60), { size: 14, font: "bold", color: BRAND.ink });
-  let cy = y - 33;
-  for (const line of [d.contactEmail, d.contactPhone]) if (line) { page.text(L, cy, line.slice(0, 60), { size: 9.5, color: GRAY }); cy -= 13; }
-  const rows: [string, string][] = [["Fecha", formatDate(d.issueDate)], ["Vencimiento", d.dueDate ? formatDate(d.dueDate) : "—"], ["Moneda", d.currency]];
+  const y0 = TOP - 170;
+  label(page, L, y0, "CLIENTE");
+  page.text(L, y0 - 20, (d.contactName || "Sin cliente").slice(0, 60), { size: 13, font: "bold", color: TEXT });
+  let cy = y0 - 35;
+  for (const line of [d.contactEmail, d.contactPhone]) if (line) { page.text(L, cy, line.slice(0, 60), { size: 9.5, color: MUTED }); cy -= 14; }
   const st = displayStatus({ type: d.type, status: d.status, dueDate: d.dueDate }, o.today);
-  rows.push(["Estado", STATUS_LABEL[st] + (st === "paid" && d.paidAt ? " · " + formatDate(d.paidAt) : "")]);
-  let ry = y;
+  const rows: [string, string][] = [["Fecha", formatDate(d.issueDate)], ["Vencimiento", d.dueDate ? formatDate(d.dueDate) : "—"], ["Moneda", d.currency], ["Estado", STATUS_LABEL[st] + (st === "paid" && d.paidAt ? " · " + formatDate(d.paidAt) : "")]];
+  let ry = y0;
   for (const [k, v] of rows) {
-    page.text(R - 120, ry, k, { size: 9, color: GRAY });
-    const color = k === "Estado" ? (st === "paid" ? "#0a7bb0" : st === "overdue" || st === "void" ? "#c4262e" : BRAND.ink) : BRAND.ink;
-    page.text(R, ry, v, { size: 10, font: "bold", color, align: "right" });
-    ry -= 15;
+    page.text(R - 150, ry, k, { size: 9, color: MUTED });
+    page.text(R, ry, v, { size: 9.5, color: TEXT, align: "right" });
+    ry -= 17;
   }
-  y = Math.min(cy, ry) - 24;
+  let y = Math.min(cy, ry) - 38;
 
-  // Items table
-  const cQty = 372, cPrice = 462, descW = cQty - 50 - L - 8;
+  // Items table: gray caps header, hairlines, no fills.
+  const cQty = 330, cPrice = 424, descW = cQty - 44 - L;
   const head = (p: PdfPage, at: number) => {
-    p.rect(L, at - 6, R - L, 22, SOFT);
-    p.text(L + 8, at, "DESCRIPCIÓN", { size: 8, font: "bold", color: "#4b3bb0" });
-    p.text(cQty, at, "CANT.", { size: 8, font: "bold", color: "#4b3bb0", align: "right" });
-    p.text(cPrice, at, "PRECIO", { size: 8, font: "bold", color: "#4b3bb0", align: "right" });
-    p.text(R - 8, at, "IMPORTE", { size: 8, font: "bold", color: "#4b3bb0", align: "right" });
+    label(p, L, at, "DESCRIPCIÓN"); label(p, cQty, at, "CANT.", "right"); label(p, cPrice, at, "PRECIO", "right"); label(p, R, at, "IMPORTE", "right");
+    p.line(L, at - 10, R, at - 10, HAIRLINE, 0.6);
   };
   head(page, y);
-  y -= 26;
+  y -= 32;
   let total = 0;
   for (const it of d.items) {
     const lines = wrapText(it.description, descW, 10, "regular", m);
-    const h = lines.length * 13 + 16;
-    if (y - h < 150) { page = doc.addPage(); y = PAGE_H - 60; head(page, y); y -= 26; }
+    const h = lines.length * 13 + 19;
+    if (y - h < 120) { page = doc.addPage(); y = TOP - 14; head(page, y); y -= 32; }
     const amount = lineTotalMinor(it.quantityMilli, it.unitPriceMinor);
     total += amount;
-    lines.forEach((ln, i) => page.text(L + 8, y - i * 13, ln, { size: 10, color: BRAND.ink }));
-    page.text(cQty, y, formatQty(it.quantityMilli), { size: 10, color: BRAND.ink, align: "right" });
-    page.text(cPrice, y, formatMoney(it.unitPriceMinor, d.currency), { size: 10, color: BRAND.ink, align: "right" });
-    page.text(R - 8, y, formatMoney(amount, d.currency), { size: 10, font: "bold", color: BRAND.ink, align: "right" });
+    lines.forEach((ln, i) => page.text(L, y - i * 13, ln, { size: 10, color: TEXT }));
+    page.text(cQty, y, formatQty(it.quantityMilli), { size: 10, color: MUTED, align: "right" });
+    page.text(cPrice, y, formatMoney(it.unitPriceMinor, d.currency), { size: 10, color: MUTED, align: "right" });
+    page.text(R, y, formatMoney(amount, d.currency), { size: 10, color: TEXT, align: "right" });
     y -= h;
-    page.line(L, y + 10, R, y + 10, LINE);
+    page.line(L, y + 11, R, y + 11, HAIRLINE, 0.5);
   }
 
-  // Total
-  if (y < 190) { page = doc.addPage(); y = PAGE_H - 70; }
-  y -= 14;
-  page.rect(R - 210, y - 14, 210, 40, "#000000");
-  page.rect(R - 210, y - 14, 5, 40, BRAND.yellow);
-  page.text(R - 196, y + 2, "TOTAL " + d.currency, { size: 9, font: "bold", color: "#c9c5dd" });
-  page.text(R - 10, y + 2, formatMoney(total, d.currency), { size: 15, font: "bold", color: BRAND.yellow, align: "right" });
-  y -= 44;
+  // Total: typography only, one accent rule above.
+  if (y < 170) { page = doc.addPage(); y = TOP - 14; }
+  y -= 18;
+  page.line(R - 190, y + 6, R, y + 6, A.brand, 1);
+  label(page, R, y - 14, "TOTAL " + d.currency, "right");
+  page.text(R, y - 40, formatMoney(total, d.currency), { size: 22, font: "bold", color: A.ink, align: "right" });
+  y -= 92;
 
   // Notes
   if (d.notes) {
     const nl = wrapText(d.notes, R - L, 9.5, "regular", m).slice(0, 14);
-    if (y - nl.length * 12 - 30 < 70) { page = doc.addPage(); y = PAGE_H - 70; }
-    page.text(L, y, "NOTAS", { size: 8, font: "bold", color: "#6b53d9" });
-    nl.forEach((ln, i) => page.text(L, y - 15 - i * 12, ln, { size: 9.5, color: GRAY }));
+    if (y - nl.length * 13 - 30 < 70) { page = doc.addPage(); y = TOP - 14; }
+    label(page, L, y, "NOTAS");
+    nl.forEach((ln, i) => page.text(L, y - 17 - i * 13, ln, { size: 9.5, color: MUTED }));
   }
-  doc.pages.forEach((p, i) => footer(p, i + 1, doc.pages.length));
+  doc.pages.forEach((p, i) => {
+    p.text(L, 36, DISCLAIMER, { size: 7.5, color: FAINT });
+    p.text(R, 36, `${number} · ${i + 1}/${doc.pages.length}`, { size: 7.5, color: FAINT, align: "right" });
+  });
   return doc.bytes();
 }

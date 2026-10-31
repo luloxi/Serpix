@@ -10,6 +10,21 @@ export const PAGE_H = 841.89;
 /** Rough Helvetica width (used when no measure function is given, e.g. in tests). */
 export const approxMeasure: Measure = (text, size, font) => text.length * size * (font === "bold" ? 0.56 : 0.52);
 
+// Helvetica advance widths (1/1000 em) for U+0020..U+00FF; the standard-14 fonts are metric-compatible, so layout is exact without canvas.
+const W_REGULAR = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,552,400,549,333,333,333,576,537,333,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,549,611,556,556,556,556,500,556,500];
+const W_BOLD = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,552,400,549,333,333,333,576,556,333,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,549,611,611,611,611,611,556,611,556];
+const W_EXTRA_REGULAR: Record<string, number> = { "€": 556, "‚": 222, "„": 333, "…": 1000, "‘": 222, "’": 222, "“": 333, "”": 333, "•": 350, "–": 556, "—": 1000, "™": 1000 };
+const W_EXTRA_BOLD: Record<string, number> = { "€": 556, "‚": 278, "„": 500, "…": 1000, "‘": 278, "’": 278, "“": 500, "”": 500, "•": 350, "–": 556, "—": 1000, "™": 1000 };
+export const helveticaMeasure: Measure = (text, size, font) => {
+  const table = font === "bold" ? W_BOLD : W_REGULAR, extra = font === "bold" ? W_EXTRA_BOLD : W_EXTRA_REGULAR;
+  let w = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    w += cp >= 0x20 && cp <= 0xff ? table[cp - 0x20] || 556 : extra[ch] ?? 556;
+  }
+  return (w * size) / 1000;
+};
+
 const WIN_ANSI_EXTRA: Record<string, number> = { "€": 0x80, "‚": 0x82, "„": 0x84, "…": 0x85, "‘": 0x91, "’": 0x92, "“": 0x93, "”": 0x94, "•": 0x95, "–": 0x96, "—": 0x97, "™": 0x99 };
 
 /** JS string -> escaped PDF literal string bytes (without the parentheses). */
@@ -50,15 +65,15 @@ export class PdfPage {
   line(x1: number, y1: number, x2: number, y2: number, color: string, width = 0.6) {
     this.ops.push(`${hex(color)} RG ${num(width)} w ${num(x1)} ${num(y1)} m ${num(x2)} ${num(y2)} l S`);
   }
-  text(x: number, y: number, text: string, o: { size?: number; font?: Font; color?: string; align?: Align } = {}) {
-    const size = o.size ?? 10, font = o.font ?? "regular";
+  text(x: number, y: number, text: string, o: { size?: number; font?: Font; color?: string; align?: Align; spacing?: number } = {}) {
+    const size = o.size ?? 10, font = o.font ?? "regular", spacing = o.spacing ?? 0;
     let tx = x;
     if (o.align && o.align !== "left") {
-      const w = this.doc.measure(text, size, font);
+      const w = this.doc.measure(text, size, font) + spacing * text.length;
       tx = o.align === "right" ? x - w : x - w / 2;
     }
     const bytes = winAnsi(text).map((b) => (b < 0x20 || b > 0x7e ? "\\" + b.toString(8).padStart(3, "0") : String.fromCharCode(b))).join("");
-    this.ops.push(`BT /${font === "bold" ? "F2" : "F1"} ${num(size)} Tf ${hex(o.color ?? "#000000")} rg ${num(tx)} ${num(y)} Td (${bytes}) Tj ET`);
+    this.ops.push(`BT /${font === "bold" ? "F2" : "F1"} ${num(size)} Tf ${hex(o.color ?? "#000000")} rg ${num(spacing)} Tc ${num(tx)} ${num(y)} Td (${bytes}) Tj ET`);
   }
   image(index: number, x: number, y: number, w: number, h: number) {
     this.images.add(index);
@@ -71,7 +86,7 @@ export class PdfDoc {
   images: PdfImage[] = [];
   measure: Measure;
   info: { title?: string; author?: string };
-  constructor(measure: Measure = approxMeasure, info: { title?: string; author?: string } = {}) { this.measure = measure; this.info = info; }
+  constructor(measure: Measure = helveticaMeasure, info: { title?: string; author?: string } = {}) { this.measure = measure; this.info = info; }
   addPage() { const p = new PdfPage(this); this.pages.push(p); return p; }
   addImage(img: PdfImage): number { this.images.push(img); return this.images.length - 1; }
 
