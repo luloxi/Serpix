@@ -12,8 +12,10 @@ import { notifyOverdueInvoices } from "./lib/documents-push.ts";
 import { todayBA } from "./lib/agenda-dates.ts";
 import { generateDue, todayInBuenosAires } from "./lib/recurring.ts";
 import { purgeOrphanReceipts } from "./lib/receipts-db.ts";
+import { WorkerEntrypoint } from "cloudflare:workers";
+import { listContactsWithEmail, upsertContactByEmail } from "./lib/mailtox-link.ts";
 
-type Env = { DB: Parameters<typeof notifyOverdueInvoices>[0] & Parameters<typeof generateDue>[0] & Parameters<typeof purgeOrphanReceipts>[0]; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string };
+type Env = { DB: Parameters<typeof notifyOverdueInvoices>[0] & Parameters<typeof generateDue>[0] & Parameters<typeof purgeOrphanReceipts>[0]; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; MAILTOX_LINK_OWNER_EMAIL?: string };
 type Ctx = { waitUntil(p: Promise<unknown>): void };
 const ADMIN_EMAIL = "lucianoolivabianco@gmail.com"; // VAPID subject; same value as lib/auth.ts (not imported: it pulls Better Auth into the cron)
 
@@ -33,6 +35,17 @@ async function runDailyJobs(env: Env, now = new Date()) {
   const jobs: [string, () => Promise<unknown>][] = [["overdue_invoices", () => overdueInvoices(env, now)], ["recurring_and_receipts", () => recurringAndReceipts(env, now)]];
   for (const [name, job] of jobs) {
     try { await job(); } catch (error) { console.error("cron_job_failed", { job: name, error: String(error) }); }
+  }
+}
+
+/** Mailtox service binding. RPC only: this class is not mounted on the default HTTP handler. */
+export class MailtoxLink extends WorkerEntrypoint<Env> {
+  async listContactsWithEmail(sinceCursor?: string | null) {
+    return listContactsWithEmail(this.env.DB, this.env.MAILTOX_LINK_OWNER_EMAIL, sinceCursor);
+  }
+
+  async upsertContactByEmail(input: { email: string; name?: string; phone?: string; company?: string }) {
+    return upsertContactByEmail(this.env.DB, this.env.MAILTOX_LINK_OWNER_EMAIL, input);
   }
 }
 
