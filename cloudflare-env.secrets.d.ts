@@ -10,6 +10,8 @@ declare global {
     VAPID_PRIVATE_KEY: string;
     /** HMAC secret for Cuentix -> Serpix movement sync (wrangler secret put CUENTIX_SYNC_SECRET). Never log it. */
     CUENTIX_SYNC_SECRET: string;
+    /** Luma ICS feed (wrangler secret put LUMA_ICS_URL). Optional: the sync logs luma_sync_skipped when unset. Never log the URL. */
+    LUMA_ICS_URL?: string;
   }
 }
 export {};

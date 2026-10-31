@@ -34,6 +34,7 @@ const COVERED = [
   "inquiries/[id]/route.ts",
   "integrations/cuentix/events/route.ts",
   "invites/redeem/route.ts",
+  "luma-events/route.ts",
   "push/subscribe/route.ts",
   "receipts/scan/route.ts",
   "receipts/[id]/route.ts",
@@ -91,6 +92,7 @@ async function api() {
     e2eRecord: await import("../app/api/e2e/records/[collection]/[id]/route.ts"),
     e2eCounter: await import("../app/api/e2e/counter/route.ts"),
     e2eScan: await import("../app/api/e2e/scan-ai/route.ts"),
+    luma: await import("../app/api/luma-events/route.ts"),
   };
 }
 
@@ -147,6 +149,7 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "DELETE", mod: routes.e2eRecord, url: base + "/api/e2e/records/contacts/x", params: { collection: "contacts", id: "x" }, json: { expectedVersion: 0 } },
     { method: "POST", mod: routes.e2eCounter, url: base + "/api/e2e/counter", json: { kind: "quote" } },
     { method: "POST", mod: routes.e2eScan, url: base + "/api/e2e/scan-ai" },
+    { method: "GET", mod: routes.luma, url: base + "/api/luma-events" },
   );
   return out;
 }
