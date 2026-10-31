@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { openDb, user } from "./db-helper.mts";
+import { account, openDb, user } from "./db-helper.mts";
 import {
   ADMIN_E2E_ERROR,
   BAD_COLLECTION,
@@ -15,6 +15,8 @@ import {
   ENVELOPE_ERROR,
   FIRST_WRAP_ERROR,
   ID_IN_USE,
+  LEGACY_DATA_ERROR,
+  LEGACY_TABLES,
   MAX_BLOB_CHARS,
   MAX_ROWS_PER_COLLECTION,
   PASSWORD_EXISTS_ERROR,
@@ -27,6 +29,7 @@ import {
   addWrap,
   deleteWrap,
   encryptionMode,
+  hasLegacyData,
   httpError,
   listKeys,
   listRecords,
@@ -202,7 +205,10 @@ test("stored wrap is canonical and the first password wrap switches the mode", a
   assert.equal(listed.wraps[0].id, "pw");
   assert.equal((listed.wraps[0].wrap as KeyWrap).type, "password");
   assert.equal(listed.wraps[0].lastUsedAt, null);
-  assert.equal((await listKeys(d1, "beto")).mode, "server");
+  assert.equal(listed.legacyData, false);
+  const betoKeys = await listKeys(d1, "beto");
+  assert.equal(betoKeys.mode, "server");
+  assert.equal(betoKeys.legacyData, false);
 
   assert.equal((await replacePasswordWrap(d1, "beto", "pw", passwordWrap({ m: 19456 }))).error, WRAP_NOT_FOUND);
   assert.equal((await replacePasswordWrap(d1, "ana", "k0", passwordWrap())).error, REPLACE_PASSWORD_ONLY);
@@ -326,4 +332,74 @@ test("records: concurrency, doc columns, tombstones, listing and the row cap", a
   const updated = await upsertRecord(d1, "ana", "avatars", "a0", { expectedVersion: 1, blob: BLOB, hasDoc: false, doc: null }, 51);
   assert.equal(updated.ok, true);
   if (updated.ok) assert.equal(updated.version, 2);
+});
+
+function countRows(db: ReturnType<typeof openDb>["db"], table: string, userId: string): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM " + table + " WHERE user_id=?").get(userId) as { n: number }).n;
+}
+
+/** One plaintext row in `table` for ana. Parent accounts belong to bank so they do not count as ana's data. */
+function seedLegacy(db: ReturnType<typeof openDb>["db"], table: (typeof LEGACY_TABLES)[number]) {
+  if (table === "contacts") db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("row", "ana", "person", "Ana", 1, 1);
+  else if (table === "financial_transactions") db.prepare("INSERT INTO financial_transactions (id,user_id,account_id,kind,amount_minor,category,occurred_at,created_at) VALUES (?,?,?,?,?,?,?,?)").run("row", "ana", "bank-caja", "expense", 100, "Cafe", "2026-10-01", 1);
+  else if (table === "documents") db.prepare("INSERT INTO documents (id,user_id,doc_type,number,issue_date,currency,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").run("row", "ana", "invoice", 1, "2026-10-01", "ARS", "draft", 1, 1);
+  else if (table === "time_entries") db.prepare("INSERT INTO time_entries (id,user_id,started_at,ended_at,duration_ms,created_at) VALUES (?,?,?,?,?,?)").run("row", "ana", 1, 2, 1, 1);
+  else if (table === "receipts") db.prepare("INSERT INTO receipts (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)").run("row", "ana", "image/png", 4, "AAAA", 1);
+  else if (table === "recurring_rules") db.prepare("INSERT INTO recurring_rules (id,user_id,account_id,kind,amount_minor,category,frequency,anchor_date,from_date,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").run("row", "ana", "bank-caja", "expense", 500, "Alquiler", "monthly", "2020-01-01", "2020-01-01", 1, 1);
+  else if (table === "activities") db.prepare("INSERT INTO activities (id,user_id,kind,title,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "note", "Nota", "2026-10-01T12:00:00.000Z", 1, 1);
+  else if (table === "projects") db.prepare("INSERT INTO projects (id,user_id,name,created_at,updated_at) VALUES (?,?,?,?,?)").run("row", "ana", "Proyecto", 1, 1);
+  else if (table === "tasks") db.prepare("INSERT INTO tasks (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)").run("row", "ana", "Tarea", 1, 1);
+  else db.prepare("INSERT INTO financial_accounts (id,user_id,name,currency,opening_balance_minor,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "Caja", "ARS", 0, 1, 1);
+}
+
+test("the first wrap refuses every legacy table, leaves the rows, and still allows a later passkey", async () => {
+  for (const table of LEGACY_TABLES) {
+    const { db, d1 } = openDb();
+    user(db, "ana");
+    user(db, "beto");
+    user(db, "bank");
+    user(db, "root");
+    db.prepare("UPDATE user SET role='admin' WHERE id=?").run("root");
+    account(db, "bank-caja", "bank");
+    seedLegacy(db, table);
+    assert.equal(await hasLegacyData(d1, "ana"), true, table);
+    assert.equal((await listKeys(d1, "ana")).legacyData, true, table);
+    assert.equal(await hasLegacyData(d1, "beto"), false, table);
+    const blocked = await addWrap(d1, "ana", { id: "pw", type: "password", wrap: passwordWrap(), credentialId: null }, 1);
+    assert.equal(blocked.ok, false, table);
+    if (blocked.ok) continue;
+    assert.equal(blocked.status, 409, table);
+    assert.equal(blocked.error, LEGACY_DATA_ERROR, table);
+    assert.equal(await encryptionMode(d1, "ana"), "server", table);
+    assert.equal(countRows(db, "user_keys", "ana"), 0, table);
+    assert.equal(countRows(db, table, "ana"), 1, table);
+    assert.equal(countRows(db, "financial_accounts", "bank"), 1, table);
+    db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("root-c", "root", "person", "Root", 1, 1);
+    const admin = await addWrap(d1, "root", { id: "admin-wrap", type: "password", wrap: passwordWrap(), credentialId: null }, 2);
+    assert.equal(admin.error, ADMIN_E2E_ERROR, table);
+    assert.equal(admin.ok ? 0 : admin.status, 403, table);
+    assert.equal(countRows(db, "contacts", "root"), 1, table);
+  }
+
+  const { db, d1 } = openDb();
+  user(db, "ana");
+  user(db, "beto");
+  db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("beto-c", "beto", "person", "Beto", 1, 1);
+  assert.equal(await hasLegacyData(d1, "ana"), false);
+  assert.equal((await listKeys(d1, "ana")).legacyData, false);
+  assert.equal((await listKeys(d1, "beto")).legacyData, true);
+  const created = await addWrap(d1, "ana", { id: "pw", type: "password", wrap: passwordWrap(), credentialId: null }, 3);
+  assert.deepEqual(created, { ok: true, id: "pw" });
+  assert.equal(countRows(db, "contacts", "beto"), 1);
+  assert.equal(await encryptionMode(d1, "beto"), "server");
+
+  db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("ana-c", "ana", "person", "Ana", 1, 1);
+  const passkey = await addWrap(d1, "ana", { id: "pk", type: "passkey", wrap: passkeyWrap(), credentialId: "cred" }, 4);
+  assert.equal(passkey.ok, true, JSON.stringify(passkey));
+  assert.equal(await encryptionMode(d1, "ana"), "e2e");
+  assert.equal(countRows(db, "contacts", "ana"), 1);
+  const listed = await listKeys(d1, "ana");
+  assert.equal(listed.mode, "e2e");
+  assert.equal(listed.legacyData, true);
+  assert.equal(listed.wraps.length, 2);
 });

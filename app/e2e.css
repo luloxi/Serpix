@@ -1,0 +1,246 @@
+/* Encrypted-mode screens. Brand color comes only from the four tokens in brand.css. */
+
+.e2e-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 80% -10%, var(--brand-violet-soft), transparent 42%),
+    var(--bg);
+  color: var(--ink);
+}
+
+.e2e-card {
+  width: min(100%, 440px);
+  display: grid;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+}
+
+.e2e-card h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+}
+
+.e2e-card p,
+.e2e-note,
+.e2e-warn {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.e2e-warn {
+  color: var(--brand-pink-ink);
+}
+
+.e2e-form,
+.e2e-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.e2e-field {
+  display: grid;
+  gap: 6px;
+}
+
+.e2e-field span,
+.e2e-check span,
+.e2e-ai span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.e2e-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.e2e-gate input[type="password"],
+.e2e-gate input[type="text"],
+.e2e-menu input[type="password"],
+.e2e-menu input[type="text"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: text;
+}
+
+.e2e-gate button,
+.e2e-menu button,
+.e2e-gate label,
+.e2e-ai,
+.e2e-check,
+.e2e-gate input[type="checkbox"],
+.e2e-ai input[type="checkbox"],
+.e2e-check input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.e2e-btn {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--brand-pink);
+  color: var(--on-brand);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.e2e-btn.secondary,
+.e2e-text,
+.e2e-menu .e2e-btn {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.e2e-text {
+  justify-self: start;
+  min-height: 36px;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--brand-violet-ink);
+  font-weight: 700;
+}
+
+.e2e-gate button:disabled,
+.e2e-menu button:disabled,
+.e2e-gate input:disabled,
+.e2e-ai input:disabled,
+.e2e-check:has(input:disabled),
+.e2e-check:has(input:disabled) input {
+  cursor: not-allowed;
+}
+
+.e2e-btn:disabled {
+  opacity: 0.55;
+}
+
+.e2e-meter {
+  display: flex;
+  gap: 4px;
+  height: 6px;
+}
+
+.e2e-meter i {
+  flex: 1;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.e2e-meter i.on:nth-child(1) { background: var(--brand-pink); }
+.e2e-meter i.on:nth-child(2) { background: var(--brand-yellow); }
+.e2e-meter i.on:nth-child(3) { background: var(--brand-cyan); }
+.e2e-meter i.on:nth-child(4) { background: var(--brand-violet); }
+
+.e2e-meter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-violet-ink);
+}
+
+.e2e-issues {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--brand-pink-ink);
+  font-size: 13px;
+}
+
+.e2e-check,
+.e2e-ai {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: start;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.e2e-check input,
+.e2e-ai input {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand-pink);
+}
+
+.e2e-check small,
+.e2e-ai small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.e2e-legacy-wrap {
+  min-height: 100svh;
+}
+
+.e2e-legacy {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--brand-yellow-soft);
+  color: var(--brand-yellow-ink);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.e2e-loading {
+  color: var(--muted);
+}
+
+.e2e-menu {
+  display: grid;
+  gap: 4px;
+}
+
+.e2e-menu-title {
+  margin: 4px 0 0;
+  padding: 4px 11px 0;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-violet-ink);
+}
+
+.e2e-sync {
+  margin: 0;
+  padding: 0 11px 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.e2e-menu .e2e-btn {
+  width: 100%;
+  text-align: left;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.e2e-menu form {
+  display: grid;
+  gap: 8px;
+  padding: 4px 11px 8px;
+}
+
+.e2e-menu .e2e-note {
+  padding: 0 11px 6px;
+  font-size: 12px;
+}
+
+.receipt-field .e2e-ai {
+  margin: 0 0 8px;
+}
