@@ -93,11 +93,16 @@ test("a new device unlocks with the recovery password and ignores a passkey with
       await assert.rejects(() => unlockWithPassword({ password: passwordWrap }, "wrong-password-99", { userId, wrapId: passwordRow.id }));
       const noPrf = {
         async create() { return null; },
-        async get() {
+        async get(options: CredentialRequestOptions) {
+          const allowed = options.publicKey?.allowCredentials?.[0]?.id ?? new Uint8Array();
+          const view = allowed instanceof ArrayBuffer
+            ? new Uint8Array(allowed)
+            : new Uint8Array(allowed.buffer, allowed.byteOffset, allowed.byteLength);
+          const rawId = new Uint8Array(view);
           return {
             type: "public-key" as const,
             id: passkeyRow.credentialId ?? "x",
-            rawId: new Uint8Array(16).buffer,
+            rawId: rawId.buffer,
             response: { clientDataJSON: new ArrayBuffer(2) },
             getClientExtensionResults() { return {}; },
           };

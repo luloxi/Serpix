@@ -1,8 +1,9 @@
 // WebAuthn passkey + the PRF extension. The PRF output is the wrap IKM.
 // If the authenticator never returns PRF bytes, registration throws PrfUnsupportedError
-// and the caller keeps the password wrap only.
+// and the caller keeps the password wrap only. User verification is required. A 32-byte
+// all-zero PRF, or a get() whose rawId is not the credential we asked for, is the same failure.
 
-import { bytesToBase64Url, copyBytes, randomBytes, utf8Encode, wipe } from "./bytes.ts";
+import { bytesToBase64Url, copyBytes, randomBytes, timingSafeEqual, utf8Encode, wipe } from "./bytes.ts";
 import { DecryptError, type ByteRng } from "./envelope.ts";
 import { unwrapDek, wrapDek, WrapError, type Wrap } from "./wrap.ts";
 
@@ -46,6 +47,7 @@ export type GetPrfOptions = {
 type PrfResult = {
   enabled: boolean;
   first: Uint8Array<ArrayBuffer> | null;
+  firstSource: BufferSource | null;
   rawId: Uint8Array<ArrayBuffer> | null;
 };
 
@@ -55,16 +57,55 @@ function bytesOf(value: BufferSource): Uint8Array<ArrayBuffer> {
 }
 
 function readPrf(credential: unknown): PrfResult {
-  if (!credential || typeof credential !== "object") return { enabled: false, first: null, rawId: null };
+  if (!credential || typeof credential !== "object") {
+    return { enabled: false, first: null, firstSource: null, rawId: null };
+  }
   const record = credential as {
     rawId?: BufferSource;
     getClientExtensionResults?: () => { prf?: { enabled?: boolean; results?: { first?: BufferSource } } };
   };
   const rawId = record.rawId ? bytesOf(record.rawId) : null;
   const prf = record.getClientExtensionResults?.().prf;
-  const firstSource = prf?.results?.first;
+  const firstSource = prf?.results?.first ?? null;
   const first = firstSource ? bytesOf(firstSource) : null;
-  return { enabled: prf?.enabled === true || first !== null, first, rawId };
+  return { enabled: prf?.enabled === true || first !== null, first, firstSource, rawId };
+}
+
+/** 32 zero bytes are not a PRF key. The scan does not stop on the first non-zero byte. */
+function isAllZeroPrf(bytes: Uint8Array): boolean {
+  if (bytes.byteLength !== 32) return false;
+  let diff = 0;
+  for (let i = 0; i < bytes.byteLength; i++) diff |= bytes[i];
+  return diff === 0;
+}
+
+function wipeBufferSource(value: BufferSource | null): void {
+  if (!value) return;
+  if (ArrayBuffer.isView(value)) {
+    wipe(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
+    return;
+  }
+  wipe(new Uint8Array(value));
+}
+
+function wipeHeldPrf(result: PrfResult): void {
+  if (result.first) wipe(result.first);
+  if (result.rawId) wipe(result.rawId);
+  wipeBufferSource(result.firstSource);
+}
+
+/**
+ * 32-byte non-zero PRF. When `expectedId` is set, `rawId` must be the same bytes.
+ * Returns null when the caller must wipe and reject. Does not modify `expectedId`.
+ */
+function acceptedPrf(result: PrfResult, expectedId: Uint8Array | null): Uint8Array<ArrayBuffer> | null {
+  const output = result.first;
+  const returnedId = result.rawId;
+  const zeroPrf = output !== null && isAllZeroPrf(output);
+  const sameCredential = expectedId === null || (returnedId !== null && timingSafeEqual(returnedId, expectedId));
+  if (output === null || output.byteLength !== 32 || zeroPrf || !sameCredential) return null;
+  if (returnedId && expectedId !== null) wipe(returnedId);
+  return output;
 }
 
 function prfExtension(prfSalt: Uint8Array): AuthenticationExtensionsClientInputs {
@@ -93,7 +134,7 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
           { type: "public-key", alg: -8 },
           { type: "public-key", alg: -7 },
         ],
-        authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
+        authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
         attestation: "none",
         extensions: prfExtension(prfSalt),
       },
@@ -109,12 +150,20 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
   const fromCreate = readPrf(created);
   if (!fromCreate.rawId) {
     wipe(prfSalt);
+    wipeHeldPrf(fromCreate);
     throw new PrfUnsupportedError("the authenticator did not return a credential id");
   }
   if (fromCreate.first && fromCreate.first.byteLength === 32) {
-    return { credentialId: fromCreate.rawId, prfSalt, prfOutput: fromCreate.first };
+    const output = acceptedPrf(fromCreate, null);
+    if (!output) {
+      wipeHeldPrf(fromCreate);
+      wipe(prfSalt);
+      throw new PrfUnsupportedError();
+    }
+    return { credentialId: fromCreate.rawId, prfSalt, prfOutput: output };
   }
   wipe(fromCreate.first ?? new Uint8Array());
+  wipeBufferSource(fromCreate.firstSource);
   // `create()` often reports prf.enabled and withholds the secret until a later get().
   if (!fromCreate.enabled) {
     wipe(prfSalt);
@@ -128,7 +177,7 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
         challenge: copyBytes(options.challenge),
         rpId: options.rpId,
         allowCredentials: [{ type: "public-key", id: fromCreate.rawId }],
-        userVerification: "preferred",
+        userVerification: "required",
         extensions: prfExtension(prfSalt),
       },
     });
@@ -138,13 +187,14 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
     throw err;
   }
   const fromGet = readPrf(asserted);
-  if (!fromGet.first || fromGet.first.byteLength !== 32) {
+  const output = acceptedPrf(fromGet, fromCreate.rawId);
+  if (!output) {
+    wipeHeldPrf(fromGet);
     wipe(prfSalt);
     wipe(fromCreate.rawId);
-    if (fromGet.first) wipe(fromGet.first);
     throw new PrfUnsupportedError();
   }
-  return { credentialId: fromCreate.rawId, prfSalt, prfOutput: fromGet.first };
+  return { credentialId: fromCreate.rawId, prfSalt, prfOutput: output };
 }
 
 export async function getPrfOutput(options: GetPrfOptions): Promise<Uint8Array> {
@@ -154,16 +204,17 @@ export async function getPrfOutput(options: GetPrfOptions): Promise<Uint8Array> 
       challenge: copyBytes(options.challenge),
       rpId: options.rpId,
       allowCredentials: [{ type: "public-key", id: copyBytes(options.credentialId) }],
-      userVerification: "preferred",
+      userVerification: "required",
       extensions: prfExtension(options.prfSalt),
     },
   });
   const prf = readPrf(asserted);
-  if (!prf.first || prf.first.byteLength !== 32) {
-    if (prf.first) wipe(prf.first);
+  const output = acceptedPrf(prf, options.credentialId);
+  if (!output) {
+    wipeHeldPrf(prf);
     throw new PrfUnsupportedError();
   }
-  return prf.first;
+  return output;
 }
 
 export async function createPasskeyWrap(
