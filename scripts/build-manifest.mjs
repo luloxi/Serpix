@@ -1,11 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   collectAssetHashes,
   createManifest,
+  hashWorkerFile,
   readCommit,
-  sha256Prefixed,
   writeManifest,
 } from "./lib/build-manifest.mjs";
 
@@ -19,7 +19,7 @@ if (!existsSync(assetsDir)) {
 }
 
 const files = await collectAssetHashes(assetsDir);
-const worker = existsSync(workerFile) ? sha256Prefixed(readFileSync(workerFile)) : null;
+const worker = hashWorkerFile(workerFile);
 const manifest = createManifest({
   commit: readCommit(root),
   builtAt: new Date().toISOString(),

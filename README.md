@@ -115,9 +115,9 @@ npm run verify-build -- https://erp.lulox.com.ar
 node scripts/verify-build.mjs --local .open-next/assets
 ```
 
-Baja `/.well-known/build.json` y después cada archivo listado que esté bajo `/_next/static`, `/icons`, `/vendor`, `/sw.js` o `/manifest*` (de a pocos en paralelo). Si un hash no coincide, imprime el resumen y sale con código 1.
+Baja `/.well-known/build.json` y después cada archivo listado que esté bajo `/_next/static`, `/icons`, `/vendor`, `/sw.js`, `/theme-init.js` o `/manifest*` (de a pocos en paralelo). Si un hash no coincide, imprime el resumen y sale con código 1. Si el manifiesto incluye `worker`, ese hash se compara con el artefacto local `.open-next/worker.js` (otro archivo se pasa con `--worker <file>`). Si ese archivo no está o el hash no coincide, el comando sale con código 1.
 
-Límite: quien opera el Worker puede igual publicar otro JavaScript. El fuente AGPL y el manifiesto hacen eso auditable, no imposible. El checker compara la lista publicada; no prueba que no haya un archivo de más. `worker` es el bundle de OpenNext (`.open-next/worker.js`), no el paquete final que Wrangler arma desde `worker.ts` (ahí también está el cron).
+Límite: quien opera el Worker puede igual publicar otro JavaScript. El fuente AGPL y el manifiesto hacen eso auditable, no imposible. El checker compara la lista publicada; no prueba que no haya un archivo de más. `worker` es el bundle de OpenNext (`.open-next/worker.js`), no el paquete final que Wrangler arma desde `worker.ts` (ahí también está el cron), y verify-build lo compara con ese artefacto local.
 
 ## Estado funcional
 
