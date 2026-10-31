@@ -275,6 +275,9 @@ function userTokens(userInputs: readonly string[]): string[] {
  * Then subtract 1 for a 4+ repeated run, a 4+ sequential/keyboard run,
  * or a userInputs token (email, its local part, or a name) on a boundary.
  * A common password, or anything under 12 code points, is capped at 1 ("weak").
+ * `single-class` is fewer than two classes (lower, upper, number, other).
+ * `low-score` is a score below 3. validateRecoveryPassword rejects both,
+ * and also anything under 12 code points.
  */
 export function passwordStrength(password: string, userInputs: readonly string[] = []): PasswordStrength {
   const normalised = password.normalize("NFKC");
@@ -305,13 +308,19 @@ export function passwordStrength(password: string, userInputs: readonly string[]
   if (repeated) issues.push("repeated");
   if (sequential) issues.push("sequential");
   if (personal) issues.push("user-input");
+  if (classes < 2) issues.push("single-class");
+  if (score < 3) issues.push("low-score");
   return { score: score as PasswordStrength["score"], label: LABELS[score], issues };
 }
 
-/** Rejects under 12 code points (after NFKC) and anything scored "weak" or below (score < 2). */
+/**
+ * Rejects under 12 NFKC code points, a score below 3, or a single character class.
+ * Issue codes from passwordStrength are kept, including `single-class` and `low-score`.
+ */
 export function validateRecoveryPassword(password: string, userInputs?: readonly string[]): PasswordStrength {
   const result = passwordStrength(password, userInputs);
-  if (codePointLength(password) < 12 || result.score < 2) throw new PasswordPolicyError(result);
+  const classes = characterClasses(password.normalize("NFKC"));
+  if (codePointLength(password) < 12 || result.score < 3 || classes < 2) throw new PasswordPolicyError(result);
   return result;
 }
 

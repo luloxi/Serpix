@@ -49,7 +49,7 @@ export const COPY = {
   offline: "Sin conexión, cambios pendientes",
 } as const;
 
-const STRENGTH = ["Muy débil", "Débil", "Aceptable", "Fuerte", "Muy fuerte"] as const;
+const STRENGTH = ["Muy débil", "Débil", "Regular", "Fuerte", "Muy fuerte"] as const;
 
 const ISSUE: Record<string, string> = {
   "too-short": "Tiene que tener al menos 12 caracteres.",
@@ -57,6 +57,8 @@ const ISSUE: Record<string, string> = {
   repeated: "Repite el mismo carácter varias veces seguidas.",
   sequential: "Tiene una secuencia fácil de adivinar.",
   "user-input": "No uses tu email ni tu nombre.",
+  "single-class": "Usá al menos dos tipos de caracteres.",
+  "low-score": "Es demasiado débil: hace falta más longitud o más variedad.",
 };
 
 export type GatePhase =
@@ -189,8 +191,10 @@ export type OnboardingCheck = {
 
 /**
  * Button stays disabled until the recovery password passes the same bar as
- * validateRecoveryPassword (12 code points and score >= 2), the confirm matches,
- * and the loss checkbox is on. `deriving` keeps it disabled while Argon2id runs.
+ * validateRecoveryPassword (12 code points, score >= 3, and at least two
+ * character classes), the confirm matches, and the loss checkbox is on.
+ * `single-class` in `issues` is that class check. `deriving` keeps the button
+ * disabled while Argon2id runs.
  */
 export function onboardingValidation(input: {
   score: number;
@@ -206,13 +210,17 @@ export function onboardingValidation(input: {
     const text = ISSUE[issue];
     if (text && !messages.includes(text)) messages.push(text);
   }
-  if (input.length >= 12 && input.score < 2 && messages.length === 0) messages.push("Es demasiado débil.");
+  if (input.length >= 12 && input.score < 3 && !input.issues.includes("low-score") && messages.length === 0) {
+    messages.push(ISSUE["low-score"]);
+  }
   if (input.confirm.length > 0 && input.confirm !== input.password) messages.push("Las contraseñas no coinciden.");
   const meter = Math.max(0, Math.min(4, Math.trunc(input.score)));
   const canSubmit = !input.deriving
     && input.understood
     && input.length >= 12
-    && input.score >= 2
+    && input.score >= 3
+    && !input.issues.includes("single-class")
+    && !input.issues.includes("low-score")
     && input.password.length > 0
     && input.password === input.confirm;
   return { messages, canSubmit, label: STRENGTH[meter] ?? STRENGTH[0], meter };
