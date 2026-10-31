@@ -3,6 +3,7 @@ import type { D1Bound, D1Like } from "./finance.ts";
 import { parseLumaIcs, type IcsEvent } from "./luma-ics.ts";
 import { buenosAiresDate } from "./luma-events.ts";
 import { resolveOwner } from "./mailtox-link.ts";
+import { LUMA_URL_ERROR, normalizeLumaUrl, publicSyncError } from "./luma-url.ts";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 8_000;
@@ -19,14 +20,6 @@ const INSERT_SQL = "INSERT INTO luma_events (id,user_id,uid,name,starts_at,ends_
 const UPDATE_SQL = "UPDATE luma_events SET name=?,starts_at=?,ends_at=?,url=?,location=?,updated_at=? WHERE user_id=? AND uid=?";
 
 type Existing = { uid: string; name: string; startsAt: string };
-
-function isHttps(value: string): boolean {
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 async function readCapped(response: Response): Promise<string | null> {
   const declared = Number(response.headers.get("content-length") || "0");
@@ -59,14 +52,16 @@ async function readCapped(response: Response): Promise<string | null> {
 }
 
 async function fetchIcs(url: string, fetchImpl: typeof fetch): Promise<string> {
-  let current = url;
+  let current = normalizeLumaUrl(url);
+  if (!current) throw new Error("luma_ics_rejected");
   for (let hop = 0; hop < MAX_HOPS; hop++) {
-    if (!isHttps(current)) throw new Error("luma_ics_rejected");
     const response = await fetchImpl(current, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
       if (!location) throw new Error("luma_ics_rejected");
-      current = new URL(location, current).href;
+      const next = normalizeLumaUrl(new URL(location, current).href);
+      if (!next) throw new Error("luma_ics_rejected");
+      current = next;
       continue;
     }
     if (!response.ok) throw new Error("luma_ics_rejected");
@@ -88,26 +83,38 @@ function collapse(events: IcsEvent[]): IcsEvent[] {
 }
 
 /**
- * Fetch `icsUrl` (https only, 8s, 2 MB, redirects must stay https) and upsert luma_events for the owner.
+ * Fetch `icsUrl` (Luma https only, 8s, 2 MB, at most 3 hops, each hop re-validated) and upsert luma_events for the owner.
  * Owner is `MCP_OWNER_EMAIL`: admin, approved, and not an e2e account (same gate as resolveOwner).
  * Keyed by (user_id, uid). A new uid whose lower(name) and Buenos Aires date already exist is skipped.
  * Rows are never deleted. A missing URL logs `luma_sync_skipped` and does nothing. The URL is never logged.
  */
-export async function syncLumaEvents(db: D1Like, ownerEmail: string | undefined, icsUrl: string | undefined, fetchImpl: typeof fetch, now: Date = new Date()): Promise<LumaSyncResult> {
-  const url = typeof icsUrl === "string" ? icsUrl.trim() : "";
-  if (!url) {
+export async function syncLumaEvents(
+  db: D1Like,
+  ownerEmail: string | undefined,
+  icsUrl: string | undefined,
+  fetchImpl: typeof fetch,
+  now: Date = new Date(),
+  onReject?: (message: string) => void,
+): Promise<LumaSyncResult> {
+  const trimmed = typeof icsUrl === "string" ? icsUrl.trim() : "";
+  if (!trimmed) {
     console.log("luma_sync_skipped");
     return { status: "skipped" };
   }
   const owner = await resolveOwner(db, ownerEmail);
   if (!owner.ok) return { status: owner.status };
-  if (!isHttps(url)) return { status: "rejected" };
+  const url = normalizeLumaUrl(trimmed);
+  if (!url) {
+    onReject?.(LUMA_URL_ERROR);
+    return { status: "rejected" };
+  }
 
   let text: string;
   try {
     text = await fetchIcs(url, fetchImpl);
-  } catch {
+  } catch (error) {
     console.error("luma_sync_failed");
+    onReject?.(publicSyncError(error, [url, trimmed]));
     return { status: "rejected" };
   }
 

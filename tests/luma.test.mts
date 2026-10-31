@@ -153,7 +153,7 @@ test("Luma sync upserts the owner calendar, dedupes, and never deletes", async (
     fetches += 1;
     return new Response(one, { status: 200 });
   };
-  const first = await syncLumaEvents(d1, email, "https://example.com/cal.ics", okFetch as typeof fetch, now);
+  const first = await syncLumaEvents(d1, email, "https://api.lu.ma/cal.ics", okFetch as typeof fetch, now);
   assert.deepEqual(first, { status: "ok", inserted: 1, updated: 0 });
   const created = db.prepare("SELECT id, created_at, name, starts_at, url, location FROM luma_events WHERE uid='u1'").get() as { id: string; created_at: number; name: string; starts_at: string; url: string; location: string };
   assert.equal(created.name, "Charla");
@@ -161,7 +161,7 @@ test("Luma sync upserts the owner calendar, dedupes, and never deletes", async (
   assert.equal(created.url, "https://lu.ma/charla");
   assert.equal(created.location, "Sala");
 
-  const again = await syncLumaEvents(d1, "  " + email.toUpperCase() + " ", "https://example.com/cal.ics", okFetch as typeof fetch, now);
+  const again = await syncLumaEvents(d1, "  " + email.toUpperCase() + " ", "https://api.lu.ma/cal.ics", okFetch as typeof fetch, now);
   assert.deepEqual(again, { status: "ok", inserted: 0, updated: 1 });
   assert.equal(countLuma(db), 1);
   const same = db.prepare("SELECT id, created_at FROM luma_events WHERE uid='u1'").get() as { id: string; created_at: number };
@@ -170,7 +170,7 @@ test("Luma sync upserts the owner calendar, dedupes, and never deletes", async (
 
   const renamed = feed(vevent(["UID:u1", "SUMMARY:Charla nueva", "DTSTART:20261031T190000Z"]) + vevent(["UID:u1", "SUMMARY:Charla final", "DTSTART:20261031T200000Z"]));
   const renamedFetch = async () => new Response(renamed, { status: 200 });
-  const third = await syncLumaEvents(d1, email, "https://example.com/cal.ics", renamedFetch as typeof fetch, now);
+  const third = await syncLumaEvents(d1, email, "https://api.lu.ma/cal.ics", renamedFetch as typeof fetch, now);
   assert.deepEqual(third, { status: "ok", inserted: 0, updated: 1 });
   const row = db.prepare("SELECT name, starts_at, created_at FROM luma_events WHERE uid='u1'").get() as { name: string; starts_at: string; created_at: number };
   assert.equal(row.name, "Charla final");
@@ -179,14 +179,14 @@ test("Luma sync upserts the owner calendar, dedupes, and never deletes", async (
 
   db.prepare("INSERT INTO luma_events (id,user_id,uid,name,starts_at,ends_at,url,location,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)").run("keep", "owner", "old", "Manual", "2026-10-20T15:00:00.000Z", null, null, null, 5, 5);
   const smaller = feed(vevent(["UID:u1", "SUMMARY:Charla final", "DTSTART:20261031T200000Z"]));
-  const fourth = await syncLumaEvents(d1, email, "https://example.com/cal.ics", (async () => new Response(smaller, { status: 200 })) as typeof fetch, now);
+  const fourth = await syncLumaEvents(d1, email, "https://api.lu.ma/cal.ics", (async () => new Response(smaller, { status: 200 })) as typeof fetch, now);
   assert.equal(fourth.status, "ok");
   assert.equal(countLuma(db, "owner"), 2);
   assert.equal((db.prepare("SELECT name FROM luma_events WHERE uid='old'").get() as { name: string }).name, "Manual");
 
   const duplicate = feed(vevent(["UID:other", "SUMMARY:Charla final", "DTSTART:20261031T180000Z"]));
   const beforeDup = countLuma(db);
-  const dup = await syncLumaEvents(d1, email, "https://example.com/cal.ics", (async () => new Response(duplicate, { status: 200 })) as typeof fetch, now);
+  const dup = await syncLumaEvents(d1, email, "https://api.lu.ma/cal.ics", (async () => new Response(duplicate, { status: 200 })) as typeof fetch, now);
   assert.deepEqual(dup, { status: "ok", inserted: 0, updated: 0 });
   assert.equal(countLuma(db), beforeDup);
 
@@ -197,13 +197,13 @@ test("Luma sync upserts the owner calendar, dedupes, and never deletes", async (
     return original(statements);
   };
   const extra = feed(vevent(["UID:u9", "SUMMARY:Otra", "DTSTART:20261102T150000Z"]));
-  const batched = await syncLumaEvents(d1, email, "https://example.com/cal.ics", (async () => new Response(extra, { status: 200 })) as typeof fetch, now);
+  const batched = await syncLumaEvents(d1, email, "https://api.lu.ma/cal.ics", (async () => new Response(extra, { status: 200 })) as typeof fetch, now);
   assert.equal(batched.status, "ok");
   if (batched.status === "ok") assert.equal(batched.inserted, 1);
   assert.equal(batches, 1);
   assert.ok(fetches >= 2);
   const bare = { prepare: d1.prepare.bind(d1) };
-  const seq = await syncLumaEvents(bare, email, "https://example.com/cal.ics", (async () => new Response(feed(vevent(["UID:seq", "SUMMARY:Secuencial", "DTSTART:20261103T150000Z"])), { status: 200 })) as typeof fetch, now);
+  const seq = await syncLumaEvents(bare, email, "https://api.lu.ma/cal.ics", (async () => new Response(feed(vevent(["UID:seq", "SUMMARY:Secuencial", "DTSTART:20261103T150000Z"])), { status: 200 })) as typeof fetch, now);
   assert.deepEqual(seq, { status: "ok", inserted: 1, updated: 0 });
   assert.equal(countLuma(db, "owner") >= 3, true);
 });
@@ -244,7 +244,7 @@ test("a missing secret, a non-owner, and an encrypted owner skip the fetch and l
     const plain = await syncLumaEvents(d1, "owner@luma.test", "http://example.com/cal.ics", fetchImpl);
     assert.deepEqual(plain, { status: "rejected" });
     assert.equal(calls, 0);
-    const secretUrl = "https://example.com/SECRETTOKEN123.ics";
+    const secretUrl = "https://api.lu.ma/ics/SECRETTOKEN123";
     const failed = await syncLumaEvents(d1, "owner@luma.test", secretUrl, (async () => { throw new Error("down " + secretUrl); }) as typeof fetch);
     assert.deepEqual(failed, { status: "rejected" });
     const huge = await syncLumaEvents(d1, "owner@luma.test", secretUrl, (async (_input: unknown, init?: RequestInit) => {
@@ -266,16 +266,16 @@ test("a missing secret, a non-owner, and an encrypted owner skip the fetch and l
       return new Response(stream, { status: 200 });
     }) as typeof fetch);
     assert.deepEqual(streamed, { status: "rejected" });
-    const hopped = await syncLumaEvents(d1, "owner@luma.test", "https://example.com/a.ics", (async (input: unknown) => {
+    const hopped = await syncLumaEvents(d1, "owner@luma.test", "https://api.lu.ma/a.ics", (async (input: unknown) => {
       const url = String(input);
       if (url.endsWith("/a.ics")) return new Response(null, { status: 302, headers: { location: "http://evil.example/cal.ics" } });
       throw new Error("followed " + url);
     }) as typeof fetch);
     assert.deepEqual(hopped, { status: "rejected" });
-    const followed = await syncLumaEvents(d1, "owner@luma.test", "https://example.com/a.ics", (async (input: unknown) => {
+    const followed = await syncLumaEvents(d1, "owner@luma.test", "https://api.lu.ma/a.ics", (async (input: unknown) => {
       const url = String(input);
-      if (url.endsWith("/a.ics")) return new Response(null, { status: 302, headers: { location: "https://example.com/b.ics" } });
-      assert.equal(url, "https://example.com/b.ics");
+      if (url.endsWith("/a.ics")) return new Response(null, { status: 302, headers: { location: "https://api.lu.ma/b.ics" } });
+      assert.equal(url, "https://api.lu.ma/b.ics");
       return new Response(feed(vevent(["UID:hop", "SUMMARY:Salto", "DTSTART:20261031T190000Z"])), { status: 200 });
     }) as typeof fetch);
     assert.deepEqual(followed, { status: "ok", inserted: 1, updated: 0 });
