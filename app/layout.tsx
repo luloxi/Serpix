@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./brand.css";
 
 export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",

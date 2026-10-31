@@ -1,0 +1,143 @@
+/* Serpix brand layer (loaded after globals.css). Only CSS and tokens: no logic.
+
+   Four brand colors, nothing else:
+   - pink    #fe4aab  = rgb(254,74,171)
+   - cyan    #39c5ff  = rgb(57,197,255)
+   - yellow  #f6cd35  = rgb(246,205,53)
+   - violet  #ab96ff  = the exact midpoint of pink and cyan in OKLCH, going through violet:
+       pink  L .692 C .231 h 351.9deg,  cyan  L .775 C .141 h 231.0deg
+       mid   L .7335 C .1861 h 291.4deg  -> rgb(172,143,275), outside sRGB (blue > 255),
+       so chroma is lowered to .1506 keeping L and h (gamut mapping) = rgb(171,150,255) = #ab96ff.
+   Everything else (soft backgrounds, readable text, lines) is these four mixed with alpha, black or white. */
+:root{
+  --brand-pink:#fe4aab;--brand-violet:#ab96ff;--brand-cyan:#39c5ff;--brand-yellow:#f6cd35;
+  --brand-pink-soft:rgb(254 74 171/.13);--brand-violet-soft:rgb(171 150 255/.15);--brand-cyan-soft:rgb(57 197 255/.14);--brand-yellow-soft:rgb(246 205 53/.17);
+  --brand-pink-mid:rgb(254 74 171/.32);--brand-violet-mid:rgb(171 150 255/.38);--brand-cyan-mid:rgb(57 197 255/.34);--brand-yellow-mid:rgb(246 205 53/.4);
+  /* text-safe versions (AA >= 5:1 on the surface and on the soft fill): a bit darker in light mode, the pure brand color in dark mode (pink 10% lighter) */
+  --brand-pink-ink:color-mix(in oklab,var(--brand-pink) 74%,#000);
+  --brand-violet-ink:color-mix(in oklab,var(--brand-violet) 68%,#000);
+  --brand-cyan-ink:color-mix(in oklab,var(--brand-cyan) 64%,#000);
+  --brand-yellow-ink:color-mix(in oklab,var(--brand-yellow) 58%,#000);
+  --brand-gradient:linear-gradient(135deg,var(--brand-pink),var(--brand-violet) 52%,var(--brand-cyan));
+  --on-brand:#12111c;               /* text/icons over a solid brand color (>= 6:1 on all four) */
+  --accent:var(--brand-pink);--accent-dark:var(--brand-pink-ink);
+  --focus-ring:var(--brand-violet);
+  --line:rgb(24 30 55/.08);--shadow:none;
+  --bg:#f6f7fb;--surface:#fff;
+}
+:root[data-theme="dark"]{
+  --brand-pink-ink:color-mix(in oklab,var(--brand-pink) 90%,#fff);
+  --brand-violet-ink:var(--brand-violet);--brand-cyan-ink:var(--brand-cyan);--brand-yellow-ink:var(--brand-yellow);
+  --line:rgb(255 255 255/.075);--bg:#0e1017;--surface:#161923;--muted:#9aa3b8;
+  --brand-pink-soft:rgb(254 74 171/.17);--brand-violet-soft:rgb(171 150 255/.19);--brand-cyan-soft:rgb(57 197 255/.17);--brand-yellow-soft:rgb(246 205 53/.18);
+}
+:root[data-theme] body{background:var(--bg)}
+:root[data-theme="dark"] body{background:radial-gradient(ellipse at 80% -10%,rgb(171 150 255/.10),transparent 38%),var(--bg)}
+
+/* Month tones (lib/palette.ts rotates pink, cyan, yellow, violet) */
+.tone-pink{--tone:var(--brand-pink);--tone-text:var(--brand-pink-ink)}
+.tone-cyan{--tone:var(--brand-cyan);--tone-text:var(--brand-cyan-ink)}
+.tone-yellow{--tone:var(--brand-yellow);--tone-text:var(--brand-yellow-ink)}
+.tone-violet{--tone:var(--brand-violet);--tone-text:var(--brand-violet-ink)}
+:root[data-theme] .tone-pink{--tone:var(--brand-pink);--tone-text:var(--brand-pink-ink)}
+:root[data-theme] .tone-cyan{--tone:var(--brand-cyan);--tone-text:var(--brand-cyan-ink)}
+:root[data-theme] .tone-yellow{--tone:var(--brand-yellow);--tone-text:var(--brand-yellow-ink)}
+:root[data-theme] .tone-violet{--tone:var(--brand-violet);--tone-text:var(--brand-violet-ink)}
+
+/* Focus: one brand ring everywhere */
+:root[data-theme] :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:2px!important;border-radius:inherit}
+
+/* Cards and panels: no shadow, hairline border */
+:root[data-theme] :is(.panel,.stat-card,.home-panel,.contact-card,.inq-card,.task-card,.activity-card,.home-kpi,.note-reader,.editor-modal,.auth-card){
+  background:var(--surface)!important;border:1px solid var(--line)!important;box-shadow:none!important}
+:root[data-theme] .home-kpi:hover{border-color:var(--brand-pink-mid)!important;transform:none}
+:root[data-theme] .welcome{background:var(--surface)!important;border:1px solid var(--line)!important}
+:root[data-theme] :is(.list-line,.account-line,.table-row,.agenda-list-item,.checklist-row){border-color:var(--line)!important}
+:root[data-theme] .task-column{background:transparent!important;border:1px solid var(--line)!important}
+
+/* Bottom navigation / sidebar: the active item is colored, not boxed */
+:root[data-theme] .sidebar{background:color-mix(in srgb,var(--surface) 94%,transparent)!important;border-color:var(--line)!important;box-shadow:none!important}
+:root[data-theme] .nav-item{color:var(--muted)!important;background:transparent!important;box-shadow:none!important;position:relative;cursor:pointer}
+:root[data-theme] .nav-item:hover{color:var(--nav-ink,var(--brand-pink-ink))!important;background:var(--nav-soft,var(--brand-pink-soft))!important}
+:root[data-theme] .sidebar nav>.nav-item:nth-child(4n+1){--nav:var(--brand-pink);--nav-ink:var(--brand-pink-ink);--nav-soft:var(--brand-pink-soft)}
+:root[data-theme] .sidebar nav>.nav-item:nth-child(4n+2){--nav:var(--brand-cyan);--nav-ink:var(--brand-cyan-ink);--nav-soft:var(--brand-cyan-soft)}
+:root[data-theme] .sidebar nav>.nav-item:nth-child(4n+3){--nav:var(--brand-yellow);--nav-ink:var(--brand-yellow-ink);--nav-soft:var(--brand-yellow-soft)}
+:root[data-theme] .sidebar nav>.nav-item:nth-child(4n+4){--nav:var(--brand-violet);--nav-ink:var(--brand-violet-ink);--nav-soft:var(--brand-violet-soft)}
+:root[data-theme] .nav-item.active{color:var(--nav-ink,var(--brand-pink-ink))!important;background:var(--nav-soft,var(--brand-pink-soft))!important;box-shadow:none!important;font-weight:700}
+@media(max-width:700px){
+  :root[data-theme] .nav-item.active{background:transparent!important}
+  :root[data-theme] .nav-item.active::before{content:"";position:absolute;top:-8px;left:50%;width:26px;height:3px;border-radius:0 0 3px 3px;background:var(--nav,var(--brand-pink));transform:translateX(-50%)}
+  :root[data-theme] .nav-item:hover{background:transparent!important}
+}
+@media(min-width:701px){:root[data-theme] .nav-item.active::before{content:"";position:absolute;left:-17px;top:20%;height:60%;width:3px;border-radius:0 3px 3px 0;background:var(--nav,var(--brand-pink))}}
+
+/* Selected states: segmented tabs, filters, chips. Each group has its own brand color (--seg). */
+:root[data-theme] .segmented-field{border:0!important;background:color-mix(in srgb,var(--ink) 5%,transparent)!important;padding:3px;gap:3px}
+:root[data-theme] .segmented-field button{color:var(--muted);cursor:pointer;border-radius:9px;box-shadow:none;transition:background .15s,color .15s}
+:root[data-theme] .segmented-field button:hover:not(:disabled){color:var(--ink)}
+:root[data-theme] .segmented-field button:disabled{cursor:not-allowed}
+:root[data-theme] .segmented-field button.selected,:root[data-theme] .segmented-field button[aria-selected="true"],:root[data-theme] .segmented-field button[aria-pressed="true"]{
+  background:var(--seg-soft,var(--brand-pink-soft))!important;color:var(--seg-ink,var(--brand-pink-ink))!important;box-shadow:none!important;font-weight:750}
+:root[data-theme] .agenda-tabs{--seg:var(--brand-pink);--seg-ink:var(--brand-pink-ink);--seg-soft:var(--brand-pink-soft)}
+:root[data-theme] .crm-tabs{--seg:var(--brand-violet);--seg-ink:var(--brand-violet-ink);--seg-soft:var(--brand-violet-soft)}
+:root[data-theme] .contact-filter{--seg:var(--brand-cyan);--seg-ink:var(--brand-cyan-ink);--seg-soft:var(--brand-cyan-soft)}
+:root[data-theme] .state-filter{--seg:var(--brand-yellow);--seg-ink:var(--brand-yellow-ink);--seg-soft:var(--brand-yellow-soft)}
+:root[data-theme] .agenda-filter{--seg:var(--brand-cyan);--seg-ink:var(--brand-cyan-ink);--seg-soft:var(--brand-cyan-soft)}
+:root[data-theme] .inq-filter{--seg:var(--brand-yellow);--seg-ink:var(--brand-yellow-ink);--seg-soft:var(--brand-yellow-soft)}
+:root[data-theme] .activity-type-switch{border:0!important;background:color-mix(in srgb,var(--ink) 5%,transparent)!important;--seg:var(--brand-violet);--seg-ink:var(--brand-violet-ink);--seg-soft:var(--brand-violet-soft)}
+:root[data-theme] .activity-type-switch button{cursor:pointer}
+:root[data-theme] .activity-type-switch button:is(.selected,.on,[aria-pressed="true"],[aria-selected="true"]){background:var(--seg-soft)!important;color:var(--seg-ink)!important;box-shadow:none!important}
+
+/* Relationship chips (client / partner / supplier) and badges */
+:root[data-theme] .rel-chip{border-width:1px;background:transparent;cursor:pointer}
+:root[data-theme] .rel-chip.rel-client{--rc:var(--brand-pink)}
+:root[data-theme] .rel-chip.rel-partner{--rc:var(--brand-cyan)}
+:root[data-theme] .rel-chip.rel-supplier{--rc:var(--brand-yellow)}
+:root[data-theme] .rel-chip.on{background:color-mix(in srgb,var(--rc) 20%,transparent)!important}
+:root[data-theme] .avatar-chip.selected{border-color:var(--brand-cyan)!important;background:var(--brand-cyan-soft)!important}
+:root[data-theme] .rel-badge{border:0!important;font-weight:700}
+:root[data-theme] .rel-badge.rel-client,:root[data-theme] .rel-client .rel-dot{background:var(--brand-pink-soft)!important;color:var(--brand-pink-ink)!important}
+:root[data-theme] .rel-badge.rel-partner{background:var(--brand-cyan-soft)!important;color:var(--brand-cyan-ink)!important}
+:root[data-theme] .rel-badge.rel-supplier{background:var(--brand-yellow-soft)!important;color:var(--brand-yellow-ink)!important}
+:root[data-theme] .rel-badge.is-potential{background:transparent!important;box-shadow:inset 0 0 0 1px currentColor}
+:root[data-theme] .rel-badge.rel-none{background:color-mix(in srgb,var(--ink) 6%,transparent)!important;color:var(--muted)!important}
+
+/* Calendar: today = tone ring, selected = solid tone */
+:root[data-theme] .calendar-day{border:0!important;cursor:pointer}
+:root[data-theme] .calendar-day.is-today{background:var(--brand-pink-soft);color:var(--brand-pink-ink);font-weight:800}
+:root[data-theme] .calendar[class*="tone-"] .calendar-day.is-today{background:color-mix(in srgb,var(--tone) 18%,transparent);color:var(--tone-text)}
+:root[data-theme] .calendar[class*="tone-"] .calendar-day.is-selected,:root[data-theme] .calendar-day.is-selected{background:var(--tone,var(--brand-pink))!important;color:var(--on-brand)!important;box-shadow:none!important;font-weight:800}
+
+/* Buttons */
+:root[data-theme] .primary-button{background:var(--brand-pink)!important;color:var(--on-brand)!important;box-shadow:none!important;cursor:pointer}
+:root[data-theme] .primary-button:hover:not(:disabled){background:color-mix(in oklab,var(--brand-pink) 88%,#fff)!important;transform:none}
+:root[data-theme] .primary-button:disabled{cursor:not-allowed}
+:root[data-theme] .secondary-button{background:color-mix(in srgb,var(--ink) 6%,transparent)!important;color:var(--ink)!important;cursor:pointer}
+:root[data-theme] .secondary-button:disabled{cursor:not-allowed}
+:root[data-theme] .icon-button{background:color-mix(in srgb,var(--ink) 5%,transparent)!important;border:0!important;color:var(--ink);cursor:pointer}
+:root[data-theme] .icon-button:hover{background:var(--brand-violet-soft)!important;color:var(--brand-violet-ink)}
+
+/* + button (FAB): one clean gradient disc, a single soft glow, no ring or border */
+:root[data-theme] .add-trigger{border:0!important;outline:0;background:var(--brand-gradient)!important;color:var(--on-brand)!important;
+  box-shadow:0 6px 18px rgb(171 150 255/.38)!important;cursor:pointer;transition:transform .15s,box-shadow .15s}
+:root[data-theme] .add-trigger:hover,:root[data-theme] .add-trigger.is-open{transform:scale(1.06)!important;box-shadow:0 8px 24px rgb(171 150 255/.5)!important}
+:root[data-theme] .add-trigger:active{transform:scale(.96)!important}
+:root[data-theme] .add-trigger:focus-visible{outline:2px solid var(--brand-violet)!important;outline-offset:3px!important}
+:root[data-theme] .add-trigger svg{stroke-width:2.6}
+:root[data-theme] .agenda-fab button,:root[data-theme] .agenda-fab .secondary-button{cursor:pointer}
+
+/* Inputs: hairline, brand focus */
+:root[data-theme] .form-grid :is(input,select,textarea){border:1px solid var(--line)!important;background:color-mix(in srgb,var(--ink) 3.5%,transparent)!important}
+:root[data-theme] .form-grid :is(input,select,textarea):focus{border-color:var(--brand-cyan)!important}
+
+/* Small status/priority pills stay readable on the brand colors */
+:root[data-theme] .tag,:root[data-theme] .inq-chip{background:color-mix(in srgb,var(--ink) 6%,transparent)!important;border:0!important;color:var(--muted)!important}
+
+/* Toasts: single colored edge */
+:root[data-theme] .toast{border:1px solid var(--line)!important;box-shadow:0 10px 30px rgb(0 0 0/.18)!important}
+:root[data-theme] .toast.success{border-left:3px solid var(--brand-cyan)!important}
+:root[data-theme] .toast.error{border-left:3px solid var(--brand-pink)!important}
+
+/* Everything clickable is a pointer; disabled is not-allowed */
+:root[data-theme] :is(button,[role="button"],a[href],summary,select,label[for]):not(:disabled){cursor:pointer}
+:root[data-theme] :is(button,[role="button"]):disabled,:root[data-theme] [aria-disabled="true"]{cursor:not-allowed}

@@ -1,6 +1,6 @@
-// Logo tones (pink, sky, duck yellow, and the pink→sky gradient). One place decides which tone a month gets,
-// so a month always has the same color (October is always October's). CSS lives in globals.css (.tone-*).
-export const TONES = ["pink", "sky", "yellow", "gradient"] as const;
+// Brand tones: the four Serpix colors (pink, cyan, duck yellow and the violet midway between pink and cyan). One place decides which tone a month gets,
+// so a month always has the same color (October is always October's). CSS lives in brand.css (.tone-*).
+export const TONES = ["pink", "cyan", "yellow", "violet"] as const;
 export type Tone = (typeof TONES)[number];
 
 /** Tone for a month index 0-11 (0 = January). Deterministic, year-independent. */
