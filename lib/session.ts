@@ -94,14 +94,19 @@ export function encryptedWriteResponse(error: unknown) {
 
 type ApprovedSession = NonNullable<Awaited<ReturnType<typeof approvedContext>>>;
 
-/** approvedContext, or { encrypted: true } when the account is in e2e mode. Null means 401. */
+/**
+ * approvedContext only when encryption_mode is exactly "server".
+ * Any other stored mode, including NULL, is { encrypted: true } (callers answer 403).
+ * Null means 401: no approved session, or a session whose user row is gone.
+ */
 export async function legacyDataContext(): Promise<ApprovedSession | { encrypted: true } | null> {
   // The local working set is plaintext and has no encryption_mode column.
   if (localSession()) return approvedContext();
   const ctx = await approvedContext();
   if (!ctx) return null;
-  const row = await ctx.db.prepare("SELECT encryption_mode AS mode FROM user WHERE id = ?").bind(ctx.userId).first<{ mode: string }>();
-  if (row?.mode === "e2e") return { encrypted: true };
+  const row = await ctx.db.prepare("SELECT encryption_mode AS mode FROM user WHERE id = ?").bind(ctx.userId).first<{ mode: string | null }>();
+  if (!row) return null;
+  if (row.mode !== "server") return { encrypted: true };
   return ctx;
 }
 
