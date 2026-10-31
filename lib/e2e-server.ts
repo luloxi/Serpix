@@ -51,6 +51,7 @@ export const COLLECTIONS = [
   "document_items",
   "document_time_entries",
   "receipts",
+  "receipt_files",
   "recurring_rules",
   "avatars",
 ] as const;

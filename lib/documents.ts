@@ -26,6 +26,24 @@ export type DocDb = {
 };
 export type Result<T = Record<string, unknown>> = { status: number; body: T & { error?: string; ok?: boolean } };
 
+type DocumentNumberProvider = (kind: DocType) => Promise<number>;
+let numberProvider: DocumentNumberProvider | null = null;
+let numberProviderUsers = 0;
+
+/**
+ * Engine-only. While set, the next number comes from this function (the server counter).
+ * Server mode leaves it unset and keeps the single-statement MAX+1 insert below.
+ */
+export function setDocumentNumberProvider(next: DocumentNumberProvider | null): void {
+  if (next) {
+    numberProvider = next;
+    numberProviderUsers += 1;
+    return;
+  }
+  numberProviderUsers = Math.max(0, numberProviderUsers - 1);
+  if (numberProviderUsers === 0) numberProvider = null;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -156,13 +174,22 @@ async function writeItems(db: DocDb, userId: string, docId: string, items: DocIt
 
 /** Inserts the document with the next correlative number for (user, type) in ONE statement (atomic in SQLite). */
 async function insertDoc(db: DocDb, userId: string, id: string, input: DocInput, extra: { sourceQuoteId?: string | null }, now: number): Promise<number> {
+  const allocate = numberProvider;
+  if (!allocate) {
+    const r = await db.prepare(
+      "INSERT INTO documents (id,user_id,doc_type,number,contact_id,issue_date,due_date,currency,notes,status,source_quote_id,created_at,updated_at) " +
+      "SELECT ?,?,?,COALESCE(MAX(number),0)+1,?,?,?,?,?,'draft',?,?,? FROM documents WHERE user_id=? AND doc_type=?",
+    ).bind(id, userId, input.type, input.contactId, input.issueDate, input.dueDate, input.currency, input.notes, extra.sourceQuoteId ?? null, now, now, userId, input.type).run();
+    if (r.meta.changes !== 1) throw new Error("document_insert_failed");
+    const row = await db.prepare("SELECT number FROM documents WHERE id=? AND user_id=?").bind(id, userId).first<{ number: number }>();
+    return row?.number ?? 0;
+  }
+  const number = await allocate(input.type);
   const r = await db.prepare(
-    "INSERT INTO documents (id,user_id,doc_type,number,contact_id,issue_date,due_date,currency,notes,status,source_quote_id,created_at,updated_at) " +
-    "SELECT ?,?,?,COALESCE(MAX(number),0)+1,?,?,?,?,?,'draft',?,?,? FROM documents WHERE user_id=? AND doc_type=?",
-  ).bind(id, userId, input.type, input.contactId, input.issueDate, input.dueDate, input.currency, input.notes, extra.sourceQuoteId ?? null, now, now, userId, input.type).run();
+    "INSERT INTO documents (id,user_id,doc_type,number,contact_id,issue_date,due_date,currency,notes,status,source_quote_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'draft',?,?,?)",
+  ).bind(id, userId, input.type, number, input.contactId, input.issueDate, input.dueDate, input.currency, input.notes, extra.sourceQuoteId ?? null, now, now).run();
   if (r.meta.changes !== 1) throw new Error("document_insert_failed");
-  const row = await db.prepare("SELECT number FROM documents WHERE id=? AND user_id=?").bind(id, userId).first<{ number: number }>();
-  return row?.number ?? 0;
+  return number;
 }
 
 export async function createDocument(db: DocDb, userId: string, input: DocInput, now: number, extra: { sourceQuoteId?: string | null } = {}): Promise<Result<{ id?: string; number?: number }>> {
