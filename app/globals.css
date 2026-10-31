@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* Named faces are not loaded from a third party: font-src is 'self'. Missing faces fall through to system-ui. */
 :root{color-scheme:light;--bg:#f5f7fb;--surface:#fff;--ink:#17243a;--muted:#748198;--line:#e7ebf2;--accent:#5b5ce2;--accent-dark:#4546c9;--green:#16866a;--shadow:0 12px 35px rgba(30,45,80,.055)}
 *{box-sizing:border-box}
 html{min-height:100%;background:var(--bg);color-scheme:light}
