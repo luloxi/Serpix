@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { approvedContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
 import { todayBA } from "@/lib/agenda-dates";
 import { createDocument, isOverdue, listDocuments, parseDocInput, type DocType } from "@/lib/documents";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const c = await approvedContext(); if (!c) return unauthorized();
+  const c = await legacyDataContext(); if (!c) return unauthorized(); if ("encrypted" in c) return encryptedAccount();
   const today = todayBA();
   const rows = (await listDocuments(c.db, c.userId)) as { type: DocType; status: string; dueDate: string | null }[];
   const items = rows.map((r) => ({ ...r, overdue: isOverdue(r, today) }));
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const c = await approvedContext(); if (!c) return unauthorized();
+  const c = await legacyDataContext(); if (!c) return unauthorized(); if ("encrypted" in c) return encryptedAccount();
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }); }
   const parsed = parseDocInput(body, todayBA());

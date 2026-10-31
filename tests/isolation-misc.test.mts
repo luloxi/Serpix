@@ -22,6 +22,12 @@ const COVERED = [
   "documents/route.ts",
   "documents/[id]/route.ts",
   "documents/time-entries/route.ts",
+  "e2e/counter/route.ts",
+  "e2e/keys/[id]/route.ts",
+  "e2e/keys/route.ts",
+  "e2e/records/[collection]/[id]/route.ts",
+  "e2e/records/route.ts",
+  "e2e/scan-ai/route.ts",
   "finance/totals/route.ts",
   "inbound/portfolio/route.ts",
   "inquiries/route.ts",
@@ -79,6 +85,12 @@ async function api() {
     cuentix: await import("../app/api/integrations/cuentix/events/route.ts"),
     rules: await import("../app/api/recurring/route.ts"),
     rule: await import("../app/api/recurring/[id]/route.ts"),
+    e2eKeys: await import("../app/api/e2e/keys/route.ts"),
+    e2eKey: await import("../app/api/e2e/keys/[id]/route.ts"),
+    e2eRecords: await import("../app/api/e2e/records/route.ts"),
+    e2eRecord: await import("../app/api/e2e/records/[collection]/[id]/route.ts"),
+    e2eCounter: await import("../app/api/e2e/counter/route.ts"),
+    e2eScan: await import("../app/api/e2e/scan-ai/route.ts"),
   };
 }
 
@@ -125,6 +137,16 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "GET", mod: routes.rules, url: base + "/api/recurring" },
     { method: "PATCH", mod: routes.rule, url: base + "/api/recurring/x", params: { id: "x" }, json: { action: "pause" } },
     { method: "DELETE", mod: routes.rule, url: base + "/api/recurring/x", params: { id: "x" } },
+    { method: "GET", mod: routes.e2eKeys, url: base + "/api/e2e/keys" },
+    { method: "POST", mod: routes.e2eKeys, url: base + "/api/e2e/keys", json: {} },
+    { method: "PUT", mod: routes.e2eKey, url: base + "/api/e2e/keys/x", params: { id: "x" }, json: {} },
+    { method: "PATCH", mod: routes.e2eKey, url: base + "/api/e2e/keys/x", params: { id: "x" }, json: { touch: true } },
+    { method: "DELETE", mod: routes.e2eKey, url: base + "/api/e2e/keys/x", params: { id: "x" } },
+    { method: "GET", mod: routes.e2eRecords, url: base + "/api/e2e/records" },
+    { method: "PUT", mod: routes.e2eRecord, url: base + "/api/e2e/records/contacts/x", params: { collection: "contacts", id: "x" }, json: {} },
+    { method: "DELETE", mod: routes.e2eRecord, url: base + "/api/e2e/records/contacts/x", params: { collection: "contacts", id: "x" }, json: { expectedVersion: 0 } },
+    { method: "POST", mod: routes.e2eCounter, url: base + "/api/e2e/counter", json: { kind: "quote" } },
+    { method: "POST", mod: routes.e2eScan, url: base + "/api/e2e/scan-ai" },
   );
   return out;
 }

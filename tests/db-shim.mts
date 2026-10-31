@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import type { D1Like } from "../lib/finance.ts";
-import { makeBatch } from "./db-helper.mts";
+import { bindStatement, makeBatch } from "./db-helper.mts";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "../migrations");
 
@@ -21,13 +21,7 @@ export function openDb() {
     prepare(sql) {
       return {
         bind(...values) {
-          const stmt = db.prepare(sql);
-          const args = values.map((v) => (v === undefined ? null : v)) as Array<string | number | bigint | null>;
-          return {
-            async first<T>() { return ((stmt.get(...(args as [])) as T | undefined) ?? null); },
-            async all<T>() { return { results: stmt.all(...(args as [])) as T[] }; },
-            async run() { const info = stmt.run(...(args as [])); return { meta: { changes: Number(info.changes) } }; },
-          };
+          return bindStatement(db, sql, values);
         },
       };
     },

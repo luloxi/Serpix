@@ -2,7 +2,7 @@ import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { updateAccount } from "@/lib/finance";
 import { NextResponse } from "next/server";
-import { approvedContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
 import { clearCounterpartLink, reconcileManual, unlinkTransaction } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
@@ -17,7 +17,7 @@ function pick<T extends string>(v: unknown, values: readonly T[], fallback: T): 
 export async function PATCH(request: Request, { params }: { params: Promise<{resource:string;id:string}> }) {
   const {resource,id}=await params;
   if (!(resource in tableByResource)) return NextResponse.json({error:"Not found"},{status:404});
-  const ctx=await approvedContext(); if (!ctx) return unauthorized();
+  const ctx=await legacyDataContext(); if (!ctx) return unauthorized(); if ("encrypted" in ctx) return encryptedAccount();
   let b:Record<string,unknown>; try { b=await request.json() as Record<string,unknown>; } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }
   const {db,userId}=ctx, now=Date.now();
   try {
@@ -107,7 +107,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
 export async function DELETE(_request:Request,{params}:{params:Promise<{resource:string;id:string}>}) {
   const {resource,id}=await params;
   if(!(resource in tableByResource)) return NextResponse.json({error:"Not found"},{status:404});
-  const ctx=await approvedContext(); if(!ctx) return unauthorized();
+  const ctx=await legacyDataContext(); if(!ctx) return unauthorized(); if ("encrypted" in ctx) return encryptedAccount();
   const table=tableByResource[resource as Resource];
   try {
     if(resource==="transactions"){

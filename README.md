@@ -32,6 +32,20 @@ Ese tope también frena la aprobación manual.
 
 La lectura automática de tickets arranca apagada para quien entra por invitación (`user.ai_receipts_enabled`, default 0). El administrador la prende por persona en la administración de usuarios ("IA en tickets"), cuando se la piden. El rol admin siempre puede. Los cupos viven en `usage_daily`: 60 lecturas por día de Buenos Aires para el admin y 10 para el resto (kind `receipt_scans`); a nivel cuenta, el plan gratuito de Workers AI da 10.000 neurons por día UTC (00:00 UTC, sin planes pagos). Serpix reserva 40 neurons por lectura (`NEURONS_PER_SCAN_ESTIMATE` en `lib/ai-quota.ts`) y corta en 7.000 (`AI_CUTOFF_NEURONS`, margen del 30 % porque la misma cuenta puede gastar el cupo en otros proyectos). Si la IA está apagada o se llegó a ese corte, el ticket igual se guarda y el gasto se carga a mano.
 
+## Cuentas cifradas (en desarrollo, sin publicar)
+
+El servidor no descifra: guarda el sobre y revisa solo su forma. La migración `migrations/0014_e2e.sql` está en el repositorio y sigue sin aplicarse en D1.
+
+Rutas (sesión aprobada, JSON, `Cache-Control: no-store`):
+
+- `GET /api/e2e/keys` y `POST /api/e2e/keys`. La primera envoltura es la contraseña y, en la misma transacción, pasa la cuenta a `encryption_mode = 'e2e'`. El administrador queda en `server`.
+- `PUT /api/e2e/keys/[id]` reemplaza la envoltura de contraseña. `PATCH /api/e2e/keys/[id]` con `{touch:true}` marca el último uso. `DELETE /api/e2e/keys/[id]` no borra la última envoltura ni la de contraseña.
+- `GET /api/e2e/records` lista los registros del usuario (`since`, `limit` hasta 500). `PUT /api/e2e/records/[collection]/[id]` crea o actualiza con `expectedVersion`. `DELETE` deja una lápida.
+- `POST /api/e2e/counter` reserva el siguiente número de presupuesto o factura.
+- `POST /api/e2e/scan-ai` lee un ticket con Workers AI y no lo guarda. La respuesta avisa que el archivo viaja sin cifrar.
+
+Una cuenta en `e2e` recibe 403 en `/api/data`, `/api/finance/totals`, `/api/documents`, `/api/time-entries`, `/api/timer`, `/api/recurring`, `/api/receipts`, `/api/avatar` y `/api/inquiries`. Push no cambia. `GET /api/admin/users` agrega `encryptionMode` y ningún contenido cifrado.
+
 ## Cloudflare
 
 El Worker se llama `serpix`, usa la base D1 `serpix-production` y está previsto para `erp.lulox.com.ar`.
