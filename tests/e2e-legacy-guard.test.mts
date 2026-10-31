@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import type { DatabaseSync } from "node:sqlite";
 import { openLocalDb } from "../lib/e2e/d1-local.ts";
-import { addWrap, encryptionMode, LEGACY_DATA_ERROR, LEGACY_TABLES, listKeys } from "../lib/e2e-server.ts";
+import { addWrap, encryptionMode, LEGACY_DATA_ERROR, LEGACY_TABLES, PLAINTEXT_GUARD_TABLES, listKeys } from "../lib/e2e-server.ts";
 import { LOCAL_SCHEMA_SQL } from "../lib/e2e/schema.ts";
 import { account, openDb, user } from "./db-helper.mts";
 import { asUser, call, locked, setEnv } from "./route-harness.mts";
@@ -323,6 +325,90 @@ test("contacts GET and POST return 403 for an unknown encryption mode and store 
     assert.equal((db.prepare("SELECT COUNT(*) AS n FROM contacts").get() as { n: number }).n, before);
     assert.equal(db.prepare("SELECT id FROM contacts WHERE name = 'Intruso'").get(), undefined);
   });
+});
+
+function triggerNames(db: Db): string[] {
+  return (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%e2e_guard%' ORDER BY name").all() as { name: string }[]).map((row) => row.name);
+}
+
+test("child tables and inquiries abort plaintext writes unless the owner is server", () => {
+  const migrations = readdirSync(join(dirname(fileURLToPath(import.meta.url)), "../migrations")).filter((name) => name.endsWith(".sql")).sort();
+  assert.deepEqual(migrations.filter((name) => name <= "0017_e2e_legacy_guard_children.sql"), migrations.filter((name) => /^00(0[1-9]|1[0-7])_/.test(name)));
+  assert.ok(migrations.includes("0017_e2e_legacy_guard_children.sql"));
+  assert.equal(migrations.filter((name) => name.startsWith("0017")).length, 1);
+
+  const { db: migrated } = openDb();
+  const names = new Set(triggerNames(migrated));
+  for (const table of PLAINTEXT_GUARD_TABLES) {
+    assert.ok(names.has(table + "_e2e_guard_insert"), table);
+    assert.ok(names.has(table + "_e2e_guard_update"), table);
+  }
+  assert.equal(names.size, PLAINTEXT_GUARD_TABLES.length * 2);
+  const before = triggerNames(migrated).length;
+  migrated.exec(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../migrations/0017_e2e_legacy_guard_children.sql"), "utf8"));
+  assert.equal(triggerNames(migrated).length, before);
+
+  const parent = (db: Db) => {
+    db.prepare("INSERT INTO documents (id,user_id,doc_type,number,issue_date,currency,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").run("doc", "u", "invoice", 1, "2026-10-01", "ARS", "draft", 1, 1);
+    db.prepare("INSERT INTO time_entries (id,user_id,started_at,ended_at,duration_ms,created_at) VALUES (?,?,?,?,?,?)").run("hour", "u", 1, 2, 1, 1);
+    db.prepare("INSERT INTO activities (id,user_id,kind,title,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("act", "u", "note", "Nota", "2026-10-01T12:00:00.000Z", 1, 1);
+    db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("who", "u", "person", "Ada", 1, 1);
+  };
+  const inserts: Array<{ table: string; sql: string; update: string }> = [
+    { table: "document_items", sql: "INSERT INTO document_items (id,document_id,position,description,quantity_milli,unit_price_minor,user_id) VALUES ('item','doc',1,'Horas',1000,100,'u')", update: "UPDATE document_items SET description = 'Otra' WHERE id = 'item'" },
+    { table: "document_time_entries", sql: "INSERT INTO document_time_entries (time_entry_id,document_id,user_id) VALUES ('hour','doc','u')", update: "UPDATE document_time_entries SET document_id = 'doc' WHERE time_entry_id = 'hour'" },
+    { table: "activity_contacts", sql: "INSERT INTO activity_contacts (activity_id,contact_id,user_id) VALUES ('act','who','u')", update: "UPDATE activity_contacts SET user_id = 'u' WHERE activity_id = 'act'" },
+    { table: "contact_relationships", sql: "INSERT INTO contact_relationships (contact_id,relationship,user_id) VALUES ('who','client','u')", update: "UPDATE contact_relationships SET relationship = 'partner' WHERE contact_id = 'who'" },
+    { table: "inquiries", sql: "INSERT INTO inquiries (id,user_id,name,email,message,created_at) VALUES ('inq','u','Ada','ada@test.local','Hola',1)", update: "UPDATE inquiries SET message = 'Chau' WHERE id = 'inq'" },
+  ];
+
+  for (const op of inserts) {
+    const server = openDb();
+    user(server.db, "u");
+    parent(server.db);
+    server.db.exec(op.sql);
+    assert.equal((server.db.prepare("SELECT COUNT(*) AS n FROM " + op.table).get() as { n: number }).n, 1, op.table);
+    server.db.exec(op.update);
+
+    for (const mode of ["e2e", "weird", ""]) {
+      const { db } = openDb();
+      user(db, "u");
+      parent(db);
+      db.prepare("UPDATE user SET encryption_mode = ? WHERE id = 'u'").run(mode);
+      assert.throws(() => db.exec(op.sql), ABORT, op.table + " " + JSON.stringify(mode));
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM " + op.table).get() as { n: number }).n, 0, op.table);
+      db.prepare("UPDATE user SET encryption_mode = 'server' WHERE id = 'u'").run();
+      db.exec(op.sql);
+      db.prepare("UPDATE user SET encryption_mode = ? WHERE id = 'u'").run(mode);
+      assert.throws(() => db.exec(op.update), ABORT, op.table + " update " + JSON.stringify(mode));
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM " + op.table).get() as { n: number }).n, 1, op.table);
+    }
+  }
+
+  const { db } = openDb();
+  user(db, "u");
+  user(db, "other");
+  parent(db);
+  db.prepare("UPDATE user SET encryption_mode = 'e2e' WHERE id = 'u'").run();
+  assert.throws(
+    () => db.exec("INSERT INTO document_items (id,document_id,position,description,quantity_milli,unit_price_minor,user_id) VALUES ('item','doc',1,'Horas',1000,100,'other')"),
+    ABORT,
+  );
+  const orphan = openDb();
+  user(orphan.db, "u");
+  assert.throws(() => orphan.db.exec("INSERT INTO document_items (id,document_id,position,description,quantity_milli,unit_price_minor,user_id) VALUES ('gone','missing',1,'Horas',1000,100,NULL)"), /FOREIGN KEY/);
+
+  db.prepare("UPDATE user SET encryption_mode = 'server' WHERE id = 'u'").run();
+  db.exec("INSERT INTO inquiries (id,user_id,name,email,message,created_at) VALUES ('inq','u','Ada','ada@test.local','Hola',1)");
+  db.prepare("UPDATE user SET encryption_mode = 'e2e' WHERE id = 'u'").run();
+  assert.throws(() => db.exec("INSERT OR IGNORE INTO inquiries (id,user_id,name,email,message,created_at) VALUES ('inq2','u','Bea','bea@test.local','No',2)"), ABORT);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM inquiries").get() as { n: number }).n, 1);
+  assert.throws(() => db.exec("INSERT OR REPLACE INTO inquiries (id,user_id,name,email,message,created_at) VALUES ('inq','u','Reemplazo','ada@test.local','No',2)"), ABORT);
+  assert.equal((db.prepare("SELECT name FROM inquiries WHERE id = 'inq'").get() as { name: string }).name, "Ada");
+  assert.throws(() => db.exec("INSERT INTO inquiries (id,user_id,name,email,message,created_at) VALUES ('inq','u','Upsert','ada@test.local','No',2) ON CONFLICT(id) DO UPDATE SET message = excluded.message"), ABORT);
+  assert.equal((db.prepare("SELECT message FROM inquiries WHERE id = 'inq'").get() as { message: string }).message, "Hola");
+  db.exec("DELETE FROM inquiries WHERE id = 'inq'");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM inquiries").get() as { n: number }).n, 0);
 });
 
 test("the sql.js client schema does not install the plaintext-write triggers", async () => {
