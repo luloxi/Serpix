@@ -1,4 +1,4 @@
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { avatarChange } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
@@ -30,14 +30,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!row) return Response.json({ error: "Not found" }, { status: 404 });
   if (row.data && !String(row.source || "").startsWith("auto:")) return Response.json({ error: "La foto ya fue elegida" }, { status: 409 });
   const av = avatarChange(body);
-  if (av && /^auto:(x|telegram|github|linkedin|whatsapp|email)$/.test(av.source)) {
-    await ctx.db.prepare("UPDATE contacts SET avatar_data=?, avatar_source=?, avatar_tried_at=NULL, avatar_tried_key=NULL, updated_at=? WHERE id=? AND user_id=?").bind(av.data, av.source, Date.now(), id, ctx.userId).run();
-    return Response.json({ ok: true });
-  }
-  const key = typeof body.failedKey === "string" ? body.failedKey.slice(0, 600) : "";
-  if (key) {
-    await ctx.db.prepare("UPDATE contacts SET avatar_tried_at=?, avatar_tried_key=? WHERE id=? AND user_id=?").bind(Date.now(), key, id, ctx.userId).run();
-    return Response.json({ ok: true });
+  try {
+    if (av && /^auto:(x|telegram|github|linkedin|whatsapp|email)$/.test(av.source)) {
+      await ctx.db.prepare("UPDATE contacts SET avatar_data=?, avatar_source=?, avatar_tried_at=NULL, avatar_tried_key=NULL, updated_at=? WHERE id=? AND user_id=?").bind(av.data, av.source, Date.now(), id, ctx.userId).run();
+      return Response.json({ ok: true });
+    }
+    const key = typeof body.failedKey === "string" ? body.failedKey.slice(0, 600) : "";
+    if (key) {
+      await ctx.db.prepare("UPDATE contacts SET avatar_tried_at=?, avatar_tried_key=? WHERE id=? AND user_id=?").bind(Date.now(), key, id, ctx.userId).run();
+      return Response.json({ ok: true });
+    }
+  } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
+    throw error;
   }
   return Response.json({ error: "Nada para guardar" }, { status: 400 });
 }

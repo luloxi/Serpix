@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext } from "@/lib/session";
 import { entryAmountMinor, parseTimeEntryBody } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     }
     return json({ ok: true, id }, 201);
   } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
     console.error("time_entry_create_failed", String(error));
     return json({ error: "No se pudo guardar el registro" }, 500);
   }

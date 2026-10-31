@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext } from "@/lib/session";
 import { pauseTimer, resumeTimer, startTimer, type TimerState } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,9 @@ export async function POST(request: Request) {
       const timer = startTimer(now);
       try {
         await db.prepare("INSERT INTO timer_state (user_id, started_at, segment_start, accumulated_ms, updated_at) VALUES (?,?,?,?,?)").bind(userId, timer.startedAt, timer.segmentStart, timer.accumulatedMs, now).run();
-      } catch {
+      } catch (error) {
+        const blocked = encryptedWriteResponse(error);
+        if (blocked) return blocked;
         const again = await db.prepare(SELECT).bind(userId).first<TimerRow>();
         if (again) return json({ timer: toTimer(again), serverNow: Date.now() });
         throw new Error("timer_insert_failed");
@@ -69,6 +71,8 @@ export async function POST(request: Request) {
     await db.prepare("UPDATE timer_state SET segment_start=?, updated_at=? WHERE user_id=?").bind(next.segmentStart, now, userId).run();
     return json({ timer: next, serverNow: now });
   } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
     console.error("timer_update_failed", String(error));
     return json({ error: "No se pudo actualizar el temporizador" }, 500);
   }

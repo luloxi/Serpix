@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { todayBA } from "@/lib/agenda-dates";
 import { convertQuote, deleteDocument, getDocument, isOverdue, parseDocInput, payDocument, setStatus, updateDocument } from "@/lib/documents";
 
@@ -21,20 +21,26 @@ export async function PATCH(request: Request, { params }: Params) {
   let b: Record<string, unknown>;
   try { b = await request.json(); } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }); }
   const now = Date.now(), today = todayBA();
-  let r;
-  if (b.action === "save") {
-    const parsed = parseDocInput(b, today);
-    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    r = await updateDocument(c.db, c.userId, id, parsed.value, now);
-  } else if (b.action === "status") {
-    if (b.status !== "draft" && b.status !== "sent" && b.status !== "void") return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
-    r = await setStatus(c.db, c.userId, id, b.status, now);
-  } else if (b.action === "pay") {
-    r = await payDocument(c.db, c.userId, id, typeof b.accountId === "string" ? b.accountId : "", typeof b.paidAt === "string" ? b.paidAt : today, now);
-  } else if (b.action === "convert") {
-    r = await convertQuote(c.db, c.userId, id, today, now);
-  } else return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
-  return NextResponse.json(r.body, { status: r.status });
+  try {
+    let r;
+    if (b.action === "save") {
+      const parsed = parseDocInput(b, today);
+      if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+      r = await updateDocument(c.db, c.userId, id, parsed.value, now);
+    } else if (b.action === "status") {
+      if (b.status !== "draft" && b.status !== "sent" && b.status !== "void") return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
+      r = await setStatus(c.db, c.userId, id, b.status, now);
+    } else if (b.action === "pay") {
+      r = await payDocument(c.db, c.userId, id, typeof b.accountId === "string" ? b.accountId : "", typeof b.paidAt === "string" ? b.paidAt : today, now);
+    } else if (b.action === "convert") {
+      r = await convertQuote(c.db, c.userId, id, today, now);
+    } else return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
+    return NextResponse.json(r.body, { status: r.status });
+  } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
+    throw error;
+  }
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

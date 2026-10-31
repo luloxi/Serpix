@@ -355,7 +355,9 @@ function seedLegacy(db: ReturnType<typeof openDb>["db"], table: (typeof LEGACY_T
   else if (table === "activities") db.prepare("INSERT INTO activities (id,user_id,kind,title,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "note", "Nota", "2026-10-01T12:00:00.000Z", 1, 1);
   else if (table === "projects") db.prepare("INSERT INTO projects (id,user_id,name,created_at,updated_at) VALUES (?,?,?,?,?)").run("row", "ana", "Proyecto", 1, 1);
   else if (table === "tasks") db.prepare("INSERT INTO tasks (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)").run("row", "ana", "Tarea", 1, 1);
-  else db.prepare("INSERT INTO financial_accounts (id,user_id,name,currency,opening_balance_minor,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "Caja", "ARS", 0, 1, 1);
+  else if (table === "financial_accounts") db.prepare("INSERT INTO financial_accounts (id,user_id,name,currency,opening_balance_minor,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "Caja", "ARS", 0, 1, 1);
+  else if (table === "timer_state") db.prepare("INSERT INTO timer_state (user_id,started_at,segment_start,accumulated_ms,updated_at) VALUES (?,?,?,?,?)").run("ana", 1, null, 0, 1);
+  else throw new Error("unseeded legacy table " + table);
 }
 
 test("the first wrap refuses every legacy table, leaves the rows, and still allows a later passkey", async () => {
@@ -399,13 +401,16 @@ test("the first wrap refuses every legacy table, leaves the rows, and still allo
   assert.equal(countRows(db, "contacts", "beto"), 1);
   assert.equal(await encryptionMode(d1, "beto"), "server");
 
-  db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("ana-c", "ana", "person", "Ana", 1, 1);
+  assert.throws(
+    () => db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("ana-c", "ana", "person", "Ana", 1, 1),
+    /e2e_account_plaintext_write/,
+  );
   const passkey = await addWrap(d1, "ana", { id: "pk", type: "passkey", wrap: passkeyWrap(), credentialId: "cred" }, 4);
   assert.equal(passkey.ok, true, JSON.stringify(passkey));
   assert.equal(await encryptionMode(d1, "ana"), "e2e");
-  assert.equal(countRows(db, "contacts", "ana"), 1);
+  assert.equal(countRows(db, "contacts", "ana"), 0);
   const listed = await listKeys(d1, "ana");
   assert.equal(listed.mode, "e2e");
-  assert.equal(listed.legacyData, true);
+  assert.equal(listed.legacyData, false);
   assert.equal(listed.wraps.length, 2);
 });
