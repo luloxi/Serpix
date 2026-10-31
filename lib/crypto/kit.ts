@@ -1,6 +1,8 @@
 // Recovery kit: plain-language instructions plus the password wrap.
 // The password and the DEK are never written here. Losing both the passkey and the
 // password means the data is gone; the text says so.
+// There is no in-app import. The text must not tell the reader to import the file:
+// today the app unlocks from the server copy, and this file is only a backup.
 
 import { assertWrap, serializeWrap, type Wrap } from "./wrap.ts";
 
@@ -57,22 +59,26 @@ export function buildRecoveryKit(input: {
     "============================",
     "",
     "Guardá este archivo en un lugar seguro (impreso, o en un pendrive que no uses",
-    "todos los días). Con este archivo y con tu contraseña de recuperación podés",
-    "abrir la bóveda en un dispositivo nuevo, aunque el servidor haya perdido su copia.",
+    "todos los días). Es una copia de respaldo de la clave protegida con tu",
+    "contraseña de recuperación. No es la contraseña y no contiene la clave de los",
+    "datos. Sin la contraseña, no alcanza para leer nada.",
     "",
-    "Este archivo no es la contraseña y no contiene la clave de los datos.",
-    "Sin la contraseña, no alcanza para leer nada.",
+    "Hoy desbloqueás la cuenta con la contraseña de recuperación o con una passkey,",
+    "desde la copia del servidor.",
+    "Importar este archivo en la app todavía no está disponible.",
+    "Conservalo como resguardo: sirve para una recuperación futura, cuando la app",
+    "permita importarlo.",
     "",
     `Cuenta: ${input.email}`,
     `Fecha: ${display}`,
     `Sitio: ${input.appUrl}`,
     "",
-    "Cómo usarlo",
-    "-----------",
-    `1. Abrí ${input.appUrl} en el dispositivo nuevo.`,
-    "2. Elegí recuperar la bóveda e importá este archivo.",
-    "3. Escribí la contraseña de recuperación. Serpix no la guarda: no está en",
-    "   este archivo y nadie puede leerla por vos.",
+    "Qué hacer hoy",
+    "-------------",
+    `1. En un dispositivo nuevo, abrí ${input.appUrl} e ingresá con la contraseña`,
+    "   de recuperación o con la passkey. La app usa la copia del servidor.",
+    "2. Este archivo no hace falta para eso. Serpix no guarda la contraseña: no",
+    "   está en este archivo y nadie puede leerla por vos.",
     "",
     "ADVERTENCIA",
     "-----------",
@@ -99,12 +105,12 @@ export function buildRecoveryKit(input: {
 </head>
 <body>
 <h1>Serpix — kit de recuperación</h1>
-<p>Guardá esta hoja en un lugar seguro. Con ella y con tu contraseña de recuperación podés abrir la bóveda en un dispositivo nuevo, aunque el servidor haya perdido su copia.</p>
-<p>Esta hoja no es la contraseña y no contiene la clave de los datos. Sin la contraseña, no alcanza para leer nada.</p>
+<p>Guardá esta hoja en un lugar seguro. Es una copia de respaldo de la clave protegida con tu contraseña de recuperación. No es la contraseña y no contiene la clave de los datos. Sin la contraseña, no alcanza para leer nada.</p>
+<p>Hoy desbloqueás la cuenta con la contraseña de recuperación o con una passkey, desde la copia del servidor. Importar este archivo en la app todavía no está disponible. Conservalo como resguardo: sirve para una recuperación futura, cuando la app permita importarlo.</p>
 <p><strong>Cuenta:</strong> ${escapeHtml(input.email)}<br>
 <strong>Fecha:</strong> ${escapeHtml(display)}<br>
 <strong>Sitio:</strong> ${escapeHtml(input.appUrl)}</p>
-<p>Entrá a ${escapeHtml(input.appUrl)}, elegí recuperar la bóveda e importá el bloque de abajo. Después escribí la contraseña de recuperación. Serpix no la guarda.</p>
+<p>En un dispositivo nuevo, abrí ${escapeHtml(input.appUrl)} e ingresá con la contraseña de recuperación o con la passkey. La app usa la copia del servidor. Este archivo no hace falta para eso. Serpix no guarda la contraseña: no está en este archivo y nadie puede leerla por vos.</p>
 <div class="warn">
 <p><strong>Advertencia.</strong> Si perdés la passkey Y la contraseña de recuperación, los datos se pierden para siempre. Nadie puede recuperarlos, ni siquiera el administrador. No hay una copia sin cifrar y no hay una puerta trasera.</p>
 </div>
