@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 type Row = { id: string; name: string; email: string; message: string; status: string; contactId: string | null; createdAt: number };
@@ -29,7 +29,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         contactId = crypto.randomUUID();
         const day = new Date(row.createdAt - 3 * 3600_000).toISOString().slice(0, 10);
         const notes = `Solicitud del portfolio (${day}):\n\n${row.message}`.slice(0, 5000);
-        await db.prepare("INSERT INTO contacts (id,user_id,kind,name,email,notes,is_potential,role,relations,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(contactId, userId, "person", row.name, row.email, notes, 1, "client_potential", JSON.stringify({ client: "potential" }), now, now).run();
+        try {
+          await db.prepare("INSERT INTO contacts (id,user_id,kind,name,email,notes,is_potential,role,relations,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(contactId, userId, "person", row.name, row.email, notes, 1, "client_potential", JSON.stringify({ client: "potential" }), now, now).run();
+        } catch (error) {
+          const blocked = encryptedWriteResponse(error);
+          if (blocked) return blocked;
+          throw error;
+        }
       }
       await db.prepare("UPDATE inquiries SET contact_id=?, status=CASE WHEN status='new' THEN 'read' ELSE status END, read_at=COALESCE(read_at,?) WHERE id=? AND user_id=?").bind(contactId, now, id, userId).run();
       return NextResponse.json({ ok: true, contactId, existed: Boolean(dup) });

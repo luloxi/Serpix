@@ -2,7 +2,7 @@ import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { updateAccount } from "@/lib/finance";
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { clearCounterpartLink, reconcileManual, unlinkTransaction } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
@@ -99,6 +99,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
     if(result.meta.changes===0) return NextResponse.json({error:"Registro no encontrado"},{status:404});
     return NextResponse.json({ok:true});
   } catch(error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
     console.error("workspace_update_failed",{resource,error:String(error)});
     return NextResponse.json({error:"No se pudo actualizar el registro"},{status:500});
   }

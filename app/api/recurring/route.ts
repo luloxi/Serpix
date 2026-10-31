@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext } from "@/lib/session";
 import { RULES_SQL, generateDue, nextDate, todayInBuenosAires, type Frequency } from "@/lib/recurring";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,11 @@ export async function GET() {
   if ("encrypted" in ctx) return encryptedAccount();
   const today = todayInBuenosAires();
   let created = 0;
-  try { created = (await generateDue(ctx.db, ctx.userId, today)).created; } catch (error) { console.error("recurring_catchup_failed", { error: String(error) }); }
+  try { created = (await generateDue(ctx.db, ctx.userId, today)).created; } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
+    console.error("recurring_catchup_failed", { error: String(error) });
+  }
   const rows = (await ctx.db.prepare(RULES_SQL).bind(ctx.userId).all<Record<string, unknown>>()).results ?? [];
   const items = rows.map((r: Record<string, unknown>) => ({
     ...r,

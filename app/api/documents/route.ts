@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { todayBA } from "@/lib/agenda-dates";
 import { createDocument, isOverdue, listDocuments, parseDocInput, type DocType } from "@/lib/documents";
 
@@ -19,6 +19,12 @@ export async function POST(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }); }
   const parsed = parseDocInput(body, todayBA());
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const r = await createDocument(c.db, c.userId, parsed.value, Date.now());
-  return NextResponse.json(r.body, { status: r.status });
+  try {
+    const r = await createDocument(c.db, c.userId, parsed.value, Date.now());
+    return NextResponse.json(r.body, { status: r.status });
+  } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
+    throw error;
+  }
 }

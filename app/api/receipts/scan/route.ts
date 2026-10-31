@@ -3,7 +3,7 @@ import { ADMIN_RECEIPT_SCANS_PER_DAY, AI_DISABLED_MESSAGE, AI_GLOBAL_LIMIT_MESSA
 import { isReceiptTooBigError, MAX_RECEIPT_BASE64_CHARS, MAX_RECEIPT_BYTES, RECEIPT_MODEL, RECEIPT_TOO_BIG_MESSAGE, readReceipt, type AiLike, type ReadResult } from "@/lib/receipt";
 import { isReceiptMime, sniffMime } from "@/lib/receipts-db";
 import { todayInBuenosAires } from "@/lib/recurring";
-import { encryptedAccount, legacyDataContext } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -35,6 +35,8 @@ export async function POST(request: Request) {
       await ctx.db.prepare("INSERT INTO receipts (id,user_id,transaction_id,mime,size,data,extracted,read_ok,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
         .bind(id, ctx.userId, null, mime, bytes.length, base64, result.ok ? JSON.stringify(result.fields) : null, result.ok ? 1 : 0, now).run();
     } catch (error) {
+      const blocked = encryptedWriteResponse(error);
+      if (blocked) return blocked;
       if (isReceiptTooBigError(error)) return json({ error: RECEIPT_TOO_BIG_MESSAGE }, 413);
       console.error("receipt_insert_failed", String(error));
       return json({ error: "No se pudo guardar el ticket" }, 500);

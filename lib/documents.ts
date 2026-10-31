@@ -268,7 +268,9 @@ export async function convertQuote(db: DocDb, userId: string, quoteId: string, t
   try {
     const r = await createDocument(db, userId, input, now, { sourceQuoteId: quoteId });
     return r as Result<{ id?: string; number?: number; existed?: boolean }>;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("e2e_account_plaintext_write")) throw error;
     // Unique index on source_quote_id: a parallel call already converted it.
     const again = await getDocument(db, userId, quoteId);
     if (again?.invoiceId) return { status: 200, body: { ok: true, id: again.invoiceId, existed: true } };

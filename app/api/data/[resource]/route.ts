@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { ACCOUNTS_SQL, TX_VISIBLE } from "@/lib/finance";
@@ -122,6 +122,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
     }
     return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (error) {
+    const blocked = encryptedWriteResponse(error);
+    if (blocked) return blocked;
     console.error("workspace_create_failed", { resource, error: String(error) });
     return NextResponse.json({ error: "No se pudo guardar el registro" }, { status: 500 });
   }

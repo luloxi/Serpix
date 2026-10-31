@@ -31,6 +31,7 @@ export const LEGACY_DATA_ERROR = "Tu cuenta ya tiene datos sin cifrar. La migrac
 /**
  * Plaintext tables that block the first wrap. Names are fixed identifiers, never request input.
  * `financial_transactions` and `financial_accounts` are the real table names.
+ * `timer_state` is the open timer (one row per user, keyed by user_id).
  */
 export const LEGACY_TABLES = [
   "contacts",
@@ -43,6 +44,7 @@ export const LEGACY_TABLES = [
   "projects",
   "tasks",
   "financial_accounts",
+  "timer_state",
 ] as const;
 
 export const MAX_BLOB_CHARS = 1_900_000;
