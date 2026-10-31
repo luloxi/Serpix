@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { codePointLength, passwordStrength } from "../lib/crypto/password.ts";
+import { codePointLength, passwordStrength, validateRecoveryPassword, PasswordPolicyError } from "../lib/crypto/password.ts";
 import { shouldUseLocalEngine } from "../lib/e2e/engine.ts";
 import {
   BOOT_FAILED,
@@ -203,9 +203,35 @@ test("onboarding stays disabled until the recovery password, the confirm and the
   assert.deepEqual(emptyConfirm.messages, []);
 
   const fair = check("opasopasopas");
-  assert.equal(fair.canSubmit, true);
-  assert.equal(fair.label, "Aceptable");
+  assert.equal(fair.canSubmit, false);
+  assert.equal(fair.label, "Regular");
   assert.equal(fair.meter, 2);
+  assert.ok(fair.messages.includes("Usá al menos dos tipos de caracteres."));
+  assert.ok(fair.messages.includes("Es demasiado débil: hace falta más longitud o más variedad."));
+
+  const lower12 = check("xkcdpassworx");
+  assert.equal(lower12.canSubmit, false);
+  assert.ok(lower12.messages.includes("Usá al menos dos tipos de caracteres."));
+
+  const twoClass = check("CorrectHorse");
+  assert.equal(twoClass.canSubmit, false);
+  assert.ok(twoClass.messages.includes("Es demasiado débil: hace falta más longitud o más variedad."));
+  assert.equal(twoClass.messages.includes("Usá al menos dos tipos de caracteres."), false);
+
+  const threeClasses = check("BlueHorse99x");
+  assert.equal(threeClasses.canSubmit, true);
+  assert.equal(threeClasses.meter, 3);
+  assert.deepEqual(threeClasses.messages, []);
+
+  const lower16 = check("opasopasopasopas");
+  assert.equal(lower16.canSubmit, false);
+  assert.equal(lower16.meter, 3);
+  assert.deepEqual(lower16.messages, ["Usá al menos dos tipos de caracteres."]);
+
+  const phrase = check("correct horse bat");
+  assert.equal(phrase.canSubmit, true);
+  assert.equal(phrase.meter, 3);
+  assert.deepEqual(phrase.messages, []);
 
   const strong = check("Correct-Horse-99");
   assert.equal(strong.canSubmit, true);
@@ -220,8 +246,69 @@ test("onboarding stays disabled until the recovery password, the confirm and the
 
   const weakOnly = onboardingValidation({ score: 1, issues: [], password: "x".repeat(12), confirm: "x".repeat(12), understood: true, deriving: false, length: 12 });
   assert.equal(weakOnly.canSubmit, false);
-  assert.deepEqual(weakOnly.messages, ["Es demasiado débil."]);
+  assert.deepEqual(weakOnly.messages, ["Es demasiado débil: hace falta más longitud o más variedad."]);
   assert.equal(weakOnly.label, "Débil");
+
+  const fairOnly = onboardingValidation({ score: 2, issues: [], password: "x".repeat(12), confirm: "x".repeat(12), understood: true, deriving: false, length: 12 });
+  assert.equal(fairOnly.canSubmit, false);
+  assert.deepEqual(fairOnly.messages, ["Es demasiado débil: hace falta más longitud o más variedad."]);
+
+  const oneClass = onboardingValidation({
+    score: 3,
+    issues: ["single-class"],
+    password: "o".repeat(16),
+    confirm: "o".repeat(16),
+    understood: true,
+    deriving: false,
+    length: 16,
+  });
+  assert.equal(oneClass.canSubmit, false);
+  assert.deepEqual(oneClass.messages, ["Usá al menos dos tipos de caracteres."]);
+  assert.equal(oneClass.label, "Fuerte");
+
+  const strongEnough = onboardingValidation({
+    score: 3,
+    issues: [],
+    password: "correct horse bat",
+    confirm: "correct horse bat",
+    understood: true,
+    deriving: false,
+    length: 17,
+  });
+  assert.equal(strongEnough.canSubmit, true);
+  assert.deepEqual(strongEnough.messages, []);
+});
+
+test("onboarding submit matches validateRecoveryPassword", () => {
+  const samples: { password: string; userInputs?: string[] }[] = [
+    { password: "clave" },
+    { password: "xkcdpassworx" },
+    { password: "opasopasopas" },
+    { password: "opasopasopasopas" },
+    { password: "CorrectHorse" },
+    { password: "BlueHorse99x" },
+    { password: "correct horse bat" },
+    { password: "administrador" },
+    { password: "Abcdefghijkl" },
+    { password: "aaaaaaaaaaaa" },
+    { password: "password1234" },
+    { password: "Correct-Horse-99" },
+    { password: "Áb1!Áb1!Áb1!" },
+    { password: "luciano-serpix" },
+    { password: "luciano-serpix", userInputs: ["luciano@example.com"] },
+    { password: "Keep-luciano@example.com", userInputs: ["luciano@example.com"] },
+  ];
+  for (const sample of samples) {
+    const ui = check(sample.password, { userInputs: sample.userInputs });
+    let accepted = true;
+    try {
+      validateRecoveryPassword(sample.password, sample.userInputs);
+    } catch (error) {
+      assert.ok(error instanceof PasswordPolicyError);
+      accepted = false;
+    }
+    assert.equal(ui.canSubmit, accepted, sample.password);
+  }
 });
 
 test("unlock and passkey copy stays fixed and does not echo a decrypt error", () => {

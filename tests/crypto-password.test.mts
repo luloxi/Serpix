@@ -39,30 +39,38 @@ test("weak passwords are rejected and a strong one is accepted", () => {
   const common = passwordStrength("administrador");
   assert.equal(common.score, 1);
   assert.equal(common.label, "weak");
-  assert.deepEqual(common.issues, ["common"]);
+  assert.deepEqual(common.issues, ["common", "single-class", "low-score"]);
   assert.throws(() => validateRecoveryPassword("administrador"), PasswordPolicyError);
 
   const listed = passwordStrength("password1234");
   assert.equal(listed.score, 1);
   assert.ok(listed.issues.includes("common"));
+  assert.ok(listed.issues.includes("sequential"));
+  assert.ok(listed.issues.includes("low-score"));
+  assert.equal(listed.issues.includes("single-class"), false);
   assert.ok(listed.issues.includes("too-short") === false);
   assert.throws(() => validateRecoveryPassword("password1234"), PasswordPolicyError);
 
   const repeated = passwordStrength("aaaaaaaaaaaa");
   assert.equal(repeated.score, 1);
-  assert.deepEqual(repeated.issues, ["repeated"]);
+  assert.deepEqual(repeated.issues, ["repeated", "single-class", "low-score"]);
   assert.throws(() => validateRecoveryPassword("aaaaaaaaaaaa"), PasswordPolicyError);
 
   const sequential = passwordStrength("Abcdefghijkl");
   assert.equal(sequential.score, 1);
-  assert.deepEqual(sequential.issues, ["sequential"]);
+  assert.deepEqual(sequential.issues, ["sequential", "low-score"]);
   assert.throws(() => validateRecoveryPassword("Abcdefghijkl"), PasswordPolicyError);
 
   const rows = passwordStrength("opasopasopas");
   assert.equal(rows.score, 2);
   assert.equal(rows.label, "fair");
-  assert.deepEqual(rows.issues, []);
-  assert.equal(validateRecoveryPassword("opasopasopas").score, 2);
+  assert.deepEqual(rows.issues, ["single-class", "low-score"]);
+  assert.throws(() => validateRecoveryPassword("opasopasopas"), (error: unknown) => {
+    assert.ok(error instanceof PasswordPolicyError);
+    assert.equal(error.score, 2);
+    assert.deepEqual(error.issues, ["single-class", "low-score"]);
+    return true;
+  });
 
   const strong = passwordStrength("Correct-Horse-99");
   assert.equal(strong.score, 4);
@@ -71,23 +79,87 @@ test("weak passwords are rejected and a strong one is accepted", () => {
   assert.equal(validateRecoveryPassword("Correct-Horse-99").score, 4);
 
   const mixed = passwordStrength("Tr0ub4dor&3xy");
-  assert.ok(mixed.score >= 2);
-  validateRecoveryPassword("Tr0ub4dor&3xy");
+  assert.ok(mixed.score >= 3);
+  assert.ok(validateRecoveryPassword("Tr0ub4dor&3xy").score >= 3);
   assert.equal(codePointLength("Áb1!Áb1!Áb1!"), 12);
-  assert.ok(validateRecoveryPassword("Áb1!Áb1!Áb1!").score >= 2);
+  assert.ok(validateRecoveryPassword("Áb1!Áb1!Áb1!").score >= 3);
+});
+
+test("recovery password needs score 3 and at least two character classes", () => {
+  const rejected = (password: string, userInputs?: string[]): PasswordPolicyError => {
+    try {
+      validateRecoveryPassword(password, userInputs);
+    } catch (error) {
+      assert.ok(error instanceof PasswordPolicyError);
+      return error;
+    }
+    assert.fail("expected PasswordPolicyError");
+  };
+
+  const lower12 = "xkcdpassworx";
+  assert.equal(codePointLength(lower12), 12);
+  const lower12Error = rejected(lower12);
+  assert.equal(lower12Error.score, 2);
+  assert.deepEqual(lower12Error.issues, ["single-class", "low-score"]);
+
+  const rowsError = rejected("opasopasopas");
+  assert.equal(rowsError.score, 2);
+  assert.ok(rowsError.issues.includes("single-class"));
+  assert.ok(rowsError.issues.includes("low-score"));
+
+  const three = "BlueHorse99x";
+  assert.equal(codePointLength(three), 12);
+  const acceptedThree = validateRecoveryPassword(three);
+  assert.equal(acceptedThree.score, 3);
+  assert.equal(acceptedThree.issues.includes("single-class"), false);
+  assert.equal(acceptedThree.issues.includes("low-score"), false);
+
+  const twoClass = "CorrectHorse";
+  assert.equal(codePointLength(twoClass), 12);
+  const twoClassError = rejected(twoClass);
+  assert.equal(twoClassError.score, 2);
+  assert.deepEqual(twoClassError.issues, ["low-score"]);
+
+  const lower16 = "opasopasopasopas";
+  assert.equal(codePointLength(lower16), 16);
+  const lower16Error = rejected(lower16);
+  assert.equal(lower16Error.score, 3);
+  assert.deepEqual(lower16Error.issues, ["single-class"]);
+
+  const phrase = "correct horse bat";
+  assert.ok(codePointLength(phrase) >= 16);
+  const acceptedPhrase = validateRecoveryPassword(phrase);
+  assert.equal(acceptedPhrase.score, 3);
+  assert.deepEqual(acceptedPhrase.issues, []);
+
+  const common = rejected("administrador");
+  assert.ok(common.issues.includes("common"));
+  assert.ok(common.issues.includes("low-score"));
+  const sequential = rejected("Abcdefghijkl");
+  assert.ok(sequential.issues.includes("sequential"));
+  const repeated = rejected("aaaaaaaaaaaa");
+  assert.ok(repeated.issues.includes("repeated"));
+  const personal = rejected("luciano-serpix", ["luciano@example.com"]);
+  assert.ok(personal.issues.includes("user-input"));
+  assert.equal(personal.score < 3, true);
 });
 
 test("an email or its local part on a boundary lowers the score", () => {
   const plain = passwordStrength("luciano-serpix");
   assert.equal(plain.score, 2);
-  assert.deepEqual(plain.issues, []);
-  validateRecoveryPassword("luciano-serpix");
+  assert.deepEqual(plain.issues, ["low-score"]);
+  assert.throws(() => validateRecoveryPassword("luciano-serpix"), PasswordPolicyError);
 
   const penalised = passwordStrength("luciano-serpix", ["luciano@example.com"]);
   assert.equal(penalised.score, 1);
   assert.equal(penalised.label, "weak");
-  assert.deepEqual(penalised.issues, ["user-input"]);
-  assert.throws(() => validateRecoveryPassword("luciano-serpix", ["luciano@example.com"]), PasswordPolicyError);
+  assert.deepEqual(penalised.issues, ["user-input", "low-score"]);
+  assert.throws(() => validateRecoveryPassword("luciano-serpix", ["luciano@example.com"]), (error: unknown) => {
+    assert.ok(error instanceof PasswordPolicyError);
+    assert.ok(error.issues.includes("user-input"));
+    assert.ok(error.issues.includes("low-score"));
+    return true;
+  });
 
   const full = passwordStrength("Keep-luciano@example.com");
   const withEmail = passwordStrength("Keep-luciano@example.com", ["luciano@example.com"]);
