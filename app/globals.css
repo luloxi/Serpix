@@ -1086,3 +1086,21 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .input-action input{flex:1;min-width:0}
 .field-lookup{display:grid;place-items:center;width:44px;flex:none;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--accent);cursor:pointer;text-decoration:none}
 .field-lookup:hover{border-color:var(--accent)}
+
+/* Agenda timeline: past + today + future on one line, anchored on "Hoy" */
+.agenda-day{scroll-margin-top:60px}
+.agenda-today-wrap{display:block}
+.agenda-day-block.is-past .agenda-row{opacity:.62}
+.agenda-day-block.is-past .agenda-day{color:var(--muted);opacity:.85}
+.agenda-overdue-block{margin:10px 0 4px;padding:2px 10px 6px;border:1px solid color-mix(in srgb,#d34f68 40%,var(--line));border-radius:12px;background:color-mix(in srgb,#d34f68 6%,transparent);scroll-margin-top:56px}
+.agenda-overdue-block .agenda-overdue-head{margin:8px 0 2px;font-size:13px}
+.agenda-nothing{margin:2px 0 6px;font-size:12px;color:var(--muted)}
+.agenda-more{align-self:center;justify-self:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);padding:6px 14px;font-size:12px;font-weight:650;cursor:pointer}
+.agenda-more:hover{border-color:var(--accent);color:var(--accent)}
+.agenda-spacer{min-height:34svh}
+.agenda-fab{position:fixed;z-index:34;right:96px;bottom:34px;display:flex;gap:8px;align-items:center}
+@media (max-width:860px){.agenda-fab{right:90px;bottom:calc(104px + env(safe-area-inset-bottom))}}
+.agenda-pill{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:750;box-shadow:0 6px 18px rgba(20,30,55,.18);cursor:pointer}
+.agenda-pill:hover{border-color:var(--accent);color:var(--accent)}
+.agenda-pill.is-overdue{color:#d34f68;border-color:color-mix(in srgb,#d34f68 55%,var(--line))}
+:root[data-theme="dark"] .agenda-pill.is-overdue{color:#ff7a90}
