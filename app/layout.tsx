@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import "./brand.css";
 import "./urgency.css";
@@ -34,13 +35,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+// Nonce CSP requires a per-request render. The HTML cannot be cached as a static document;
+// /theme-init.js and /_next/static still can.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Same value proxy.ts put in the CSP. 'strict-dynamic' ignores 'self', so this file needs the nonce too.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: 'try{var t=localStorage.getItem("serpix-theme")==="dark"?"dark":"light";document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}' }} />
+        {/* Parser-blocking on purpose: theme is set before first paint, and strict-dynamic needs the nonce on this tag. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" nonce={nonce} />
       </head>
       <body>
         <E2eEngineSlot />

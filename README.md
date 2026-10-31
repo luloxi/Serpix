@@ -86,6 +86,37 @@ Para desplegar:
 npm run deploy
 ```
 
+## Endurecimiento (CSP y manifiesto de build)
+
+Cada HTML sale con una Content-Security-Policy estricta y un nonce nuevo por request. `proxy.ts` (el proxy de Next.js 16, el reemplazo de middleware) arma la política con `lib/csp.ts`, la pone en el request y en la respuesta, y deja el nonce en `x-nonce`. Next lo copia a sus propios `<script>` al renderizar. Por eso el layout es dinámico: una página estática no puede llevar un nonce que todavía no existe. El HTML no se cachea como documento; `/_next/static`, los íconos y `public/theme-init.js` sí.
+
+El script de tema dejó de estar inline. Vive en `public/theme-init.js` (mismo origen, entra al manifiesto, el navegador lo puede revalidar) y la etiqueta en `app/layout.tsx` lleva el nonce del request. Hace falta: la guía de CSP de Next incluye `'strict-dynamic'`, y con eso un navegador CSP3 ignora `'self'` y solo ejecuta un script con ese nonce (o uno que ese script cargue). `'self'` queda como respaldo para navegadores viejos.
+
+Qué permite la política, y por qué:
+
+- `script-src 'self' 'nonce-…' 'strict-dynamic' 'wasm-unsafe-eval'`. No hay `'unsafe-eval'` ni scripts de terceros. `'wasm-unsafe-eval'` está solo en `script-src`, para que compile el WASM de Argon2id (`hash-wasm`) y el SQLite del navegador.
+- `style-src 'self' 'unsafe-inline'`, sin nonce. Un nonce o un hash en `style-src` hace que el navegador ignore `'unsafe-inline'`, y los atributos `style` de React lo necesitan. Las hojas propias salen de `/_next/static`.
+- `img-src 'self' data: blob:` más `lh3`–`lh6.googleusercontent.com`. La foto de la cuenta de Google es `session.user.image` y se muestra en un `<img>`. Las fotos de contactos no: el navegador las baja una vez y las guarda como data URL.
+- `connect-src 'self' https://gravatar.com https://unavatar.io`. Son las únicas URLs que el cliente pide (`lib/avatar-client.ts`); las dos responden en ese host, sin redirigir a un CDN.
+- `font-src 'self'`. No se cargan fuentes de Google: el `@import` de `globals.css` se sacó. DM Sans y Manrope siguen nombradas en la pila y, si no están instaladas, cae a `system-ui`.
+- `worker-src 'self'` (el `sw.js` del mismo origen), `manifest-src 'self'`, `base-uri 'self'`, `object-src 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, `upgrade-insecure-requests`.
+- En `next dev` se agregan `'unsafe-eval'` y `ws:` para el HMR. Un build de producción no los lleva.
+
+El ingreso con Google es un redirect de toda la página (`authClient.signIn.social` termina en `window.location` del cliente de Better Auth; no hay plugin de popup). `Cross-Origin-Opener-Policy: same-origin-allow-popups` no corta ese flujo y deja funcionar `window.open` (WhatsApp, búsquedas). Junto con la CSP van `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` y un `Permissions-Policy` mínimo: cámara, micrófono y geolocalización cerrados; WebAuthn (`publickey-credentials-get/create`) permitido solo en este origen. La cámara del ticket es un `<input capture>`, no `getUserMedia`, así que `camera=()` no la bloquea.
+
+El proxy no corre en `/_next/static`, `/_next/image`, `/icons/`, `sw.js`, `theme-init.js`, el manifiesto ni `/.well-known/`, para no interceptar estáticos. Esos archivos los sirve el binding de assets y reciben los mismos headers de seguridad (sin CSP: la CSP vale para el documento) desde `public/_headers`. `wrangler.jsonc` no cambió: Workers Assets incluye directorios con punto, y `/.well-known/build.json` se publica. `_headers`, `_redirects` y `.assetsignore` son meta y no entran al manifiesto.
+
+El manifiesto se genera después de `opennextjs-cloudflare build` y antes del deploy. `npm run deploy` y `npm run upload` ya encadenan `node scripts/build-manifest.mjs`. El script recorre `.open-next/assets` y escribe `.open-next/assets/.well-known/build.json`: versión, commit (`git rev-parse HEAD` o null), fecha, y el SHA-256 de cada archivo servible, con las claves ordenadas. `worker` es el SHA-256 de `.open-next/worker.js` si está. Para comprobar:
+
+```bash
+npm run verify-build -- https://erp.lulox.com.ar
+node scripts/verify-build.mjs --local .open-next/assets
+```
+
+Baja `/.well-known/build.json` y después cada archivo listado que esté bajo `/_next/static`, `/icons`, `/vendor`, `/sw.js` o `/manifest*` (de a pocos en paralelo). Si un hash no coincide, imprime el resumen y sale con código 1.
+
+Límite: quien opera el Worker puede igual publicar otro JavaScript. El fuente AGPL y el manifiesto hacen eso auditable, no imposible. El checker compara la lista publicada; no prueba que no haya un archivo de más. `worker` es el bundle de OpenNext (`.open-next/worker.js`), no el paquete final que Wrangler arma desde `worker.ts` (ahí también está el cron).
+
 ## Estado funcional
 
 - Google OAuth y sesiones: configurados en código; requieren los secrets y el despliegue.
