@@ -142,7 +142,7 @@ export async function generateDue(db: D1Like, userId: string | null, today: stri
   return { rules: rows.length, created };
 }
 
-export const RULES_SQL = "SELECT r.id, r.kind, r.amount_minor AS amountMinor, r.category, r.description, r.frequency, r.anchor_date AS anchorDate, r.end_date AS endDate, r.status, r.account_id AS accountId, a.name AS accountName, a.currency AS currency, r.contact_id AS contactId FROM recurring_rules r JOIN financial_accounts a ON a.id = r.account_id WHERE r.user_id = ? ORDER BY CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, r.category COLLATE NOCASE";
+export const RULES_SQL = "SELECT r.id, r.kind, r.amount_minor AS amountMinor, r.category, r.description, r.frequency, r.anchor_date AS anchorDate, r.end_date AS endDate, r.status, r.account_id AS accountId, a.name AS accountName, a.currency AS currency, r.contact_id AS contactId FROM recurring_rules r JOIN financial_accounts a ON a.id = r.account_id AND a.user_id = r.user_id WHERE r.user_id = ? ORDER BY CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, r.category COLLATE NOCASE";
 
 export const FREQUENCY_LABEL: Record<Frequency, string> = { weekly: "Semanal", monthly: "Mensual", yearly: "Anual" };
 

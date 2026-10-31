@@ -1,19 +1,14 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { adminContext, approvedContext, unauthorized } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!(await approvedContext())) return unauthorized();
+  const ctx = await adminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { env } = await getCloudflareContext({ async: true });
-  const result = await env.DB.prepare(
+  const result = await ctx.db.prepare(
     "SELECT id, name, email, approvalStatus, createdAt FROM user ORDER BY createdAt DESC"
   ).all();
 

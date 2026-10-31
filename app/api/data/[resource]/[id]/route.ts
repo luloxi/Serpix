@@ -1,23 +1,14 @@
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { updateAccount } from "@/lib/finance";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext, unauthorized } from "@/lib/session";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
-import { attachReceipt } from "@/lib/receipts-db";
+import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
 const tableByResource = { contacts: "contacts", projects: "projects", tasks: "tasks", accounts: "financial_accounts", transactions: "financial_transactions", activities: "activities" } as const;
 type Resource = keyof typeof tableByResource;
-async function context() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  const { env } = await getCloudflareContext({ async: true });
-  return { userId: session.user.id, db: env.DB };
-}
 function str(v: unknown, max=5000): string { return typeof v === "string" ? v.trim().slice(0,max) : ""; }
 function nullable(v: unknown, max=5000): string | null { return str(v,max) || null; }
 function pick<T extends string>(v: unknown, values: readonly T[], fallback: T): T { return values.includes(v as T) ? v as T : fallback; }
@@ -25,7 +16,7 @@ function pick<T extends string>(v: unknown, values: readonly T[], fallback: T): 
 export async function PATCH(request: Request, { params }: { params: Promise<{resource:string;id:string}> }) {
   const {resource,id}=await params;
   if (!(resource in tableByResource)) return NextResponse.json({error:"Not found"},{status:404});
-  const ctx=await context(); if ("response" in ctx) return ctx.response;
+  const ctx=await approvedContext(); if (!ctx) return unauthorized();
   let b:Record<string,unknown>; try { b=await request.json() as Record<string,unknown>; } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }
   const {db,userId}=ctx, now=Date.now();
   try {
@@ -63,8 +54,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         }
         result=await db.prepare("UPDATE activities SET kind=?,title=?,body=?,occurred_at=?,updated_at=? WHERE id=? AND user_id=?").bind(kind,title,nullable(b.body,30000),occurredAt,now,id,userId).run();
         if(result.meta.changes){
-          await db.prepare("DELETE FROM activity_contacts WHERE activity_id=?").bind(id).run();
-          for(const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id) VALUES (?,?)").bind(id,contactId).run();
+          await db.prepare("DELETE FROM activity_contacts WHERE activity_id=? AND user_id=?").bind(id,userId).run();
+          for(const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id,user_id) VALUES (?,?,?)").bind(id,contactId,userId).run();
         }
         break;
       }
@@ -76,6 +67,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
         if(contactId && !(await db.prepare("SELECT id FROM contacts WHERE id=? AND user_id=?").bind(contactId,userId).first())) return NextResponse.json({error:"Contacto inválido"},{status:400});
         const kind=pick(b.kind,["income","expense"] as const,"expense"), occurredAt=str(b.occurredAt,10)||todayInBuenosAires(now);
         if(!isDateKey(occurredAt)) return NextResponse.json({error:"Fecha inválida"},{status:400});
+        const receiptIdEarly=nullable(b.receiptId,80);
+        if(receiptIdEarly && !(await receiptLinkable(db,userId,receiptIdEarly,id))) return NextResponse.json({error:"Ticket inválido"},{status:400});
         const existingTx=await db.prepare("SELECT recurring_id AS recurringId FROM financial_transactions WHERE id=? AND user_id=?").bind(id,userId).first<{recurringId:string|null}>();
         const recurrence=existingTx&&!existingTx.recurringId?parseRecurrence(b.recurrence,b.recurrenceEnd,occurredAt):null;
         if(typeof recurrence==="string") return NextResponse.json({error:recurrence},{status:400});
@@ -103,7 +96,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
 export async function DELETE(_request:Request,{params}:{params:Promise<{resource:string;id:string}>}) {
   const {resource,id}=await params;
   if(!(resource in tableByResource)) return NextResponse.json({error:"Not found"},{status:404});
-  const ctx=await context(); if("response" in ctx) return ctx.response;
+  const ctx=await approvedContext(); if(!ctx) return unauthorized();
   const table=tableByResource[resource as Resource];
   try {
     const result=await ctx.db.prepare(`DELETE FROM ${table} WHERE id=? AND user_id=?`).bind(id,ctx.userId).run();

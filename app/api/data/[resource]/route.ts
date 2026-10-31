@@ -1,24 +1,15 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext, unauthorized } from "@/lib/session";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { ACCOUNTS_SQL } from "@/lib/finance";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
-import { attachReceipt } from "@/lib/receipts-db";
+import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
 const resources = ["contacts", "projects", "tasks", "accounts", "transactions", "activities"] as const;
 type Resource = typeof resources[number];
 
-async function context() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  const { env } = await getCloudflareContext({ async: true });
-  return { userId: session.user.id, db: env.DB };
-}
 function validResource(value: string): value is Resource { return resources.includes(value as Resource); }
 function str(value: unknown, max = 5000): string { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function nullable(value: unknown, max = 5000): string | null { return str(value, max) || null; }
@@ -33,13 +24,13 @@ function pageInt(raw: string | null, fallback: number, min: number, max: number)
 export async function GET(request: Request, { params }: { params: Promise<{ resource: string }> }) {
   const { resource } = await params;
   if (!validResource(resource)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const ctx = await context(); if ("response" in ctx) return ctx.response;
+  const ctx = await approvedContext(); if (!ctx) return unauthorized();
   const { db, userId } = ctx;
   if (resource === "transactions") {
     const url = new URL(request.url);
     const limit = pageInt(url.searchParams.get("limit"), 250, 1, 5000);
     const offset = pageInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
-    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName, t.recurring_id AS recurringId, (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id LIMIT 1) AS receiptId FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT t.id, t.kind, t.amount_minor AS amountMinor, t.category, t.description, t.occurred_at AS occurredAt, t.account_id AS accountId, a.name AS accountName, a.currency, t.contact_id AS contactId, c.name AS contactName, t.recurring_id AS recurringId, (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id AND r.user_id = t.user_id LIMIT 1) AS receiptId FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id AND a.user_id = t.user_id LEFT JOIN contacts c ON c.id = t.contact_id AND c.user_id = t.user_id WHERE t.user_id = ? ORDER BY t.occurred_at DESC, t.created_at DESC LIMIT ? OFFSET ?";
     const result = await db.prepare(query).bind(userId, limit, offset).all();
     return NextResponse.json({ items: result.results });
   }
@@ -47,9 +38,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
   switch (resource) {
     case "contacts": query = "SELECT id, kind, name, company_name AS companyName, email, phone, notes, is_potential AS isPotential, role, relations, github_url AS githubUrl, CASE WHEN avatar_data IS NOT NULL THEN 1 ELSE 0 END AS hasAvatar, avatar_source AS avatarSource, avatar_tried_at AS avatarTriedAt, avatar_tried_key AS avatarTriedKey, updated_at AS updatedAt, x_url AS xUrl, instagram_url AS instagramUrl, telegram_url AS telegramUrl, whatsapp_url AS whatsappUrl, linkedin_url AS linkedinUrl, created_at AS createdAt FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE"; break;
     case "projects": query = "SELECT id, name, description, status, start_date AS startDate, due_date AS dueDate, created_at AS createdAt FROM projects WHERE user_id = ? ORDER BY updated_at DESC"; break;
-    case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contacts c ON c.id = t.contact_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
+    case "tasks": query = "SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date AS dueDate, t.project_id AS projectId, p.name AS projectName, t.contact_id AS contactId, c.name AS contactName FROM tasks t LEFT JOIN projects p ON p.id = t.project_id AND p.user_id = t.user_id LEFT JOIN contacts c ON c.id = t.contact_id AND c.user_id = t.user_id WHERE t.user_id = ? ORDER BY CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_date"; break;
     case "accounts": query = ACCOUNTS_SQL; break;
-    case "activities": query = "SELECT a.id, a.kind, a.title, a.body, a.occurred_at AS occurredAt, a.created_at AS createdAt, (SELECT group_concat(ac.contact_id, ',') FROM activity_contacts ac WHERE ac.activity_id=a.id) AS contactIds, (SELECT group_concat(c.name, ', ') FROM activity_contacts ac JOIN contacts c ON c.id=ac.contact_id WHERE ac.activity_id=a.id) AS contactNames FROM activities a WHERE a.user_id = ? ORDER BY a.occurred_at DESC, a.created_at DESC LIMIT 500"; break;
+    case "activities": query = "SELECT a.id, a.kind, a.title, a.body, a.occurred_at AS occurredAt, a.created_at AS createdAt, (SELECT group_concat(ac.contact_id, ',') FROM activity_contacts ac WHERE ac.activity_id=a.id AND ac.user_id=a.user_id) AS contactIds, (SELECT group_concat(c.name, ', ') FROM activity_contacts ac JOIN contacts c ON c.id=ac.contact_id AND c.user_id=ac.user_id WHERE ac.activity_id=a.id AND ac.user_id=a.user_id) AS contactNames FROM activities a WHERE a.user_id = ? ORDER BY a.occurred_at DESC, a.created_at DESC LIMIT 500"; break;
   }
   const result = await db.prepare(query).bind(userId).all();
   return NextResponse.json({ items: result.results });
@@ -58,7 +49,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
 export async function POST(request: Request, { params }: { params: Promise<{ resource: string }> }) {
   const { resource } = await params;
   if (!validResource(resource)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const ctx = await context(); if ("response" in ctx) return ctx.response;
+  const ctx = await approvedContext(); if (!ctx) return unauthorized();
   const { db, userId } = ctx;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
@@ -99,7 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
           if (Number(linked?.count||0)!==contactIds.length) return NextResponse.json({error:"Hay contactos inválidos"},{status:400});
         }
         await db.prepare("INSERT INTO activities (id,user_id,kind,title,body,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(id,userId,kind,title,nullable(body.body,30000),occurredAt,now,now).run();
-        for (const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id) VALUES (?,?)").bind(id,contactId).run();
+        for (const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id,user_id) VALUES (?,?,?)").bind(id,contactId,userId).run();
         break;
       }
       case "transactions": {
@@ -113,9 +104,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
         if (!isDateKey(occurredAt)) return NextResponse.json({error:"Fecha inválida"}, {status:400});
         const recurrence = parseRecurrence(body.recurrence, body.recurrenceEnd, occurredAt);
         if (typeof recurrence === "string") return NextResponse.json({error:recurrence}, {status:400});
-        await db.prepare("INSERT INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,userId,accountId,contactId,kind,amount,category,nullable(body.description),occurredAt,now).run();
         const receiptId = nullable(body.receiptId,80);
-        if (receiptId) await attachReceipt(db,userId,id,receiptId);
+        if (receiptId && !(await receiptLinkable(db, userId, receiptId, null))) return NextResponse.json({error:"Ticket inválido"}, {status:400});
+        await db.prepare("INSERT INTO financial_transactions (id,user_id,account_id,contact_id,kind,amount_minor,category,description,occurred_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,userId,accountId,contactId,kind,amount,category,nullable(body.description),occurredAt,now).run();
+        if (receiptId && !(await attachReceipt(db,userId,id,receiptId))) {
+          await db.prepare("DELETE FROM financial_transactions WHERE id=? AND user_id=?").bind(id, userId).run();
+          return NextResponse.json({error:"Ticket inválido"}, {status:400});
+        }
         if (recurrence) {
           await createRuleForTransaction(db,userId,id,{accountId,contactId,kind,amountMinor:amount,category,description:nullable(body.description),anchorDate:occurredAt,recurrence},now);
           await generateDue(db,userId,todayInBuenosAires(now),now);

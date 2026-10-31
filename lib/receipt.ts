@@ -5,8 +5,16 @@ import { isDateKey, addDays } from "./recurring.ts";
 export const RECEIPT_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 export const RECEIPT_CATEGORIES = ["Comida", "Supermercado", "Transporte", "Servicios", "Compras", "Salud", "Hogar", "Ocio", "Otros"] as const;
 export const RECEIPT_MIMES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
-export const MAX_RECEIPT_BYTES = 1_500_000;
+export const MAX_RECEIPT_BYTES = 1_400_000;
+/** Base64 of a max-size file is ~1.87e6 chars; stay under D1's 2_000_000-byte row cap once the other columns are added. */
+export const MAX_RECEIPT_BASE64_CHARS = 1_900_000;
+export const RECEIPT_TOO_BIG_MESSAGE = "El archivo pesa demasiado (máx. 1,4 MB). Probá con una foto o un PDF más liviano.";
 export const MAX_SCANS_PER_DAY = 60;
+
+export function isReceiptTooBigError(error: unknown): boolean {
+  const message = String(error).toLowerCase();
+  return message.includes("too big") || message.includes("too large") || message.includes("toobig");
+}
 
 export type ReceiptFields = {
   amountMinor: number | null;

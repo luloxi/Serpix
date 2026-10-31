@@ -3,7 +3,7 @@
 export const ACCOUNTS_SQL = "SELECT a.id, a.name, a.currency, a.opening_balance_minor AS openingBalanceMinor, a.opening_balance_minor + COALESCE((SELECT SUM(CASE WHEN t.kind = 'income' THEN t.amount_minor ELSE -t.amount_minor END) FROM financial_transactions t WHERE t.account_id = a.id AND t.user_id = a.user_id), 0) AS balanceMinor FROM financial_accounts a WHERE a.user_id = ? ORDER BY a.name";
 
 /** Unlimited aggregate. One row per currency + kind. No LIMIT. */
-export const TOTALS_SQL = "SELECT a.currency AS currency, t.kind AS kind, COALESCE(SUM(t.amount_minor), 0) AS totalMinor, COUNT(*) AS count FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id WHERE t.user_id = ? GROUP BY a.currency, t.kind";
+export const TOTALS_SQL = "SELECT a.currency AS currency, t.kind AS kind, COALESCE(SUM(t.amount_minor), 0) AS totalMinor, COUNT(*) AS count FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id AND a.user_id = t.user_id WHERE t.user_id = ? GROUP BY a.currency, t.kind";
 
 export type D1Bound = {
   first<T = Record<string, unknown>>(): Promise<T | null>;

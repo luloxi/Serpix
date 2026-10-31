@@ -113,7 +113,7 @@ export function itemFromTimeEntry(e: { id: string; taskTitle: string | null; des
   return { description: base.slice(0, 300), quantityMilli: Math.max(10, Math.round(hours * 1000)), unitPriceMinor: e.hourlyRateMinor, timeEntryId: e.id };
 }
 
-export const LIST_SQL = "SELECT d.id, d.doc_type AS type, d.number, d.contact_id AS contactId, c.name AS contactName, c.email AS contactEmail, c.phone AS contactPhone, d.issue_date AS issueDate, d.due_date AS dueDate, d.currency, d.notes, d.status, d.source_quote_id AS sourceQuoteId, (SELECT i.id FROM documents i WHERE i.source_quote_id = d.id AND i.user_id = d.user_id) AS invoiceId, d.transaction_id AS transactionId, d.paid_at AS paidAt, d.created_at AS createdAt, COALESCE((SELECT SUM(CAST(ROUND(x.quantity_milli * x.unit_price_minor / 1000.0) AS INTEGER)) FROM document_items x WHERE x.document_id = d.id), 0) AS totalMinor FROM documents d LEFT JOIN contacts c ON c.id = d.contact_id WHERE d.user_id = ?";
+export const LIST_SQL = "SELECT d.id, d.doc_type AS type, d.number, d.contact_id AS contactId, c.name AS contactName, c.email AS contactEmail, c.phone AS contactPhone, d.issue_date AS issueDate, d.due_date AS dueDate, d.currency, d.notes, d.status, d.source_quote_id AS sourceQuoteId, (SELECT i.id FROM documents i WHERE i.source_quote_id = d.id AND i.user_id = d.user_id) AS invoiceId, d.transaction_id AS transactionId, d.paid_at AS paidAt, d.created_at AS createdAt, COALESCE((SELECT SUM(CAST(ROUND(x.quantity_milli * x.unit_price_minor / 1000.0) AS INTEGER)) FROM document_items x WHERE x.document_id = d.id AND x.user_id = d.user_id), 0) AS totalMinor FROM documents d LEFT JOIN contacts c ON c.id = d.contact_id AND c.user_id = d.user_id WHERE d.user_id = ?";
 const ORDER_SQL = " ORDER BY d.doc_type, d.number DESC";
 
 export async function listDocuments(db: DocDb, userId: string) {
@@ -126,7 +126,7 @@ type DocRow = { id: string; type: DocType; number: number; contactId: string | n
 export async function getDocument(db: DocDb, userId: string, id: string): Promise<(DocRow & { items: (DocItemInput & { id: string })[] }) | null> {
   const doc = await db.prepare(LIST_SQL + " AND d.id = ?").bind(userId, id).first<DocRow>();
   if (!doc) return null;
-  const items = await db.prepare("SELECT i.id, i.description, i.quantity_milli AS quantityMilli, i.unit_price_minor AS unitPriceMinor, i.time_entry_id AS timeEntryId FROM document_items i WHERE i.document_id = ? ORDER BY i.position").bind(id).all<DocItemInput & { id: string }>();
+  const items = await db.prepare("SELECT i.id, i.description, i.quantity_milli AS quantityMilli, i.unit_price_minor AS unitPriceMinor, i.time_entry_id AS timeEntryId FROM document_items i WHERE i.document_id = ? AND i.user_id = ? ORDER BY i.position").bind(id, userId).all<DocItemInput & { id: string }>();
   return { ...doc, items: items.results ?? [] };
 }
 
@@ -137,19 +137,19 @@ async function checkRefs(db: DocDb, userId: string, input: DocInput, docId: stri
     const e = await db.prepare("SELECT e.id, e.currency FROM time_entries e WHERE e.id=? AND e.user_id=? AND e.billable=1").bind(it.timeEntryId, userId).first<{ id: string; currency: string }>();
     if (!e) return "Horas inválidas";
     if (e.currency !== input.currency) return "Las horas están en otra moneda";
-    const link = await db.prepare("SELECT document_id AS documentId FROM document_time_entries WHERE time_entry_id=?").bind(it.timeEntryId).first<{ documentId: string }>();
+    const link = await db.prepare("SELECT document_id AS documentId FROM document_time_entries WHERE time_entry_id=? AND user_id=?").bind(it.timeEntryId, userId).first<{ documentId: string }>();
     if (link && link.documentId !== docId) return "Esas horas ya están en otro comprobante";
   }
   return null;
 }
 
-async function writeItems(db: DocDb, docId: string, items: DocItemInput[]) {
-  await db.prepare("DELETE FROM document_time_entries WHERE document_id=?").bind(docId).run();
-  await db.prepare("DELETE FROM document_items WHERE document_id=?").bind(docId).run();
+async function writeItems(db: DocDb, userId: string, docId: string, items: DocItemInput[]) {
+  await db.prepare("DELETE FROM document_time_entries WHERE document_id=? AND user_id=?").bind(docId, userId).run();
+  await db.prepare("DELETE FROM document_items WHERE document_id=? AND user_id=?").bind(docId, userId).run();
   let pos = 0;
   for (const it of items) {
-    await db.prepare("INSERT INTO document_items (id,document_id,position,description,quantity_milli,unit_price_minor,time_entry_id) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(), docId, pos++, it.description, it.quantityMilli, it.unitPriceMinor, it.timeEntryId ?? null).run();
-    if (it.timeEntryId) await db.prepare("INSERT OR IGNORE INTO document_time_entries (time_entry_id, document_id) VALUES (?,?)").bind(it.timeEntryId, docId).run();
+    await db.prepare("INSERT INTO document_items (id,document_id,position,description,quantity_milli,unit_price_minor,time_entry_id,user_id) VALUES (?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(), docId, pos++, it.description, it.quantityMilli, it.unitPriceMinor, it.timeEntryId ?? null, userId).run();
+    if (it.timeEntryId) await db.prepare("INSERT OR IGNORE INTO document_time_entries (time_entry_id, document_id, user_id) VALUES (?,?,?)").bind(it.timeEntryId, docId, userId).run();
   }
 }
 
@@ -160,7 +160,7 @@ async function insertDoc(db: DocDb, userId: string, id: string, input: DocInput,
     "SELECT ?,?,?,COALESCE(MAX(number),0)+1,?,?,?,?,?,'draft',?,?,? FROM documents WHERE user_id=? AND doc_type=?",
   ).bind(id, userId, input.type, input.contactId, input.issueDate, input.dueDate, input.currency, input.notes, extra.sourceQuoteId ?? null, now, now, userId, input.type).run();
   if (r.meta.changes !== 1) throw new Error("document_insert_failed");
-  const row = await db.prepare("SELECT number FROM documents WHERE id=?").bind(id).first<{ number: number }>();
+  const row = await db.prepare("SELECT number FROM documents WHERE id=? AND user_id=?").bind(id, userId).first<{ number: number }>();
   return row?.number ?? 0;
 }
 
@@ -170,7 +170,7 @@ export async function createDocument(db: DocDb, userId: string, input: DocInput,
   const id = crypto.randomUUID();
   const number = await insertDoc(db, userId, id, input, extra, now);
   try {
-    await writeItems(db, id, input.items);
+    await writeItems(db, userId, id, input.items);
   } catch (e) {
     await db.prepare("DELETE FROM documents WHERE id=? AND user_id=?").bind(id, userId).run(); // nothing half-written
     throw e;
@@ -187,7 +187,7 @@ export async function updateDocument(db: DocDb, userId: string, id: string, inpu
   const bad = await checkRefs(db, userId, input, id);
   if (bad) return { status: 400, body: { error: bad } };
   await db.prepare("UPDATE documents SET contact_id=?,issue_date=?,due_date=?,currency=?,notes=?,updated_at=? WHERE id=? AND user_id=? AND status IN ('draft','sent')").bind(input.contactId, input.issueDate, input.dueDate, input.currency, input.notes, now, id, userId).run();
-  await writeItems(db, id, input.items);
+  await writeItems(db, userId, id, input.items);
   return { status: 200, body: { ok: true } };
 }
 
@@ -232,7 +232,7 @@ export async function convertQuote(db: DocDb, userId: string, quoteId: string, t
   if (q.type !== "quote") return { status: 400, body: { error: "Solo se convierten presupuestos" } };
   if (q.status === "void") return { status: 409, body: { error: "El presupuesto está anulado" } };
   if (q.invoiceId) {
-    const inv = await db.prepare("SELECT number FROM documents WHERE id=?").bind(q.invoiceId).first<{ number: number }>();
+    const inv = await db.prepare("SELECT number FROM documents WHERE id=? AND user_id=?").bind(q.invoiceId, userId).first<{ number: number }>();
     return { status: 200, body: { ok: true, id: q.invoiceId, number: inv?.number, existed: true } };
   }
   const input: DocInput = { type: "invoice", contactId: q.contactId, issueDate: today, dueDate: addDays(today, DEFAULT_DUE_DAYS), currency: q.currency, notes: q.notes, items: q.items.map((i) => ({ description: i.description, quantityMilli: i.quantityMilli, unitPriceMinor: i.unitPriceMinor, timeEntryId: null })) };
@@ -258,7 +258,7 @@ export async function deleteDocument(db: DocDb, userId: string, id: string): Pro
 export async function importableTimeEntries(db: DocDb, userId: string, contactId: string, currency: string, docId: string | null) {
   const r = await db.prepare(
     "SELECT e.id, t.title AS taskTitle, e.description, e.started_at AS startedAt, e.duration_ms AS durationMs, e.hourly_rate_minor AS hourlyRateMinor, e.amount_minor AS amountMinor, e.currency FROM time_entries e JOIN tasks t ON t.id = e.task_id AND t.user_id = e.user_id " +
-    "WHERE e.user_id = ? AND t.contact_id = ? AND e.billable = 1 AND e.currency = ? AND e.hourly_rate_minor > 0 AND NOT EXISTS (SELECT 1 FROM document_time_entries d WHERE d.time_entry_id = e.id AND d.document_id IS NOT ?) ORDER BY e.started_at",
+    "WHERE e.user_id = ? AND t.contact_id = ? AND e.billable = 1 AND e.currency = ? AND e.hourly_rate_minor > 0 AND NOT EXISTS (SELECT 1 FROM document_time_entries d WHERE d.time_entry_id = e.id AND d.user_id = e.user_id AND d.document_id IS NOT ?) ORDER BY e.started_at",
   ).bind(userId, contactId, currency, docId).all<{ id: string; taskTitle: string | null; description: string | null; startedAt: number; durationMs: number; hourlyRateMinor: number; amountMinor: number; currency: string }>();
   return (r.results ?? []).map((e) => ({ ...e, item: itemFromTimeEntry(e) }));
 }

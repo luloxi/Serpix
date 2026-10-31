@@ -1,5 +1,5 @@
 // Browser helpers for tickets: shrink photos before upload (phone cameras give 3-8 MB images).
-export const MAX_UPLOAD_BYTES = 1_500_000;
+export const MAX_UPLOAD_BYTES = 1_400_000;
 
 /** Re-encodes an image as JPEG (max 1400 px on the long side). Falls back to the original file when it cannot be decoded. */
 export async function shrinkImage(file: File, maxSide = 1400): Promise<Blob> {

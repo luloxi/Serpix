@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { approvedContext } from "@/lib/session";
-import { MAX_RECEIPT_BYTES, RECEIPT_MODEL, readReceipt, type AiLike } from "@/lib/receipt";
+import { isReceiptTooBigError, MAX_RECEIPT_BASE64_CHARS, MAX_RECEIPT_BYTES, RECEIPT_MODEL, RECEIPT_TOO_BIG_MESSAGE, readReceipt, type AiLike } from "@/lib/receipt";
 import { isReceiptMime, overScanLimit, scansToday, sniffMime } from "@/lib/receipts-db";
 import { todayInBuenosAires } from "@/lib/recurring";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try { form = await request.formData(); } catch { return json({ error: "Archivo inválido" }, 400); }
   const file = form.get("file");
   if (!(file instanceof File)) return json({ error: "Falta el archivo" }, 400);
-  if (file.size > MAX_RECEIPT_BYTES) return json({ error: "El archivo pesa demasiado (máx. 1,5 MB). Probá con una foto o un PDF más liviano." }, 413);
+  if (file.size > MAX_RECEIPT_BYTES) return json({ error: RECEIPT_TOO_BIG_MESSAGE }, 413);
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mime = sniffMime(bytes);
   if (!mime || !isReceiptMime(mime)) return json({ error: "Formato no admitido. Usá JPG, PNG, WebP o PDF." }, 415);
@@ -23,11 +23,18 @@ export async function POST(request: Request) {
   if (overScanLimit(await scansToday(ctx.db, ctx.userId, now))) return json({ error: "Llegaste al límite de tickets por día. Cargá el gasto a mano." }, 429);
 
   const base64 = Buffer.from(bytes).toString("base64");
+  if (base64.length > MAX_RECEIPT_BASE64_CHARS) return json({ error: RECEIPT_TOO_BIG_MESSAGE }, 413);
   const id = crypto.randomUUID();
   const ai = (ctx.env as unknown as { AI?: AiLike }).AI;
   const result = ai ? await readReceipt(ai, { mime, base64 }, todayInBuenosAires(now)) : ({ ok: false, reason: "sin_ia" } as const);
   if (!result.ok) console.warn("receipt_read_failed", { reason: result.reason });
-  await ctx.db.prepare("INSERT INTO receipts (id,user_id,transaction_id,mime,size,data,extracted,read_ok,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
-    .bind(id, ctx.userId, null, mime, bytes.length, base64, result.ok ? JSON.stringify(result.fields) : null, result.ok ? 1 : 0, now).run();
+  try {
+    await ctx.db.prepare("INSERT INTO receipts (id,user_id,transaction_id,mime,size,data,extracted,read_ok,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
+      .bind(id, ctx.userId, null, mime, bytes.length, base64, result.ok ? JSON.stringify(result.fields) : null, result.ok ? 1 : 0, now).run();
+  } catch (error) {
+    if (isReceiptTooBigError(error)) return json({ error: RECEIPT_TOO_BIG_MESSAGE }, 413);
+    console.error("receipt_insert_failed", String(error));
+    return json({ error: "No se pudo guardar el ticket" }, 500);
+  }
   return json({ receiptId: id, mime, ok: result.ok, fields: result.ok ? result.fields : null, model: RECEIPT_MODEL }, 201);
 }

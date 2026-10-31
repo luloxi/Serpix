@@ -26,7 +26,7 @@ export default function ReceiptField({ receiptId, onScanned, onRemove, onError }
     try {
       const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
       const body = isPdf ? file : await shrinkImage(file);
-      if (body.size > MAX_UPLOAD_BYTES) throw new Error("El archivo pesa demasiado (máx. 1,5 MB).");
+      if (body.size > MAX_UPLOAD_BYTES) throw new Error("El archivo pesa demasiado (máx. 1,4 MB).");
       const form = new FormData();
       form.append("file", body, isPdf ? "ticket.pdf" : "ticket.jpg");
       const response = await fetch("/api/receipts/scan", { method: "POST", body: form });

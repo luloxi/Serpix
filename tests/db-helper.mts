@@ -2,7 +2,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import type { D1Like } from "../lib/finance.ts";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "../migrations");
 
@@ -25,27 +24,32 @@ export function openDb() {
   const db = new DatabaseSync(":memory:");
   applyMigrations(db);
   db.exec("PRAGMA foreign_keys = ON");
-  const d1: D1Like = {
+  const d1 = {
     prepare(sql) {
-      return {
-        bind(...values) {
-          const stmt = db.prepare(sql);
-          const args = values.map((value) => (value === undefined ? null : value)) as Array<string | number | bigint | null>;
-          return {
-            async first<T>() {
-              const row = stmt.get(...(args as [])) as T | undefined;
-              return row ?? null;
-            },
-            async all<T>() {
-              return { results: stmt.all(...(args as [])) as T[] };
-            },
-            async run() {
-              const info = stmt.run(...(args as []));
-              return { meta: { changes: Number(info.changes) } };
-            },
-          };
-        },
+      const bound = (values: unknown[]) => {
+        const stmt = db.prepare(sql);
+        const args = values.map((value) => (value === undefined ? null : value)) as Array<string | number | bigint | null>;
+        return {
+          async first<T>() {
+            const row = stmt.get(...(args as [])) as T | undefined;
+            return row ?? null;
+          },
+          async all<T>() {
+            return { results: stmt.all(...(args as [])) as T[] };
+          },
+          async run() {
+            const info = stmt.run(...(args as []));
+            return { meta: { changes: Number(info.changes) } };
+          },
+        };
       };
+      // D1 statements expose all/first/run directly; bind() is optional when there are no placeholders.
+      return { ...bound([]), bind(...values: unknown[]) { return bound(values); } };
+    },
+    async batch(statements: Array<{ run: () => Promise<unknown> }>) {
+      const results = [];
+      for (const statement of statements) results.push(await statement.run());
+      return results;
     },
   };
   return { db, d1 };

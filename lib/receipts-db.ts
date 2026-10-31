@@ -22,8 +22,16 @@ export async function scansToday(db: D1Like, userId: string, now: number): Promi
 }
 export const overScanLimit = (n: number) => n >= MAX_SCANS_PER_DAY;
 
-/** Links an uploaded receipt to a movement. Only the owner's unlinked (or already linked to this movement) receipt qualifies. */
+/** True when this user can attach the receipt (theirs, and free or already on this movement). */
+export async function receiptLinkable(db: D1Like, userId: string, receiptId: string, transactionId: string | null): Promise<boolean> {
+  const row = await db.prepare("SELECT id FROM receipts WHERE id=? AND user_id=? AND (transaction_id IS NULL OR transaction_id=?)").bind(receiptId, userId, transactionId).first();
+  return Boolean(row);
+}
+
+/** Links an uploaded receipt to a movement. Only the owner's unlinked (or already linked to this movement) receipt qualifies, and only onto the owner's movement. */
 export async function attachReceipt(db: D1Like, userId: string, transactionId: string, receiptId: string): Promise<boolean> {
+  const tx = await db.prepare("SELECT id FROM financial_transactions WHERE id=? AND user_id=?").bind(transactionId, userId).first();
+  if (!tx) return false;
   await db.prepare("DELETE FROM receipts WHERE transaction_id=? AND user_id=? AND id<>?").bind(transactionId, userId, receiptId).run();
   const result = await db.prepare("UPDATE receipts SET transaction_id=? WHERE id=? AND user_id=? AND (transaction_id IS NULL OR transaction_id=?)").bind(transactionId, receiptId, userId, transactionId).run();
   return result.meta.changes > 0;

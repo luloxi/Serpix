@@ -1,7 +1,5 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext } from "@/lib/session";
 import { pauseTimer, resumeTimer, startTimer, type TimerState } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -10,14 +8,6 @@ type TimerRow = { startedAt: number; segmentStart: number | null; accumulatedMs:
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
-}
-
-async function context() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return null;
-  const { env } = await getCloudflareContext({ async: true });
-  return { db: env.DB, userId: session.user.id };
 }
 
 function toTimer(row: TimerRow): TimerState {
@@ -31,14 +21,14 @@ function toTimer(row: TimerRow): TimerState {
 const SELECT = "SELECT started_at AS startedAt, segment_start AS segmentStart, accumulated_ms AS accumulatedMs FROM timer_state WHERE user_id=?";
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await approvedContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
   const row = await ctx.db.prepare(SELECT).bind(ctx.userId).first<TimerRow>();
   return json({ timer: row ? toTimer(row) : null, serverNow: Date.now() });
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await approvedContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
   let body: { action?: unknown };
   try { body = await request.json() as { action?: unknown }; } catch { return json({ error: "Invalid JSON" }, 400); }

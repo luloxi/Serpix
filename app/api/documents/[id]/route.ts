@@ -1,23 +1,13 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext, unauthorized } from "@/lib/session";
 import { todayBA } from "@/lib/agenda-dates";
 import { convertQuote, deleteDocument, getDocument, isOverdue, parseDocInput, payDocument, setStatus, updateDocument } from "@/lib/documents";
 
 export const dynamic = "force-dynamic";
-async function context() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return null;
-  const { env } = await getCloudflareContext({ async: true });
-  return { userId: session.user.id, db: env.DB };
-}
-const unauthorized = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
-  const c = await context(); if (!c) return unauthorized();
+  const c = await approvedContext(); if (!c) return unauthorized();
   const { id } = await params;
   const doc = await getDocument(c.db, c.userId, id);
   if (!doc) return NextResponse.json({ error: "Comprobante inexistente" }, { status: 404 });
@@ -26,7 +16,7 @@ export async function GET(_req: Request, { params }: Params) {
 
 // Body: { action: "save" | "status" | "pay" | "convert", ... }
 export async function PATCH(request: Request, { params }: Params) {
-  const c = await context(); if (!c) return unauthorized();
+  const c = await approvedContext(); if (!c) return unauthorized();
   const { id } = await params;
   let b: Record<string, unknown>;
   try { b = await request.json(); } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }); }
@@ -48,7 +38,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  const c = await context(); if (!c) return unauthorized();
+  const c = await approvedContext(); if (!c) return unauthorized();
   const { id } = await params;
   const r = await deleteDocument(c.db, c.userId, id);
   return NextResponse.json(r.body, { status: r.status });

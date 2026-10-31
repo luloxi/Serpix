@@ -50,7 +50,7 @@ for (const t of data.tasks || []) {
 const activity = (kind, title, occurredAt, body, linked) => {
   const id = uuid(kind, title);
   sql.push(`INSERT INTO activities (id,user_id,kind,title,body,occurred_at,created_at,updated_at) SELECT ${q(id)},${q(userId)},${q(kind)},${q(title)},${q(body)},${q(occurredAt)},${now},${now} WHERE NOT EXISTS (SELECT 1 FROM activities WHERE user_id=${q(userId)} AND kind=${q(kind)} AND title=${q(title)} COLLATE NOCASE);`);
-  if (linked) sql.push(`INSERT OR IGNORE INTO activity_contacts (activity_id,contact_id) SELECT ${q(id)}, c.id FROM contacts c WHERE c.user_id=${q(userId)} AND c.name=${q(linked)} COLLATE NOCASE AND EXISTS (SELECT 1 FROM activities WHERE id=${q(id)} AND user_id=${q(userId)});`);
+  if (linked) sql.push(`INSERT OR IGNORE INTO activity_contacts (activity_id,contact_id,user_id) SELECT ${q(id)}, c.id, ${q(userId)} FROM contacts c WHERE c.user_id=${q(userId)} AND c.name=${q(linked)} COLLATE NOCASE AND EXISTS (SELECT 1 FROM activities WHERE id=${q(id)} AND user_id=${q(userId)});`);
 };
 for (const e of data.events || []) {
   const s = parseDateTime(e.start), f = parseDateTime(e.end);

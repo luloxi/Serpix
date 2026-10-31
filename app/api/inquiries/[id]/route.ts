@@ -1,7 +1,5 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext, unauthorized } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 type Row = { id: string; name: string; email: string; message: string; status: string; contactId: string | null; createdAt: number };
@@ -9,13 +7,11 @@ type Row = { id: string; name: string; email: string; message: string; status: s
 // Actions on one inquiry of the signed-in owner: read | unread | archive | unarchive | convert.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await approvedContext();
+  if (!ctx) return unauthorized();
   let body: { action?: unknown };
   try { body = await request.json() as { action?: unknown }; } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-  const { env } = await getCloudflareContext({ async: true });
-  const db = env.DB, userId = session.user.id, now = Date.now();
+  const db = ctx.db, userId = ctx.userId, now = Date.now();
   const row = await db.prepare("SELECT id, name, email, message, status, contact_id AS contactId, created_at AS createdAt FROM inquiries WHERE id=? AND user_id=?").bind(id, userId).first<Row>();
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   switch (body.action) {

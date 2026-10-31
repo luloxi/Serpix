@@ -1,7 +1,5 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getAuth } from "@/lib/auth";
+import { approvedContext } from "@/lib/session";
 import { entryAmountMinor, parseTimeEntryBody } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -10,16 +8,8 @@ function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-async function context() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.approvalStatus !== "approved") return null;
-  const { env } = await getCloudflareContext({ async: true });
-  return { db: env.DB, userId: session.user.id };
-}
-
 export async function GET() {
-  const ctx = await context();
+  const ctx = await approvedContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
   const result = await ctx.db.prepare(
     "SELECT e.id, e.task_id AS taskId, t.title AS taskTitle, e.started_at AS startedAt, e.ended_at AS endedAt, e.duration_ms AS durationMs, e.billable AS billable, e.hourly_rate_minor AS hourlyRateMinor, e.amount_minor AS amountMinor, e.currency AS currency, e.description AS description, e.created_at AS createdAt FROM time_entries e LEFT JOIN tasks t ON t.id = e.task_id AND t.user_id = e.user_id WHERE e.user_id = ? ORDER BY e.started_at DESC, e.created_at DESC LIMIT 300",
@@ -28,7 +18,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await approvedContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
   let raw: unknown;
   try { raw = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
