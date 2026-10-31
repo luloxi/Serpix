@@ -1,5 +1,5 @@
 // Receipt storage helpers shared by the API routes (pure D1 logic; testable with node:sqlite).
-import type { D1Like } from "./finance.ts";
+import { TX_VISIBLE, type D1Like } from "./finance.ts";
 import { MAX_SCANS_PER_DAY, RECEIPT_MIMES } from "./receipt.ts";
 
 export function sniffMime(bytes: Uint8Array): string | null {
@@ -30,7 +30,7 @@ export async function receiptLinkable(db: D1Like, userId: string, receiptId: str
 
 /** Links an uploaded receipt to a movement. Only the owner's unlinked (or already linked to this movement) receipt qualifies, and only onto the owner's movement. */
 export async function attachReceipt(db: D1Like, userId: string, transactionId: string, receiptId: string): Promise<boolean> {
-  const tx = await db.prepare("SELECT id FROM financial_transactions WHERE id=? AND user_id=?").bind(transactionId, userId).first();
+  const tx = await db.prepare("SELECT t.id FROM financial_transactions t WHERE t.id=? AND t.user_id=? AND " + TX_VISIBLE).bind(transactionId, userId).first();
   if (!tx) return false;
   await db.prepare("DELETE FROM receipts WHERE transaction_id=? AND user_id=? AND id<>?").bind(transactionId, userId, receiptId).run();
   const result = await db.prepare("UPDATE receipts SET transaction_id=? WHERE id=? AND user_id=? AND (transaction_id IS NULL OR transaction_id=?)").bind(transactionId, receiptId, userId, transactionId).run();
