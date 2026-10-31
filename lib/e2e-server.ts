@@ -24,6 +24,25 @@ export const NOT_FOUND = "No encontrado";
 export const BAD_QUERY = "Consulta inválida";
 export const REPLACE_PASSWORD_ONLY = "Solo se reemplaza la envoltura de contraseña";
 export const SCAN_AI_WARNING = "El ticket viaja sin cifrar a Workers AI para leerlo.";
+/** First wrap only. Rows stay where they are: there is no migration yet. */
+export const LEGACY_DATA_ERROR = "Tu cuenta ya tiene datos sin cifrar. La migración al modo cifrado todavía no está disponible.";
+
+/**
+ * Plaintext tables that block the first wrap. Names are fixed identifiers, never request input.
+ * `financial_transactions` and `financial_accounts` are the real table names.
+ */
+export const LEGACY_TABLES = [
+  "contacts",
+  "financial_transactions",
+  "documents",
+  "time_entries",
+  "receipts",
+  "recurring_rules",
+  "activities",
+  "projects",
+  "tasks",
+  "financial_accounts",
+] as const;
 
 export const MAX_BLOB_CHARS = 1_900_000;
 export const MAX_ROWS_PER_COLLECTION = 50_000;
@@ -302,6 +321,18 @@ export async function encryptionMode(db: D1Like, userId: string): Promise<"serve
   return row?.mode === "e2e" ? "e2e" : "server";
 }
 
+function legacyTable(name: string): string {
+  if (!(LEGACY_TABLES as readonly string[]).includes(name)) throw new Error("unknown legacy table");
+  return name;
+}
+
+/** True when this user still has any plaintext row. Read-only: nothing is deleted. */
+export async function hasLegacyData(db: D1Like, userId: string): Promise<boolean> {
+  const checks = LEGACY_TABLES.map((table) => `EXISTS (SELECT 1 FROM ${legacyTable(table)} WHERE user_id = ?)`).join(" OR ");
+  const row = await db.prepare(`SELECT 1 AS n WHERE ${checks}`).bind(...LEGACY_TABLES.map(() => userId)).first<{ n: number }>();
+  return row != null;
+}
+
 const BUMP_SQL = `INSERT INTO e2e_counters (user_id, kind, value)
 SELECT ?1, 'seq', 1
 WHERE (
@@ -462,8 +493,9 @@ export async function nextCounter(db: D1Like, userId: string, kind: "quote" | "i
   return value;
 }
 
-export async function listKeys(db: D1Like, userId: string): Promise<{ mode: "server" | "e2e"; wraps: WrapView[] }> {
+export async function listKeys(db: D1Like, userId: string): Promise<{ mode: "server" | "e2e"; legacyData: boolean; wraps: WrapView[] }> {
   const mode = await encryptionMode(db, userId);
+  const legacyData = await hasLegacyData(db, userId);
   const rows = (await db.prepare(
     "SELECT id, type, wrap, credential_id AS credentialId, created_at AS createdAt, last_used_at AS lastUsedAt FROM user_keys WHERE user_id=? ORDER BY created_at ASC, id ASC",
   ).bind(userId).all<{ id: string; type: string; wrap: string; credentialId: string | null; createdAt: number; lastUsedAt: number | null }>()).results ?? [];
@@ -475,7 +507,7 @@ export async function listKeys(db: D1Like, userId: string): Promise<{ mode: "ser
     createdAt: Number(row.createdAt),
     lastUsedAt: row.lastUsedAt == null ? null : Number(row.lastUsedAt),
   }));
-  return { mode, wraps };
+  return { mode, legacyData, wraps };
 }
 
 async function userMode(db: D1Like, userId: string): Promise<{ role: string; mode: string } | null> {
@@ -499,8 +531,14 @@ export async function addWrap(
   const wrapJson = storedWrap(validated.wrap);
   if (account.mode !== "e2e") {
     if (input.type !== "password") return fail(400, FIRST_WRAP_ERROR);
+    // Refuse before the mode flip. The WHERE clause is the same check, so a row inserted
+    // between the read and the batch cannot sneak the account into e2e. Nothing is deleted.
+    if (await hasLegacyData(db, userId)) return fail(409, LEGACY_DATA_ERROR);
+    const guard = LEGACY_TABLES.map((table) => `NOT EXISTS (SELECT 1 FROM ${legacyTable(table)} WHERE user_id=?)`).join(" AND ");
     const batch = withBatch(db);
-    const update = batch.prepare("UPDATE user SET encryption_mode='e2e' WHERE id=? AND role!='admin' AND encryption_mode='server'").bind(userId);
+    const update = batch.prepare(
+      `UPDATE user SET encryption_mode='e2e' WHERE id=? AND role!='admin' AND encryption_mode='server' AND ${guard}`,
+    ).bind(userId, ...LEGACY_TABLES.map(() => userId));
     const insert = batch.prepare(
       "INSERT INTO user_keys (id, user_id, type, wrap, credential_id, created_at, last_used_at) SELECT ?, ?, 'password', ?, ?, ?, NULL WHERE changes()=1",
     ).bind(id, userId, wrapJson, null, now);
@@ -511,6 +549,7 @@ export async function addWrap(
       if (isConstraint(error)) return fail(409, String(error).includes("user_keys_one_password") ? PASSWORD_EXISTS_ERROR : ID_IN_USE);
       throw error;
     }
+    if (await hasLegacyData(db, userId)) return fail(409, LEGACY_DATA_ERROR);
     return fail(409, "No se pudo activar el cifrado");
   }
   const inserted = db.prepare(

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { DatabaseSync } from "node:sqlite";
 import { AI_CUTOFF_NEURONS, AI_DISABLED_MESSAGE, AI_GLOBAL_LIMIT_MESSAGE, INVITEE_RECEIPT_SCANS_PER_DAY, NEURONS_PER_SCAN_ESTIMATE, SCAN_LIMIT_MESSAGE, utcDay } from "../lib/ai-quota.ts";
-import { BLOB_TOO_BIG_ERROR, E2E_NOT_ENABLED, ENVELOPE_ERROR, SCAN_AI_WARNING, TOMBSTONE_BLOB } from "../lib/e2e-server.ts";
+import { BLOB_TOO_BIG_ERROR, E2E_NOT_ENABLED, ENVELOPE_ERROR, LEGACY_DATA_ERROR, SCAN_AI_WARNING, TOMBSTONE_BLOB } from "../lib/e2e-server.ts";
 import { RECEIPT_TOO_BIG_MESSAGE } from "../lib/receipt.ts";
 import { todayInBuenosAires } from "../lib/recurring.ts";
 import { asUser, call, locked, setEnv } from "./route-harness.mts";
@@ -149,7 +149,7 @@ test("keys: activation, limits, replace, touch, delete and isolation", async () 
     asUser("ana");
     const empty = await call(routes.keys, "GET", base + "/api/e2e/keys");
     assert.equal(empty.status, 200);
-    assert.deepEqual(empty.body, { mode: "server", wraps: [] });
+    assert.deepEqual(empty.body, { mode: "server", wraps: [], legacyData: false });
     noStore(empty.headers);
 
     const early = await call(routes.keys, "POST", base + "/api/e2e/keys", { json: { type: "passkey", wrap: passkeyWrap(), credentialId: "credAna" } });
@@ -208,7 +208,7 @@ test("keys: activation, limits, replace, touch, delete and isolation", async () 
     const anaWraps = JSON.stringify(rows(db, "SELECT * FROM user_keys WHERE user_id='ana' ORDER BY id"));
     asUser("beto");
     const betoList = await call(routes.keys, "GET", base + "/api/e2e/keys");
-    assert.deepEqual(betoList.body, { mode: "server", wraps: [] });
+    assert.deepEqual(betoList.body, { mode: "server", wraps: [], legacyData: false });
     const stealPut = await call(routes.key, "PUT", base + "/api/e2e/keys/pw", { params: { id: "pw" }, json: { wrap: passwordWrap(20000) } });
     const stealPatch = await call(routes.key, "PATCH", base + "/api/e2e/keys/k1", { params: { id: "k1" }, json: { touch: true } });
     const stealDel = await call(routes.key, "DELETE", base + "/api/e2e/keys/k1", { params: { id: "k1" } });
@@ -217,6 +217,37 @@ test("keys: activation, limits, replace, touch, delete and isolation", async () 
     assert.equal(stealDel.status, 404);
     assert.equal(JSON.stringify(rows(db, "SELECT * FROM user_keys WHERE user_id='ana' ORDER BY id")), anaWraps);
     assert.equal((db.prepare("SELECT wrap AS m FROM user_keys WHERE id='pw'").get() as { m: string }).m.includes("19456"), true);
+    assert.equal((listed.body as { legacyData: boolean }).legacyData, false);
+  });
+});
+
+test("keys: plaintext rows block activation and stay in the account", async () => {
+  await locked(async () => {
+    const { db, d1 } = openDb();
+    user(db, "ana");
+    user(db, "beto");
+    db.prepare("INSERT INTO contacts (id,user_id,kind,name,created_at,updated_at) VALUES (?,?,?,?,?,?)").run("c-ana", "ana", "person", "Ana", 1, 1);
+    setEnv(d1);
+    const routes = await api();
+    asUser("ana");
+    const listed = await call(routes.keys, "GET", base + "/api/e2e/keys");
+    assert.equal(listed.status, 200);
+    assert.equal((listed.body as { mode: string; legacyData: boolean }).mode, "server");
+    assert.equal((listed.body as { legacyData: boolean }).legacyData, true);
+    noStore(listed.headers);
+    const blocked = await call(routes.keys, "POST", base + "/api/e2e/keys", { json: { type: "password", wrap: passwordWrap(), id: "pw" } });
+    assert.equal(blocked.status, 409);
+    assert.deepEqual(blocked.body, { error: LEGACY_DATA_ERROR });
+    assert.equal(JSON.stringify(blocked.body).includes("password"), false);
+    assert.equal((db.prepare("SELECT encryption_mode AS m FROM user WHERE id='ana'").get() as { m: string }).m, "server");
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM user_keys WHERE user_id='ana'").get() as { n: number }).n, 0);
+    assert.equal((db.prepare("SELECT name FROM contacts WHERE id='c-ana'").get() as { name: string }).name, "Ana");
+    asUser("beto");
+    const other = await call(routes.keys, "GET", base + "/api/e2e/keys");
+    assert.deepEqual(other.body, { mode: "server", wraps: [], legacyData: false });
+    const created = await call(routes.keys, "POST", base + "/api/e2e/keys", { json: { type: "password", wrap: passwordWrap(), id: "pw-beto" } });
+    assert.equal(created.status, 201);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM contacts WHERE id='c-ana'").get() as { n: number }).n, 1);
   });
 });
 

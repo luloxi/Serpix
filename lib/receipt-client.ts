@@ -33,6 +33,17 @@ export type ScanResponse = {
   message?: string;
 };
 
+export const AI_READ_LABEL = "Leer el ticket con IA";
+export const AI_READ_WARNING = "El ticket viaja sin cifrar a Workers AI para leerlo. Si no lo marcás, el ticket se guarda cifrado y lo cargás a mano.";
+
+/** Scan upload. `ai=1` is sent only when the box is checked. Server mode omits the field. */
+export function buildReceiptScanForm(input: { file: Blob; filename: string; ai?: boolean }): FormData {
+  const form = new FormData();
+  form.append("file", input.file, input.filename);
+  if (input.ai === true) form.append("ai", "1");
+  return form;
+}
+
 /** Server note for a stored ticket that skipped AI. Empty for the normal read / unread cases. */
 export function scanInfoNote(data: { ok?: boolean; aiStatus?: string | null; message?: string | null }): string {
   if (data.ok !== false) return "";
