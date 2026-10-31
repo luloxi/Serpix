@@ -462,7 +462,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:700px){
   .add-menu-wrap{right:18px;bottom:calc(94px + env(safe-area-inset-bottom));width:60px;height:60px}
   .add-trigger{width:60px!important;height:60px!important;border-radius:21px!important}
-  .main-area{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+  .main-area{padding-bottom:84px}
 }
 @media(prefers-reduced-motion:reduce){.add-trigger{transition:none}}
 
@@ -620,7 +620,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* Larger type and tighter layout: legibility without wasting screen space. */
 html,body{font-size:16px} body{line-height:1.5}
-.main-area{padding:26px clamp(20px,3vw,44px) 48px}
+.main-area{padding:26px clamp(20px,3vw,44px) 96px}
 .topbar{padding-bottom:15px;margin-bottom:20px}.topbar h1{font-size:29px;letter-spacing:-.7px}
 .eyebrow,.topbar .eyebrow{font-size:11px;letter-spacing:1.1px}
 .welcome{margin:0 0 16px;padding:17px 20px}.welcome h2{font-size:27px}.welcome p:not(.eyebrow){font-size:14px}
@@ -698,7 +698,8 @@ button:disabled,select:disabled,input:disabled{cursor:not-allowed}
 @media(max-width:700px){
   .sidebar nav{gap:0}
   .nav-item,.profile-nav-item{font-size:11px!important;letter-spacing:-.1px;padding-left:0;padding-right:0}
-  .main-area{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  /* The fixed bottom nav is already cleared by .app-shell (76px + safe area); this only clears the + button (top edge ~146px + safe area) and the Agenda Hoy pill, plus a small margin. */
+  .main-area{padding-bottom:84px}
   .add-menu-wrap{bottom:calc(86px + env(safe-area-inset-bottom))!important}
   .data-table{min-width:0}
   .table-head{display:none}
@@ -1031,7 +1032,6 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .agenda-nothing{margin:2px 0 6px;font-size:12px;color:var(--muted)}
 .agenda-more{align-self:center;justify-self:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);padding:6px 14px;font-size:12px;font-weight:650;cursor:pointer}
 .agenda-more:hover{border-color:var(--accent);color:var(--accent)}
-.agenda-spacer{min-height:34svh}
 .agenda-fab{position:fixed;z-index:34;right:96px;bottom:34px;display:flex;gap:8px;align-items:center}
 @media (max-width:860px){.agenda-fab{right:90px;bottom:calc(104px + env(safe-area-inset-bottom))}}
 .agenda-pill{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:750;box-shadow:0 6px 18px rgba(20,30,55,.18);cursor:pointer}

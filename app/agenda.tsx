@@ -221,7 +221,6 @@ export default function Agenda({ tasks, activities, onToggleTask, onEditTask, on
       {t.undatedList.length > 0 && <section className="panel agenda-group"><h3>Sin fecha</h3>{t.undatedList.map(e => list
         ? <div key={e.key} className="agenda-list-item">{renderRow(e)}<span className="row-actions"><button type="button" onClick={() => e.kind === "task" ? onDeleteTask(e.source) : onDeleteActivity(e.source)} aria-label="Eliminar" title="Eliminar">Eliminar</button></span></div>
         : <div key={e.key} className="agenda-row-wrap">{renderRow(e)}</div>)}</section>}
-      <div className="agenda-spacer" aria-hidden="true" />
     </>;
   };
 
