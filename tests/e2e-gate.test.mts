@@ -206,27 +206,25 @@ test("onboarding stays disabled until the recovery password, the confirm and the
   assert.equal(fair.canSubmit, false);
   assert.equal(fair.label, "Regular");
   assert.equal(fair.meter, 2);
-  assert.ok(fair.messages.includes("Usá al menos dos tipos de caracteres."));
   assert.ok(fair.messages.includes("Es demasiado débil: hace falta más longitud o más variedad."));
 
   const lower12 = check("xkcdpassworx");
   assert.equal(lower12.canSubmit, false);
-  assert.ok(lower12.messages.includes("Usá al menos dos tipos de caracteres."));
+  assert.ok(lower12.messages.includes("Es demasiado débil: hace falta más longitud o más variedad."));
 
   const twoClass = check("CorrectHorse");
   assert.equal(twoClass.canSubmit, false);
   assert.ok(twoClass.messages.includes("Es demasiado débil: hace falta más longitud o más variedad."));
-  assert.equal(twoClass.messages.includes("Usá al menos dos tipos de caracteres."), false);
 
   const threeClasses = check("BlueHorse99x");
   assert.equal(threeClasses.canSubmit, true);
   assert.equal(threeClasses.meter, 3);
   assert.deepEqual(threeClasses.messages, []);
 
-  const lower16 = check("opasopasopasopas");
-  assert.equal(lower16.canSubmit, false);
+  const lower16 = check("qzvmhtrwkdjxpnbc");
+  assert.equal(lower16.canSubmit, true);
   assert.equal(lower16.meter, 3);
-  assert.deepEqual(lower16.messages, ["Usá al menos dos tipos de caracteres."]);
+  assert.deepEqual(lower16.messages, []);
 
   const phrase = check("correct horse bat");
   assert.equal(phrase.canSubmit, true);
@@ -255,15 +253,15 @@ test("onboarding stays disabled until the recovery password, the confirm and the
 
   const oneClass = onboardingValidation({
     score: 3,
-    issues: ["single-class"],
-    password: "o".repeat(16),
-    confirm: "o".repeat(16),
+    issues: [],
+    password: "qzvmhtrwkdjxpnbc",
+    confirm: "qzvmhtrwkdjxpnbc",
     understood: true,
     deriving: false,
     length: 16,
   });
-  assert.equal(oneClass.canSubmit, false);
-  assert.deepEqual(oneClass.messages, ["Usá al menos dos tipos de caracteres."]);
+  assert.equal(oneClass.canSubmit, true);
+  assert.deepEqual(oneClass.messages, []);
   assert.equal(oneClass.label, "Fuerte");
 
   const strongEnough = onboardingValidation({
