@@ -50,13 +50,9 @@ export function encryptedAccount() {
   return NextResponse.json({ error: ENCRYPTED_ACCOUNT_ERROR }, { status: 403, headers: { "Cache-Control": "no-store" } });
 }
 
-/** Same message as the server triggers. The local database does not install those triggers. */
-export const E2E_PLAINTEXT_WRITE = "e2e_account_plaintext_write";
+import { E2E_PLAINTEXT_WRITE, isE2ePlaintextWrite } from "../plaintext-error.ts";
 
-export function isE2ePlaintextWrite(error: unknown): boolean {
-  const message = error instanceof Error ? error.message + " " + String(error.cause ?? "") : String(error);
-  return message.includes(E2E_PLAINTEXT_WRITE);
-}
+export { E2E_PLAINTEXT_WRITE, isE2ePlaintextWrite };
 
 export function encryptedWriteResponse(error: unknown) {
   return isE2ePlaintextWrite(error) ? encryptedAccount() : null;

@@ -79,13 +79,9 @@ export function encryptedAccount() {
   return NextResponse.json({ error: ENCRYPTED_ACCOUNT_ERROR }, { status: 403, headers: { "Cache-Control": "no-store" } });
 }
 
-/** Raised by the plaintext-write triggers (migration 0016) when the account is not in server mode. */
-export const E2E_PLAINTEXT_WRITE = "e2e_account_plaintext_write";
+import { E2E_PLAINTEXT_WRITE, isE2ePlaintextWrite } from "@/lib/e2e/plaintext-error";
 
-export function isE2ePlaintextWrite(error: unknown): boolean {
-  const message = error instanceof Error ? error.message + " " + String(error.cause ?? "") : String(error);
-  return message.includes(E2E_PLAINTEXT_WRITE);
-}
+export { E2E_PLAINTEXT_WRITE, isE2ePlaintextWrite };
 
 /** The same 403 as encryptedAccount() when a plaintext INSERT/UPDATE was aborted. Null for every other error. */
 export function encryptedWriteResponse(error: unknown) {
