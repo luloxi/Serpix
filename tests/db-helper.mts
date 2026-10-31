@@ -3,6 +3,28 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
+/** One transaction per batch, and batches on this connection run one at a time (as D1 does). */
+export function makeBatch(db: DatabaseSync) {
+  let tail: Promise<unknown> = Promise.resolve();
+  return function batch(statements: Array<{ run: () => Promise<{ meta: { changes: number } }> }>) {
+    const run = async () => {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const results = [];
+        for (const statement of statements) results.push(await statement.run());
+        db.exec("COMMIT");
+        return results;
+      } catch (error) {
+        try { db.exec("ROLLBACK"); } catch { /* nothing to roll back */ }
+        throw error;
+      }
+    };
+    const next = tail.then(run, run);
+    tail = next.then(() => undefined, () => undefined);
+    return next;
+  };
+}
+
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "../migrations");
 
 function applyMigrations(db: DatabaseSync) {
@@ -46,11 +68,7 @@ export function openDb() {
       // D1 statements expose all/first/run directly; bind() is optional when there are no placeholders.
       return { ...bound([]), bind(...values: unknown[]) { return bound(values); } };
     },
-    async batch(statements: Array<{ run: () => Promise<unknown> }>) {
-      const results = [];
-      for (const statement of statements) results.push(await statement.run());
-      return results;
-    },
+    batch: makeBatch(db),
   };
   return { db, d1 };
 }

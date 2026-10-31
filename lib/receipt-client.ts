@@ -29,4 +29,13 @@ export type ScanResponse = {
   receiptId: string;
   ok: boolean;
   fields: { amountMinor: number | null; currency: "ARS" | "USD" | null; date: string | null; merchant: string | null; category: string | null } | null;
+  aiStatus?: "disabled" | "global_limit";
+  message?: string;
 };
+
+/** Server note for a stored ticket that skipped AI. Empty for the normal read / unread cases. */
+export function scanInfoNote(data: { ok?: boolean; aiStatus?: string | null; message?: string | null }): string {
+  if (data.ok !== false) return "";
+  if (data.aiStatus !== "disabled" && data.aiStatus !== "global_limit") return "";
+  return typeof data.message === "string" ? data.message : "";
+}

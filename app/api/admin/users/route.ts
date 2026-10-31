@@ -9,8 +9,17 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const result = await ctx.db.prepare(
-    "SELECT id, name, email, approvalStatus, createdAt FROM user ORDER BY createdAt DESC"
-  ).all();
+    "SELECT id, name, email, approvalStatus, role, createdAt, ai_receipts_enabled AS aiReceipts FROM user ORDER BY createdAt DESC"
+  ).all<{ id: string; name: string; email: string; approvalStatus: string; role: string; createdAt: number; aiReceipts: number }>();
 
-  return NextResponse.json({ users: result.results });
+  const users = (result.results ?? []).map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    approvalStatus: user.approvalStatus,
+    role: user.role,
+    createdAt: user.createdAt,
+    aiReceipts: Number(user.aiReceipts) === 1,
+  }));
+  return NextResponse.json({ users });
 }

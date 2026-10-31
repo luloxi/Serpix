@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import type { D1Like } from "../lib/finance.ts";
+import { makeBatch } from "./db-helper.mts";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "../migrations");
 
@@ -30,6 +31,7 @@ export function openDb() {
         },
       };
     },
+    batch: makeBatch(db),
   };
   return { db, d1 };
 }

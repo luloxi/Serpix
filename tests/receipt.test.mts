@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { scanInfoNote } from "../lib/receipt-client.ts";
 import { RECEIPT_MODEL, parseAmountMinor, parseDateLoose, parseReceiptReply, readReceipt, type AiLike } from "../lib/receipt.ts";
 import { attachReceipt, isReceiptMime, overScanLimit, purgeOrphanReceipts, scansToday, sniffMime } from "../lib/receipts-db.ts";
 import { account, openDb, user } from "./db-helper.mts";
@@ -121,4 +122,11 @@ test("parseDateLoose reads ISO and day-first dates", () => {
   assert.equal(parseDateLoose("31/02/2026"), null);
   assert.equal(parseDateLoose("ayer"), null);
   assert.equal(parseDateLoose(null), null);
+});
+
+test("scanInfoNote shows only the disabled and global-limit messages", () => {
+  assert.equal(scanInfoNote({ ok: true, aiStatus: "disabled", message: "x" }), "");
+  assert.equal(scanInfoNote({ ok: false, message: "No pude leerlo" }), "");
+  assert.equal(scanInfoNote({ ok: false, aiStatus: "disabled", message: "apagada" }), "apagada");
+  assert.equal(scanInfoNote({ ok: false, aiStatus: "global_limit", message: "pausa" }), "pausa");
 });

@@ -11,6 +11,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 
 /** Every app/api route. auth/[...all] is the better-auth handler and is out of scope. */
 const COVERED = [
+  "admin/invites/[id]/route.ts",
+  "admin/invites/route.ts",
   "admin/users/route.ts",
   "admin/users/[userId]/route.ts",
   "avatar/[id]/route.ts",
@@ -23,6 +25,7 @@ const COVERED = [
   "inbound/portfolio/route.ts",
   "inquiries/route.ts",
   "inquiries/[id]/route.ts",
+  "invites/redeem/route.ts",
   "push/subscribe/route.ts",
   "receipts/scan/route.ts",
   "receipts/[id]/route.ts",
@@ -58,6 +61,8 @@ async function api() {
     avatar: await import("../app/api/avatar/[id]/route.ts"),
     admin: await import("../app/api/admin/users/route.ts"),
     adminUser: await import("../app/api/admin/users/[userId]/route.ts"),
+    adminInvites: await import("../app/api/admin/invites/route.ts"),
+    adminInvite: await import("../app/api/admin/invites/[id]/route.ts"),
     docs: await import("../app/api/documents/route.ts"),
     doc: await import("../app/api/documents/[id]/route.ts"),
     hours: await import("../app/api/documents/time-entries/route.ts"),
@@ -91,6 +96,9 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "POST", mod: routes.avatar, url: base + "/api/avatar/x", params: { id: "x" }, json: { failedKey: "x" } },
     { method: "GET", mod: routes.admin, url: base + "/api/admin/users" },
     { method: "PATCH", mod: routes.adminUser, url: base + "/api/admin/users/x", params: { userId: "x" }, json: { approvalStatus: "rejected" } },
+    { method: "GET", mod: routes.adminInvites, url: base + "/api/admin/invites" },
+    { method: "POST", mod: routes.adminInvites, url: base + "/api/admin/invites", json: {} },
+    { method: "DELETE", mod: routes.adminInvite, url: base + "/api/admin/invites/x", params: { id: "x" } },
     { method: "GET", mod: routes.docs, url: base + "/api/documents" },
     { method: "POST", mod: routes.docs, url: base + "/api/documents", json: { type: "invoice" } },
     { method: "GET", mod: routes.doc, url: base + "/api/documents/x", params: { id: "x" } },

@@ -145,6 +145,7 @@ test("safeNext allows same-origin paths and rejects open redirects", () => {
     ["/dashboard?s=finance#hash", "/dashboard?s=finance"],
     ["/", "/"],
     ["/pending", "/pending"],
+    ["/invite/abc_def-XYZ0123456789", "/invite/abc_def-XYZ0123456789"],
     ["/loginish", "/loginish"],
     ["https://erp.example/dashboard?s=activity", "/dashboard?s=activity"],
     ["https://erp.example/dashboard?s=activity#x", "/dashboard?s=activity"],

@@ -13,6 +13,8 @@ export type D1Bound = {
 
 export type D1Like = {
   prepare(sql: string): { bind(...values: unknown[]): D1Bound };
+  /** Cloudflare D1 runs batch in one transaction. The node test shim does too. */
+  batch?(statements: D1Bound[]): Promise<Array<{ meta: { changes: number } }>>;
 };
 
 export type CurrencyTotals = { incomeMinor: number; expenseMinor: number };

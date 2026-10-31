@@ -18,7 +18,7 @@ export default function PendingPage() {
         <p className="auth-copy">
           {isPending ? "Verificando tu sesión…" : status === "rejected"
             ? "El administrador no aprobó el acceso a este espacio."
-            : "Tu cuenta de Google fue registrada. El administrador debe aprobarla antes de que puedas ingresar."}
+            : "Tu cuenta de Google fue registrada. Pedí una invitación al administrador para poder ingresar."}
         </p>
         <button className="secondary-button" onClick={() => void signOutClearingPush(() => authClient.signOut(), browserPushDeps())}>Cerrar sesión</button>
       </section>

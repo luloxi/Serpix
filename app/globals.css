@@ -1150,3 +1150,22 @@ body:has(.activity-contact-picker) .editor-modal .form-grid textarea{min-height:
 .time-entry-main small{color:var(--muted);font-size:12px}
 .time-entry-delete{width:36px;height:36px;flex:none;border:0;border-radius:10px;background:transparent;color:#bd5147;display:grid;place-items:center;cursor:pointer}
 .time-entry-delete:hover:not(:disabled){background:color-mix(in srgb,#bd5147 12%,transparent)}
+
+a.primary-button{display:block;cursor:pointer;text-decoration:none}
+.primary-button.invite-accept:disabled{cursor:not-allowed}
+.invites-admin{display:grid;gap:6px;padding:2px 0 4px}
+.invites-title{margin:0;padding:6px 11px 0;font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.invites-fresh{display:grid;gap:6px;padding:0 4px}
+.invites-link{margin:0;padding:0 7px;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.invites-fresh small,.invites-empty{margin:0;padding:0 11px;color:var(--muted);font-size:12px;line-height:1.4}
+.invites-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:180px;overflow:auto}
+.invites-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 0 11px;font-size:13px}
+.invites-admin button{cursor:pointer}
+.invites-admin button:disabled{cursor:not-allowed}
+.ai-switch{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.ai-switch:disabled{cursor:not-allowed;opacity:.55}
+.ai-switch-knob{width:36px;height:22px;border-radius:99px;background:#cbd2df;position:relative;flex:none}
+.ai-switch-knob::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.ai-switch.on .ai-switch-knob{background:var(--brand-violet,#ab96ff)}
+.ai-switch.on .ai-switch-knob::after{transform:translateX(14px)}
+.user-actions{flex-wrap:wrap;align-items:center}
