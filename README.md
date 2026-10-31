@@ -64,9 +64,11 @@ El callback OAuth es `https://erp.lulox.com.ar/api/auth/callback/google`.
 ## Desarrollo
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
+
+Las versiones están fijas (sin `latest`) y `package-lock.json` está commiteado: instalá siempre con `npm ci` (también en Workers Builds). Para subir una versión: `npm install --save-exact <paquete>@<versión>`, correr los tests y commitear el lockfile.
 
 Para previsualizar en el runtime de Workers:
 
