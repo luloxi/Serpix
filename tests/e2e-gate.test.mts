@@ -269,3 +269,19 @@ test("unlock and passkey copy stays fixed and does not echo a decrypt error", ()
   assert.equal(COPY.menuPasskey, "Agregar passkey");
   assert.equal(JSON.stringify(COPY).toLowerCase().includes("inhackeable"), false);
 });
+
+test("onboarding body names what the server can see and skips absolute claims", () => {
+  const body = COPY.onboardingBody;
+  assert.equal(body.includes(" solo guarda"), false);
+  assert.match(body, /tipo/);
+  assert.match(body, /número/);
+  assert.match(body, /estado/);
+  assert.match(body, /vencimiento/);
+  assert.match(body, /IA/);
+  assert.match(body, /ticket/);
+  const folded = body.toLowerCase();
+  assert.equal(folded.includes("nadie"), false);
+  assert.equal(folded.includes("cuántic"), false);
+  assert.equal(folded.includes("cuantic"), false);
+  assert.equal(folded.includes("imposible"), false);
+});
