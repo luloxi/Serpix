@@ -1,0 +1,18 @@
+/* Owner Luma calendar link. Mobile first; targets stay at least 44px. */
+.luma-settings{display:grid;gap:12px;margin-top:18px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow)}
+.luma-settings h2{margin:0;font:800 18px Manrope,sans-serif;letter-spacing:-.4px;color:var(--ink)}
+.luma-settings p,.luma-settings li{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+.luma-settings ol{margin:0;padding-left:1.25em;display:grid;gap:6px}
+.luma-field{display:grid;gap:8px}
+.luma-settings label{cursor:pointer}
+.luma-settings input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:16px}
+.luma-actions{display:flex;flex-wrap:wrap;gap:8px}
+.luma-settings button{min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.luma-settings button.primary{background:var(--accent);color:#fff;border-color:transparent}
+.luma-settings button:disabled{cursor:not-allowed;opacity:.55}
+.luma-hint{margin:0;font-family:ui-monospace,SFMono-Regular,monospace;color:var(--ink);overflow-wrap:anywhere}
+.luma-status{margin:0;color:var(--ink)}
+.luma-confirm{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+@media (min-width:720px){
+  .luma-settings{padding:18px 20px}
+}
