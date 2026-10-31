@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext } from "@/lib/session";
+import { encryptedAccount, legacyDataContext } from "@/lib/session";
 import { RULES_SQL, generateDue, nextDate, todayInBuenosAires, type Frequency } from "@/lib/recurring";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +7,9 @@ const json = (data: unknown, status = 200) => NextResponse.json(data, { status, 
 
 /** Lists the user's rules. Also catches up anything due (the daily cron does the same for everyone), so the list is always current. */
 export async function GET() {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   const today = todayInBuenosAires();
   let created = 0;
   try { created = (await generateDue(ctx.db, ctx.userId, today)).created; } catch (error) { console.error("recurring_catchup_failed", { error: String(error) }); }

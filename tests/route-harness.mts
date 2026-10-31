@@ -74,7 +74,9 @@ export async function call(
   else {
     try { parsed = JSON.parse(text); } catch { parsed = text; }
   }
-  return { status: response.status, body: parsed, text };
+  const outHeaders: Record<string, string> = {};
+  response.headers.forEach((value, key) => { outHeaders[key] = value; });
+  return { status: response.status, body: parsed, text, headers: outHeaders };
 }
 
 let tail: Promise<void> = Promise.resolve();

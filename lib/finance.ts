@@ -15,16 +15,18 @@ export const ACCOUNTS_SQL = "SELECT a.id, a.name, a.currency, a.opening_balance_
 /** Unlimited aggregate. One row per currency + kind. No LIMIT. Ignores deleted and linked Cuentix duplicates. */
 export const TOTALS_SQL = "SELECT a.currency AS currency, t.kind AS kind, COALESCE(SUM(t.amount_minor), 0) AS totalMinor, COUNT(*) AS count FROM financial_transactions t JOIN financial_accounts a ON a.id = t.account_id AND a.user_id = t.user_id WHERE t.user_id = ? AND " + TX_COUNTED + " GROUP BY a.currency, t.kind";
 
+export type D1RunResult = { meta: { changes: number }; results?: unknown[] };
+
 export type D1Bound = {
   first<T = Record<string, unknown>>(): Promise<T | null>;
   all<T = Record<string, unknown>>(): Promise<{ results?: T[] | null }>;
-  run(): Promise<{ meta: { changes: number } }>;
+  run(): Promise<D1RunResult>;
 };
 
 export type D1Like = {
   prepare(sql: string): { bind(...values: unknown[]): D1Bound };
   /** Cloudflare D1 runs batch in one transaction. The node test shim does too. */
-  batch?(statements: D1Bound[]): Promise<Array<{ meta: { changes: number } }>>;
+  batch?(statements: D1Bound[]): Promise<D1RunResult[]>;
 };
 
 export type CurrencyTotals = { incomeMinor: number; expenseMinor: number };

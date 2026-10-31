@@ -3,15 +3,16 @@ import { ADMIN_RECEIPT_SCANS_PER_DAY, AI_DISABLED_MESSAGE, AI_GLOBAL_LIMIT_MESSA
 import { isReceiptTooBigError, MAX_RECEIPT_BASE64_CHARS, MAX_RECEIPT_BYTES, RECEIPT_MODEL, RECEIPT_TOO_BIG_MESSAGE, readReceipt, type AiLike, type ReadResult } from "@/lib/receipt";
 import { isReceiptMime, sniffMime } from "@/lib/receipts-db";
 import { todayInBuenosAires } from "@/lib/recurring";
-import { approvedContext } from "@/lib/session";
+import { encryptedAccount, legacyDataContext } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
 
 /** Stores the ticket (D1, owner-only) and tries to read it with Workers AI. A failed read still keeps the file so the form can be filled by hand. */
 export async function POST(request: Request) {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   let form: FormData;
   try { form = await request.formData(); } catch { return json({ error: "Archivo inválido" }, 400); }
   const file = form.get("file");

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext } from "@/lib/session";
+import { encryptedAccount, legacyDataContext } from "@/lib/session";
 import { pauseTimer, resumeTimer, startTimer, type TimerState } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -21,15 +21,17 @@ function toTimer(row: TimerRow): TimerState {
 const SELECT = "SELECT started_at AS startedAt, segment_start AS segmentStart, accumulated_ms AS accumulatedMs FROM timer_state WHERE user_id=?";
 
 export async function GET() {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   const row = await ctx.db.prepare(SELECT).bind(ctx.userId).first<TimerRow>();
   return json({ timer: row ? toTimer(row) : null, serverNow: Date.now() });
 }
 
 export async function POST(request: Request) {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   let body: { action?: unknown };
   try { body = await request.json() as { action?: unknown }; } catch { return json({ error: "Invalid JSON" }, 400); }
   const action = body.action;

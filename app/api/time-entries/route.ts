@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext } from "@/lib/session";
+import { encryptedAccount, legacyDataContext } from "@/lib/session";
 import { entryAmountMinor, parseTimeEntryBody } from "@/lib/timer";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +9,9 @@ function json(data: unknown, status = 200) {
 }
 
 export async function GET() {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   const result = await ctx.db.prepare(
     "SELECT e.id, e.task_id AS taskId, t.title AS taskTitle, e.started_at AS startedAt, e.ended_at AS endedAt, e.duration_ms AS durationMs, e.billable AS billable, e.hourly_rate_minor AS hourlyRateMinor, e.amount_minor AS amountMinor, e.currency AS currency, e.description AS description, e.created_at AS createdAt FROM time_entries e LEFT JOIN tasks t ON t.id = e.task_id AND t.user_id = e.user_id WHERE e.user_id = ? ORDER BY e.started_at DESC, e.created_at DESC LIMIT 300",
   ).bind(ctx.userId).all();
@@ -18,8 +19,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   let raw: unknown;
   try { raw = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const parsed = parseTimeEntryBody(raw);

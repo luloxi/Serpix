@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
 import { sanitizeRelations, legacyRole } from "@/lib/relations";
 import { avatarChange } from "@/lib/avatar";
 import { ACCOUNTS_SQL, TX_VISIBLE } from "@/lib/finance";
@@ -25,7 +25,7 @@ function pageInt(raw: string | null, fallback: number, min: number, max: number)
 export async function GET(request: Request, { params }: { params: Promise<{ resource: string }> }) {
   const { resource } = await params;
   if (!validResource(resource)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const ctx = await approvedContext(); if (!ctx) return unauthorized();
+  const ctx = await legacyDataContext(); if (!ctx) return unauthorized(); if ("encrypted" in ctx) return encryptedAccount();
   const { db, userId } = ctx;
   if (resource === "transactions") {
     const url = new URL(request.url);
@@ -50,7 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
 export async function POST(request: Request, { params }: { params: Promise<{ resource: string }> }) {
   const { resource } = await params;
   if (!validResource(resource)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const ctx = await approvedContext(); if (!ctx) return unauthorized();
+  const ctx = await legacyDataContext(); if (!ctx) return unauthorized(); if ("encrypted" in ctx) return encryptedAccount();
   const { db, userId } = ctx;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }

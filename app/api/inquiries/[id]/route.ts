@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext, unauthorized } from "@/lib/session";
+import { encryptedAccount, legacyDataContext, unauthorized } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 type Row = { id: string; name: string; email: string; message: string; status: string; contactId: string | null; createdAt: number };
@@ -7,8 +7,9 @@ type Row = { id: string; name: string; email: string; message: string; status: s
 // Actions on one inquiry of the signed-in owner: read | unread | archive | unarchive | convert.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return unauthorized();
+  if ("encrypted" in ctx) return encryptedAccount();
   let body: { action?: unknown };
   try { body = await request.json() as { action?: unknown }; } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
   const db = ctx.db, userId = ctx.userId, now = Date.now();

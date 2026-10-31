@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approvedContext } from "@/lib/session";
+import { encryptedAccount, legacyDataContext } from "@/lib/session";
 import { generateDue, isDateKey, todayInBuenosAires } from "@/lib/recurring";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +8,9 @@ const str = (v: unknown, max = 5000) => (typeof v === "string" ? v.trim().slice(
 
 /** { action: "pause" | "resume" | "end" } or an edit of amount, category, description, account and end date (future movements only). */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   const { id } = await params;
   let b: Record<string, unknown>;
   try { b = (await request.json()) as Record<string, unknown>; } catch { return json({ error: "Invalid JSON" }, 400); }
@@ -46,8 +47,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 /** Deletes the rule only; the movements it already created stay (their recurring link is cleared). */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const ctx = await approvedContext();
+  const ctx = await legacyDataContext();
   if (!ctx) return json({ error: "Unauthorized" }, 401);
+  if ("encrypted" in ctx) return encryptedAccount();
   const { id } = await params;
   const result = await ctx.db.prepare("DELETE FROM recurring_rules WHERE id=? AND user_id=?").bind(id, ctx.userId).run();
   if (result.meta.changes === 0) return json({ error: "Regla inexistente" }, 404);
