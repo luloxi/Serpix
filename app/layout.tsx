@@ -5,16 +5,16 @@ export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
   description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
   applicationName: "Serpix",
-  manifest: "/manifest-v3.webmanifest",
+  manifest: "/manifest-v4.webmanifest",
   icons: {
     icon: [
-      { url: "/icons/favicon.v3.ico", sizes: "any" },
-      { url: "/icons/serpix-32.v3.png", type: "image/png", sizes: "32x32" },
-      { url: "/icons/serpix-48.v3.png", type: "image/png", sizes: "48x48" },
-      { url: "/icons/icon-192.v3.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/favicon.v4.ico", sizes: "any" },
+      { url: "/icons/serpix-32.v4.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/serpix-48.v4.png", type: "image/png", sizes: "48x48" },
+      { url: "/icons/icon-192.v4.png", type: "image/png", sizes: "192x192" },
     ],
-    shortcut: "/icons/favicon.v3.ico",
-    apple: [{ url: "/icons/apple-touch-icon-180.v3.png", type: "image/png", sizes: "180x180" }],
+    shortcut: "/icons/favicon.v4.ico",
+    apple: [{ url: "/icons/apple-touch-icon-180.v4.png", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
