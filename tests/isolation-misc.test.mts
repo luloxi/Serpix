@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateInvite } from "../lib/invites.ts";
 import { asUser, call, locked, resetSessionReads, sessionReads, setEnv } from "./route-harness.mts";
 import { A, B, assert4xx, assertNoA, assertSame, ids, P256, PUSH_AUTH, seedWorld, snap } from "./isolation-shared.mts";
 
@@ -140,6 +141,40 @@ for (const [label, session] of [["no session", null], ["pending user", "pending"
     });
   });
 }
+
+test("paused invites are not created or redeemed and do not change another user's rows", async () => {
+  await locked(async () => {
+    const { db, d1 } = seedWorld();
+    db.prepare("UPDATE user SET approvalStatus='pending' WHERE id=?").run(B);
+    const created = await generateInvite(d1, A, Date.now(), undefined, { enabled: true });
+    setEnv(d1);
+    const before = snap(db);
+    asUser(B, "user", "pending");
+    const redeem = await import("../app/api/invites/redeem/route.ts");
+    const pausedRedeem = await call(redeem, "POST", base + "/api/invites/redeem", { json: { code: created.code } });
+    assert.equal(pausedRedeem.status, 423);
+    assert.deepEqual(pausedRedeem.body, { status: "disabled" });
+    assert.equal(JSON.stringify(pausedRedeem.body).includes(created.code), false);
+    assertSame(db, before);
+    assert.equal((db.prepare("SELECT approvalStatus AS s FROM user WHERE id=?").get(B) as { s: string }).s, "pending");
+
+    const routes = await api();
+    asUser(B);
+    const forbidden = await call(routes.adminInvites, "POST", base + "/api/admin/invites", { json: { note: "no" } });
+    assert.equal(forbidden.status, 403);
+    assertSame(db, before);
+
+    asUser(A, "admin");
+    const pausedCreate = await call(routes.adminInvites, "POST", base + "/api/admin/invites", { json: { note: "no" } });
+    assert.equal(pausedCreate.status, 423);
+    assert.deepEqual(pausedCreate.body, { error: "Las invitaciones están pausadas por ahora." });
+    assertSame(db, before);
+    const listed = await call(routes.adminInvites, "GET", base + "/api/admin/invites");
+    assert.equal(listed.status, 200);
+    assert.equal((listed.body as { enabled: boolean }).enabled, false);
+    assert.equal(JSON.stringify(listed.body).includes(created.code), false);
+  });
+});
 
 test("portfolio inbound ignores the session and rejects a missing secret", async () => {
   await locked(async () => {

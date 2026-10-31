@@ -14,5 +14,6 @@ export async function POST(request: Request) {
     if (typeof body?.code === "string") code = body.code;
   } catch { /* invalid JSON is an invalid code */ }
   const result = await redeemInvite(ctx.db, ctx.userId, code, Date.now());
-  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+  const status = result.status === "disabled" ? 423 : 200;
+  return NextResponse.json(result, { status, headers: { "Cache-Control": "no-store" } });
 }

@@ -27,6 +27,7 @@ function formatExpiry(ms: number): string {
 
 export default function InvitesAdmin({ isAdmin }: { isAdmin: boolean }) {
   const [invites, setInvites] = useState<InviteItem[]>([]);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [fresh, setFresh] = useState<{ url: string; expiresAt: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
@@ -38,8 +39,9 @@ export default function InvitesAdmin({ isAdmin }: { isAdmin: boolean }) {
       setError("No se pudieron cargar las invitaciones.");
       return;
     }
-    const data = (await response.json()) as { invites: InviteItem[] };
+    const data = (await response.json()) as { invites: InviteItem[]; enabled?: boolean };
     setInvites(data.invites);
+    setEnabled(typeof data.enabled === "boolean" ? data.enabled : null);
     setError("");
   }
 
@@ -98,9 +100,12 @@ export default function InvitesAdmin({ isAdmin }: { isAdmin: boolean }) {
   return (
     <section className="invites-admin" aria-labelledby="serpix-invites-title">
       <p id="serpix-invites-title" className="invites-title">Invitaciones</p>
-      <button type="button" className="profile-menu-item" onClick={() => void generate()} disabled={busy}>
-        {busy ? "Generando…" : "Generar invitación de 7 días"}
-      </button>
+      {enabled === false && <p className="invites-empty">Invitaciones pausadas hasta que el cifrado esté disponible.</p>}
+      {enabled === true && (
+        <button type="button" className="profile-menu-item" onClick={() => void generate()} disabled={busy}>
+          {busy ? "Generando…" : "Generar invitación de 7 días"}
+        </button>
+      )}
       {fresh && (
         <div className="invites-fresh">
           <p className="invites-link">{fresh.url}</p>

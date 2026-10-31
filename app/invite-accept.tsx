@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { INVITES_ENABLED } from "@/lib/invites";
+
+const PAUSED_COPY = "Las invitaciones están pausadas por ahora. Volvé a probar más adelante.";
 
 const COPY: Record<string, string> = {
   used: "Esta invitación ya se usó.",
@@ -13,6 +16,7 @@ const COPY: Record<string, string> = {
 
 export default function InviteAccept({ code }: { code: string }) {
   const [busy, setBusy] = useState(false);
+  const [paused, setPaused] = useState<boolean>(!INVITES_ENABLED);
   const [message, setMessage] = useState("");
 
   async function accept() {
@@ -30,6 +34,11 @@ export default function InviteAccept({ code }: { code: string }) {
         return;
       }
       const data = (await response.json().catch(() => ({}))) as { status?: string };
+      if (response.status === 423 || data.status === "disabled") {
+        setPaused(true);
+        setBusy(false);
+        return;
+      }
       if (data.status === "ok" || data.status === "already_approved") {
         window.location.assign("/dashboard");
         return;
@@ -41,6 +50,8 @@ export default function InviteAccept({ code }: { code: string }) {
       setBusy(false);
     }
   }
+
+  if (paused) return <p className="auth-copy">{PAUSED_COPY}</p>;
 
   return (
     <>

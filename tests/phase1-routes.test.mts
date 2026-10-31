@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { DatabaseSync } from "node:sqlite";
 import { AI_CUTOFF_NEURONS, AI_DISABLED_MESSAGE, AI_GLOBAL_LIMIT_MESSAGE, NEURONS_PER_SCAN_ESTIMATE, SCAN_LIMIT_MESSAGE, utcDay } from "../lib/ai-quota.ts";
-import { hashInviteCode } from "../lib/invites.ts";
+import { generateInvite, hashInviteCode, redeemInvite } from "../lib/invites.ts";
 import { todayInBuenosAires } from "../lib/recurring.ts";
 import { asUser, call, locked, setEnv } from "./route-harness.mts";
 import { openDb } from "./db-helper.mts";
@@ -51,11 +51,12 @@ async function routes() {
   };
 }
 
-test("invite routes: no session is 401, a non-admin is 403, and B cannot see or revoke A's invite", async () => {
+test("invite routes: no session is 401, a non-admin is 403, create is paused, and revoke still works", async () => {
   await locked(async () => {
     const { db, d1 } = openDb();
     person(db, "luciano", "approved", "admin");
     person(db, "beto", "approved", "user");
+    person(db, "espera", "pending");
     setEnv(d1);
     const api = await routes();
     asUser(null);
@@ -67,67 +68,81 @@ test("invite routes: no session is 401, a non-admin is 403, and B cannot see or 
     ]) {
       assert.equal((await hit).status, 401);
     }
+    asUser("espera", "user", "pending");
+    const pendingPost = await call(api.invites, "POST", base + "/api/admin/invites", { json: { note: "para Beto" } });
+    assert.equal(pendingPost.status, 401);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM invites").get() as { n: number }).n, 0);
+
     asUser("luciano", "admin");
-    const created = await call(api.invites, "POST", base + "/api/admin/invites", { json: { note: "para Beto" } });
-    assert.equal(created.status, 201, JSON.stringify(created.body));
-    const body = created.body as { url: string; expiresAt: number; id: string };
-    const code = body.url.slice(body.url.lastIndexOf("/") + 1);
-    assert.equal(body.url, base.replace("http://t.local", "http://t.local") && "http://t.local/invite/" + code);
-    assert.match(code, /^[A-Za-z0-9_-]{43}$/);
+    const paused = await call(api.invites, "POST", base + "/api/admin/invites", { json: { note: "para Beto" } });
+    assert.equal(paused.status, 423, JSON.stringify(paused.body));
+    assert.deepEqual(paused.body, { error: "Las invitaciones están pausadas por ahora." });
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM invites").get() as { n: number }).n, 0);
+    const empty = await call(api.invites, "GET", base + "/api/admin/invites");
+    assert.equal(empty.status, 200);
+    assert.deepEqual(empty.body, { invites: [], enabled: false });
+
+    const created = await generateInvite(d1, "luciano", Date.now(), "para Beto", { enabled: true });
     const dumped = JSON.stringify(db.prepare("SELECT * FROM invites").all());
-    assert.equal(dumped.includes(code), false);
-    assert.equal(dumped.includes(await hashInviteCode(code)), true);
+    assert.equal(dumped.includes(created.code), false);
+    assert.equal(dumped.includes(await hashInviteCode(created.code)), true);
     const listed = await call(api.invites, "GET", base + "/api/admin/invites");
     assert.equal(listed.status, 200);
-    const invites = (listed.body as { invites: { id: string; status: string; note: string }[] }).invites;
-    assert.equal(invites[0].status, "pending");
-    assert.equal(invites[0].note, "para Beto");
-    assert.equal(JSON.stringify(listed.body).includes(code), false);
+    const body = listed.body as { enabled: boolean; invites: { id: string; status: string; note: string }[] };
+    assert.equal(body.enabled, false);
+    assert.equal(body.invites[0].id, created.id);
+    assert.equal(body.invites[0].status, "pending");
+    assert.equal(body.invites[0].note, "para Beto");
+    assert.equal(JSON.stringify(listed.body).includes(created.code), false);
     assert.equal(JSON.stringify(listed.body).includes("code_hash"), false);
 
     asUser("beto", "user", "approved");
     const seen = await call(api.invites, "GET", base + "/api/admin/invites");
     assert.equal(seen.status, 403);
     assert.deepEqual(seen.body, { error: "Forbidden" });
-    const blocked = await call(api.invite, "DELETE", base + "/api/admin/invites/" + body.id, { params: { id: body.id } });
+    const blocked = await call(api.invite, "DELETE", base + "/api/admin/invites/" + created.id, { params: { id: created.id } });
     assert.equal(blocked.status, 403);
-    assert.equal((db.prepare("SELECT revoked_at AS r FROM invites WHERE id=?").get(body.id) as { r: number | null }).r, null);
+    assert.equal((db.prepare("SELECT revoked_at AS r FROM invites WHERE id=?").get(created.id) as { r: number | null }).r, null);
     const forged = await call(api.invites, "POST", base + "/api/admin/invites", { json: {} });
     assert.equal(forged.status, 403);
     assert.equal((db.prepare("SELECT COUNT(*) AS n FROM invites").get() as { n: number }).n, 1);
 
     asUser("luciano", "admin");
-    const gone = await call(api.invite, "DELETE", base + "/api/admin/invites/" + body.id, { params: { id: body.id } });
+    const gone = await call(api.invite, "DELETE", base + "/api/admin/invites/" + created.id, { params: { id: created.id } });
     assert.equal(gone.status, 200);
-    const again = await call(api.invite, "DELETE", base + "/api/admin/invites/" + body.id, { params: { id: body.id } });
+    const again = await call(api.invite, "DELETE", base + "/api/admin/invites/" + created.id, { params: { id: created.id } });
     assert.equal(again.status, 404);
     const missing = await call(api.invite, "DELETE", base + "/api/admin/invites/nope", { params: { id: "nope" } });
     assert.equal(missing.status, 404);
   });
 });
 
-test("redeem accepts a pending session and refuses a missing one without consuming the invite", async () => {
+test("a paused redeem leaves the invite unused and an enabled redeem still accepts it", async () => {
   await locked(async () => {
     const { db, d1 } = openDb();
     person(db, "luciano", "approved", "admin");
     person(db, "nuevo", "pending");
     setEnv(d1);
     const api = await routes();
-    asUser("luciano", "admin");
-    const created = await call(api.invites, "POST", base + "/api/admin/invites", { json: {} });
-    const url = (created.body as { url: string }).url;
-    const code = url.slice(url.lastIndexOf("/") + 1);
+    const created = await generateInvite(d1, "luciano", Date.now(), undefined, { enabled: true });
     asUser(null);
-    const anon = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code } });
+    const anon = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code: created.code } });
     assert.equal(anon.status, 401);
     assert.equal((db.prepare("SELECT used_at AS u FROM invites").get() as { u: number | null }).u, null);
     asUser("nuevo", "user", "pending");
-    const ok = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code } });
-    assert.equal(ok.status, 200);
-    assert.deepEqual(ok.body, { status: "ok" });
+    const paused = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code: created.code } });
+    assert.equal(paused.status, 423);
+    assert.deepEqual(paused.body, { status: "disabled" });
+    assert.equal((db.prepare("SELECT used_at AS u, used_by AS b FROM invites").get() as { u: number | null; b: string | null }).u, null);
+    assert.equal((db.prepare("SELECT approvalStatus AS s FROM user WHERE id='nuevo'").get() as { s: string }).s, "pending");
+    const ok = await redeemInvite(d1, "nuevo", created.code, Date.now(), { enabled: true });
+    assert.deepEqual(ok, { status: "ok" });
     assert.equal((db.prepare("SELECT approvalStatus AS s FROM user WHERE id='nuevo'").get() as { s: string }).s, "approved");
-    const again = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code } });
-    assert.deepEqual(again.body, { status: "already_approved" });
+    assert.equal((db.prepare("SELECT used_by AS b FROM invites").get() as { b: string | null }).b, "nuevo");
+    const again = await call(api.redeem, "POST", base + "/api/invites/redeem", { json: { code: created.code } });
+    assert.equal(again.status, 423);
+    assert.deepEqual(again.body, { status: "disabled" });
+    assert.equal((db.prepare("SELECT used_by AS b FROM invites").get() as { b: string | null }).b, "nuevo");
   });
 });
 

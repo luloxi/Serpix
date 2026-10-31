@@ -3,8 +3,25 @@ import type { D1Bound, D1Like } from "./finance.ts";
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CODE_BYTES = 32;
 
+// re-enable only when E2E encryption ships; Phase D.
+export const INVITES_ENABLED = false;
+
+/** Thrown by generateInvite while invitations are paused. Routes map it to HTTP 423. */
+export class InvitesPausedError extends Error {
+  constructor() {
+    super("Las invitaciones están pausadas por ahora.");
+    this.name = "InvitesPausedError";
+  }
+}
+
+type InviteOptions = { enabled?: boolean };
+
+function isEnabled(options?: InviteOptions): boolean {
+  return options?.enabled ?? INVITES_ENABLED;
+}
+
 export type InviteStatus = "pending" | "used" | "expired" | "revoked";
-export type RedeemStatus = "ok" | "already_approved" | "invalid" | "expired" | "used" | "revoked" | "full" | "rejected";
+export type RedeemStatus = "ok" | "already_approved" | "invalid" | "expired" | "used" | "revoked" | "full" | "rejected" | "disabled";
 
 export type InvitePublic = {
   id: string;
@@ -50,7 +67,8 @@ export async function hashInviteCode(code: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function generateInvite(db: D1Like, adminId: string, now: number, note?: string): Promise<{ code: string; expiresAt: number; id: string }> {
+export async function generateInvite(db: D1Like, adminId: string, now: number, note?: string, options?: InviteOptions): Promise<{ code: string; expiresAt: number; id: string }> {
+  if (!isEnabled(options)) throw new InvitesPausedError();
   const bytes = new Uint8Array(CODE_BYTES);
   crypto.getRandomValues(bytes);
   const code = encodeCode(bytes);
@@ -95,7 +113,8 @@ async function diagnose(db: D1Like, codeHash: string, now: number): Promise<Rede
   return "full";
 }
 
-export async function redeemInvite(db: D1Like, userId: string, code: string, now: number): Promise<{ status: RedeemStatus }> {
+export async function redeemInvite(db: D1Like, userId: string, code: string, now: number, options?: InviteOptions): Promise<{ status: RedeemStatus }> {
+  if (!isEnabled(options)) return { status: "disabled" };
   const user = await db.prepare("SELECT approvalStatus FROM user WHERE id=?").bind(userId).first<{ approvalStatus: string }>();
   if (!user) return { status: "invalid" };
   if (user.approvalStatus === "approved") return { status: "already_approved" };

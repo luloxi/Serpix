@@ -18,6 +18,8 @@ La cuenta administradora inicial es `lucianoolivabianco@gmail.com`. Su rol se as
 
 ## Invitaciones y cupos
 
+Las invitaciones están pausadas (`INVITES_ENABLED=false`) hasta que el cifrado esté en producción.
+
 En Perfil → Invitaciones (solo el administrador) el botón "Generar invitación de 7 días" muestra una sola vez un enlace de un uso (`/invite/<código>`, vence a los 7 días). Serpix no manda mails: hay que copiarlo y pasarlo a mano. En D1 queda solo el hash SHA-256. Quien entra sin invitación sigue en `pending` hasta que un administrador lo apruebe o canjee un enlace. Rechazar es definitivo.
 
 El tope de usuarios con `approvalStatus = 'approved'` está en `app_settings` (`key = 'max_users'`, valor `'5'`). No se cambia en el código; un `UPDATE` por wrangler, por ejemplo:
