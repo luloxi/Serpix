@@ -52,7 +52,11 @@ export async function getAuth() {
       },
     },
     advanced: {
-      database: { generateId: "uuid" },
+      database: {
+        generateId: "uuid",
+        // Our migrations own the schema; skip Better Auth's per-instance D1 pragma check.
+        validateSchema: false,
+      },
       useSecureCookies: true,
     },
   });
