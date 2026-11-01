@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { readSwr, swrPaths, writeSwr } from "@/lib/swr-cache";
 
 type InviteItem = {
   id: string;
@@ -25,24 +26,45 @@ function formatExpiry(ms: number): string {
   }).format(new Date(ms));
 }
 
-export default function InvitesAdmin({ isAdmin }: { isAdmin: boolean }) {
+export default function InvitesAdmin({ isAdmin, userId }: { isAdmin: boolean; userId: string }) {
   const [invites, setInvites] = useState<InviteItem[]>([]);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [fresh, setFresh] = useState<{ url: string; expiresAt: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [revalidating, setRevalidating] = useState(false);
+  const saw = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!isAdmin) return;
+    const cached = readSwr<{ invites: InviteItem[]; enabled: boolean | null }>(userId, swrPaths.invites);
+    if (!cached || !Array.isArray(cached.invites)) return;
+    setInvites(cached.invites);
+    setEnabled(typeof cached.enabled === "boolean" ? cached.enabled : null);
+    saw.current = true;
+    setRevalidating(true);
+  }, [isAdmin, userId]);
 
   async function refresh() {
-    const response = await fetch("/api/admin/invites", { cache: "no-store" });
-    if (!response.ok) {
-      setError("No se pudieron cargar las invitaciones.");
-      return;
+    if (saw.current) setRevalidating(true);
+    try {
+      const response = await fetch("/api/admin/invites", { cache: "no-store" });
+      if (!response.ok) {
+        setError("No se pudieron cargar las invitaciones.");
+        return;
+      }
+      const data = (await response.json()) as { invites: InviteItem[]; enabled?: boolean };
+      const nextEnabled = typeof data.enabled === "boolean" ? data.enabled : null;
+      const invites = data.invites.map((invite) => ({ id: invite.id, status: invite.status, expiresAt: invite.expiresAt }));
+      setInvites(invites);
+      setEnabled(nextEnabled);
+      writeSwr(userId, swrPaths.invites, { invites, enabled: nextEnabled });
+      saw.current = true;
+      setError("");
+    } finally {
+      setRevalidating(false);
     }
-    const data = (await response.json()) as { invites: InviteItem[]; enabled?: boolean };
-    setInvites(data.invites);
-    setEnabled(typeof data.enabled === "boolean" ? data.enabled : null);
-    setError("");
   }
 
   useEffect(() => {
@@ -100,6 +122,7 @@ export default function InvitesAdmin({ isAdmin }: { isAdmin: boolean }) {
   return (
     <section className="invites-admin" aria-labelledby="serpix-invites-title">
       <p id="serpix-invites-title" className="invites-title">Invitaciones</p>
+      {revalidating ? <p className="swr-status" role="status">actualizando…</p> : null}
       {enabled === false && <p className="invites-empty">Invitaciones pausadas hasta que el cifrado esté disponible.</p>}
       {enabled === true && (
         <button type="button" className="profile-menu-item" onClick={() => void generate()} disabled={busy}>

@@ -73,9 +73,9 @@ export function zonedToUtc(year: number, month: number, day: number, hour: numbe
   let utc = desired;
   for (let step = 0; step < 4; step++) {
     const parts = fmt.formatToParts(new Date(utc));
-    let y = part(parts, "year");
-    let mo = part(parts, "month");
-    let d = part(parts, "day");
+    const y = part(parts, "year");
+    const mo = part(parts, "month");
+    const d = part(parts, "day");
     let h = part(parts, "hour");
     const mi = part(parts, "minute");
     const s = part(parts, "second");

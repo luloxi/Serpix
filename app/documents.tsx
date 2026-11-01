@@ -2,12 +2,13 @@
 
 // Presupuestos y facturas (comprobantes internos, no fiscales). The hook owns the state and returns three JSX pieces
 // so app/workspace.tsx only has to place them: `panel` (Finanzas), `homeAlert` (Resumen) and `modal`.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, ArrowRight, Clock, Download, FileText, Plus, ReceiptText, Share2, Trash2 } from "lucide-react";
 import { addDays, DEFAULT_DUE_DAYS, displayStatus, formatNumber, lineTotalMinor, STATUS_LABEL, typeLabel, type DocType } from "@/lib/documents";
 import { formatMoney, formatDate, fileName } from "@/lib/document-pdf";
 import { waNumber } from "@/lib/avatar-client";
 import { downloadBlob, renderPdf, sharePdf } from "@/app/document-pdf";
+import { readSwr, swrPaths, writeSwr } from "@/lib/swr-cache";
 
 type Doc = {
   id: string; type: DocType; number: number; contactId: string | null; contactName: string | null; contactEmail: string | null; contactPhone: string | null;
@@ -65,9 +66,9 @@ export function StatusBadge({ doc, today }: { doc: Pick<Doc, "type" | "status" |
 
 export function useDocuments(o: {
   contacts: Contact[]; accounts: Account[]; issuer: { name: string; email: string | null };
-  onNotice: (m: string) => void; onError: (m: string) => void; onChanged: () => void;
-}): { panel: ReactNode; modal: ReactNode; homeAlert: ReactNode; openNew: (type: DocType) => void; overdueCount: number; open: boolean; close: () => void } {
-  const { contacts, accounts, issuer, onNotice, onError, onChanged } = o;
+  onNotice: (m: string) => void; onError: (m: string) => void; onChanged: () => void; userId: string;
+}): { panel: ReactNode; modal: ReactNode; homeAlert: ReactNode; openNew: (type: DocType) => void; overdueCount: number; open: boolean; close: () => void; revalidating: boolean } {
+  const { contacts, accounts, issuer, onNotice, onError, onChanged, userId } = o;
   const [docs, setDocs] = useState<Doc[]>([]);
   const [today, setToday] = useState(() => new Date().toLocaleDateString("sv-SE"));
   const [tab, setTab] = useState<DocType>("invoice");
@@ -76,14 +77,31 @@ export function useDocuments(o: {
   const [pay, setPay] = useState<{ accountId: string; paidAt: string } | null>(null);
   const [importList, setImportList] = useState<{ items: Importable[]; picked: Record<string, boolean> } | null>(null);
   const lastLoad = useRef(0);
+  const primed = useRef(false);
+  const [revalidating, setRevalidating] = useState(false);
+
+  useLayoutEffect(() => {
+    const cached = readSwr<{ items: Doc[]; today?: string }>(userId, swrPaths.documents);
+    if (!cached || !Array.isArray(cached.items)) return;
+    setDocs(cached.items);
+    if (cached.today) setToday(cached.today);
+    primed.current = true;
+    setRevalidating(true);
+  }, [userId]);
 
   const refresh = useCallback(async () => {
+    if (primed.current) setRevalidating(true);
     try {
       const r = await api<{ items: Doc[]; today: string }>("/api/documents");
-      if (r.ok && Array.isArray(r.json.items)) { setDocs(r.json.items); if (r.json.today) setToday(r.json.today); }
+      if (r.ok && Array.isArray(r.json.items)) {
+        setDocs(r.json.items);
+        if (r.json.today) setToday(r.json.today);
+        writeSwr(userId, swrPaths.documents, { items: r.json.items, today: r.json.today });
+        primed.current = true;
+      }
     } catch { /* offline: keep what we have */ }
-    lastLoad.current = Date.now();
-  }, []);
+    finally { setRevalidating(false); lastLoad.current = Date.now(); }
+  }, [userId]);
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
     const again = () => { if (document.visibilityState === "visible" && Date.now() - lastLoad.current > 1500) void refresh(); };
@@ -323,5 +341,5 @@ export function useDocuments(o: {
   );
 
   const close = () => { setDraft(null); setPay(null); setImportList(null); };
-  return { panel, modal, homeAlert, openNew, overdueCount: overdue.length, open: draft !== null, close };
+  return { panel, modal, homeAlert, openNew, overdueCount: overdue.length, open: draft !== null, close, revalidating };
 }

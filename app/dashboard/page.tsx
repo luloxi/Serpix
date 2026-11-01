@@ -30,10 +30,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
  const name = session.user.name;
  const email = session.user.email;
  const image = session.user.image ?? null;
+ const userId = session.user.id;
  // Admin keeps today's workspace: no gate, no key fetch, no local engine.
- if (session.user.role === "admin") return <Workspace name={name} email={email} image={image} isAdmin />;
+ if (session.user.role === "admin") return <Workspace name={name} email={email} image={image} isAdmin userId={userId} />;
  const { env } = await getCloudflareContext({ async: true });
  const mode = await encryptionMode(env.DB as D1Like, session.user.id);
- if (!shouldMountGate({ role: session.user.role, encryptionMode: mode })) return <Workspace name={name} email={email} image={image} isAdmin={false} />;
+ if (!shouldMountGate({ role: session.user.role, encryptionMode: mode })) return <Workspace name={name} email={email} image={image} isAdmin={false} userId={userId} />;
  return <E2eGateSlot userId={session.user.id} encryptionMode={mode} name={name} email={email} image={image} />;
 }

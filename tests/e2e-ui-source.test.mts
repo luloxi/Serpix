@@ -28,7 +28,7 @@ test("e2e controls use a pointer and a not-allowed cursor when disabled", () => 
 test("admin renders Workspace directly and a non-admin goes through the gate", () => {
   const page = read("app/dashboard/page.tsx");
   const admin = page.indexOf('session.user.role === "admin"');
-  const workspace = page.indexOf("<Workspace name={name} email={email} image={image} isAdmin />");
+  const workspace = page.indexOf("<Workspace name={name} email={email} image={image} isAdmin userId={userId} />");
   const mode = page.indexOf("encryptionMode(");
   const gate = page.indexOf("<E2eGateSlot");
   assert.ok(admin > -1 && workspace > admin && mode > workspace && gate > mode);

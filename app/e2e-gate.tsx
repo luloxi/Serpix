@@ -488,13 +488,13 @@ export default function E2eGate({ userId, encryptionMode, name, email, image }: 
     return (
       <div className="e2e-legacy-wrap">
         <p className="e2e-legacy" role="status">{LEGACY_DATA_ERROR}</p>
-        <Workspace name={name} email={email} image={image} isAdmin={false} />
+        <Workspace name={name} email={email} image={image} isAdmin={false} userId={userId} />
       </div>
     );
   }
 
   if (state.phase === "ready") {
-    return <Workspace name={name} email={email} image={image} isAdmin={false} e2e e2eMenu={<E2eMenu />} />;
+    return <Workspace name={name} email={email} image={image} isAdmin={false} e2e e2eMenu={<E2eMenu />} userId={userId} />;
   }
 
   const deriving = state.phase === "deriving";

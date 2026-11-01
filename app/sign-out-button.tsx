@@ -5,6 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { clearE2eSession, getE2eTeardown, isE2eActive, peekUninstall } from "@/lib/e2e/client-session";
 import { runSignOut, signOutWarning } from "@/lib/e2e/sign-out";
 import { browserPushDeps, removeDevicePush } from "@/lib/push-logout";
+import { clearSwrCache } from "@/lib/swr-cache";
 
 export default function SignOutButton({ onWarning }: { onWarning?: (message: string) => void }) {
   const [pending, setPending] = useState(false);
@@ -28,6 +29,7 @@ export default function SignOutButton({ onWarning }: { onWarning?: (message: str
 }
 
 async function logout(setWarning: (warning: string | null) => void, onWarning?: (message: string) => void) {
+  clearSwrCache();
   const e2eActive = isE2eActive();
   const uninstallFetch = peekUninstall();
   const teardown = getE2eTeardown();

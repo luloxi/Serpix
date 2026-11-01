@@ -20,7 +20,7 @@ export default async function AdminPage() {
           <p>Administrá quién puede ingresar a tu espacio.</p>
         </div>
       </header>
-      <AdminUsers />
+      <AdminUsers userId={session.user.id} />
     </main>
   );
 }

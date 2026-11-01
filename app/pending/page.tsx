@@ -2,6 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { browserPushDeps, signOutClearingPush } from "@/lib/push-logout";
+import { clearSwrCache } from "@/lib/swr-cache";
 
 type ApprovalUser = { approvalStatus?: "pending" | "approved" | "rejected" };
 
@@ -20,7 +21,7 @@ export default function PendingPage() {
             ? "El administrador no aprobó el acceso a este espacio."
             : "Tu cuenta de Google fue registrada. Pedí una invitación al administrador para poder ingresar."}
         </p>
-        <button className="secondary-button" onClick={() => void signOutClearingPush(() => authClient.signOut(), browserPushDeps())}>Cerrar sesión</button>
+        <button className="secondary-button" onClick={() => void signOutClearingPush(() => { clearSwrCache(); return authClient.signOut(); }, browserPushDeps())}>Cerrar sesión</button>
       </section>
     </main>
   );

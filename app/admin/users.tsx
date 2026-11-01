@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { readSwr, swrPaths, writeSwr } from "@/lib/swr-cache";
 
 type UserRecord = {
   id: string;
@@ -12,24 +13,42 @@ type UserRecord = {
   aiReceipts?: boolean;
 };
 
-export default function AdminUsers() {
+export default function AdminUsers({ userId }: { userId: string }) {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revalidating, setRevalidating] = useState(false);
   const [error, setError] = useState("");
   const [aiBusy, setAiBusy] = useState("");
+  const saw = useRef(false);
+
+  useLayoutEffect(() => {
+    const cached = readSwr<UserRecord[]>(userId, swrPaths.adminUsers);
+    if (!Array.isArray(cached)) return;
+    setUsers(cached);
+    saw.current = true;
+    setLoading(false);
+    setRevalidating(true);
+  }, [userId]);
 
   async function refresh() {
-    setLoading(true);
-    const response = await fetch("/api/admin/users", { cache: "no-store" });
-    if (!response.ok) {
-      setError("No se pudo cargar la lista de usuarios.");
+    if (saw.current) setRevalidating(true);
+    else setLoading(true);
+    try {
+      const response = await fetch("/api/admin/users", { cache: "no-store" });
+      if (!response.ok) {
+        setError("No se pudo cargar la lista de usuarios.");
+        return;
+      }
+      const data = (await response.json()) as { users: UserRecord[] };
+      const users = data.users.map((user) => ({ id: user.id, name: user.name, email: user.email, approvalStatus: user.approvalStatus, role: user.role, createdAt: user.createdAt, aiReceipts: user.aiReceipts }));
+      setUsers(users);
+      writeSwr(userId, swrPaths.adminUsers, users);
+      saw.current = true;
+      setError("");
+    } finally {
       setLoading(false);
-      return;
+      setRevalidating(false);
     }
-    const data = (await response.json()) as { users: UserRecord[] };
-    setUsers(data.users);
-    setError("");
-    setLoading(false);
   }
 
   useEffect(() => { void refresh(); }, []);
@@ -67,7 +86,7 @@ export default function AdminUsers() {
   return (
     <section className="admin-panel">
       <div className="panel-heading">
-        <h2>Usuarios registrados</h2>
+        <h2>Usuarios registrados{revalidating ? <span className="swr-status">actualizando…</span> : null}</h2>
         <button className="secondary-button" onClick={() => void refresh()}>Actualizar</button>
       </div>
       {error && <p className="error-message" role="alert">{error}</p>}

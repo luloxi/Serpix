@@ -339,8 +339,9 @@ test("recurring ids and document numbers converge, and AI scan stays opt-in", as
       assert.equal(generated?.id, periodId);
       await a.d1.prepare("DELETE FROM financial_transactions WHERE recurring_period = '2026-10-01'").run();
       await b.d1.prepare("DELETE FROM financial_transactions WHERE recurring_period = '2026-10-01'").run();
-      await a.d1.prepare("UPDATE recurring_rules SET generated_through = '2026-09-01'").run();
-      await b.d1.prepare("UPDATE recurring_rules SET generated_through = '2026-09-01'").run();
+      // Catch-up skips ended rules. Past the end date the first run marks the rule ended, so rewind status too.
+      await a.d1.prepare("UPDATE recurring_rules SET generated_through = '2026-09-01', status = 'active'").run();
+      await b.d1.prepare("UPDATE recurring_rules SET generated_through = '2026-09-01', status = 'active'").run();
       assert.equal((await api(a, "GET", "/api/recurring")).status, 200);
       assert.equal((await api(b, "GET", "/api/recurring")).status, 200);
       const againA = await a.d1.prepare("SELECT id FROM financial_transactions WHERE recurring_period = '2026-10-01'").first<{ id: string }>();
