@@ -17,12 +17,10 @@ export const metadata: Metadata = {
   manifest: "/manifest-v5.webmanifest",
   icons: {
     icon: [
-      { url: "/icons/favicon.v5.ico", sizes: "any" },
-      { url: "/icons/serpix-32.v5.png", type: "image/png", sizes: "32x32" },
-      { url: "/icons/serpix-48.v5.png", type: "image/png", sizes: "48x48" },
-      { url: "/icons/icon-192.v5.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/favicon.v6.ico", sizes: "any" },
+      { url: "/icons/favicon-32.v6.png", type: "image/png", sizes: "32x32" },
     ],
-    shortcut: "/icons/favicon.v5.ico",
+    shortcut: "/icons/favicon.v6.ico",
     apple: [{ url: "/icons/apple-touch-icon-180.v5.png", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
