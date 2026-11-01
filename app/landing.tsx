@@ -72,8 +72,8 @@ export default function Landing({ initialLang = "es" }: { initialLang?: LandingL
         <div className="landing-mark">
           <img
             className="landing-logo"
-            src="/icons/logo-128.v5.png"
-            srcSet="/icons/logo-128.v5.png 128w, /icons/icon-192.v5.png 192w"
+            src="/icons/logo-128.v7.png"
+            srcSet="/icons/logo-128.v7.png 128w, /icons/icon-192.v7.png 192w"
             sizes="(min-width: 720px) 104px, 88px"
             alt=""
             width={88}

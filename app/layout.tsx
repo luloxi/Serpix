@@ -14,14 +14,14 @@ export const metadata: Metadata = {
   title: "Serpix — Tu espacio de trabajo",
   description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
   applicationName: "Serpix",
-  manifest: "/manifest-v5.webmanifest",
+  manifest: "/manifest-v7.webmanifest",
   icons: {
     icon: [
-      { url: "/icons/favicon.v6.ico", sizes: "any" },
-      { url: "/icons/favicon-32.v6.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/favicon.v7.ico", sizes: "any" },
+      { url: "/icons/favicon-32.v7.png", type: "image/png", sizes: "32x32" },
     ],
-    shortcut: "/icons/favicon.v6.ico",
-    apple: [{ url: "/icons/apple-touch-icon-180.v5.png", type: "image/png", sizes: "180x180" }],
+    shortcut: "/icons/favicon.v7.ico",
+    apple: [{ url: "/icons/apple-touch-icon-180.v7.png", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,

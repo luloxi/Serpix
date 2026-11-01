@@ -1,4 +1,4 @@
-// Browser side of the PDF: loads the v5 logo (tinted to the accent) and builds the file with lib/document-pdf.ts (no server, no paid service).
+// Browser side of the PDF: loads the v7 logo (tinted to the accent) and builds the file with lib/document-pdf.ts (no server, no paid service).
 import { ACCENT, buildDocumentPdf, fileName, formatMoney, tintLogo, type PdfDocData } from "@/lib/document-pdf";
 import { itemsTotalMinor, formatNumber, typeLabel } from "@/lib/documents";
 import type { PdfImage } from "@/lib/pdf";
@@ -10,11 +10,11 @@ async function deflate(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Logo v5 as a single-color mark in the PDF accent (white background), zlib-compressed. */
+/** Logo v7 as a single-color mark in the PDF accent (white background), zlib-compressed. */
 function loadLogo(): Promise<PdfImage | undefined> {
   logoPromise ??= (async () => {
     try {
-      const blob = await (await fetch("/icons/icon-192.v5.png")).blob();
+      const blob = await (await fetch("/icons/icon-192.v7.png")).blob();
       const bmp = await createImageBitmap(blob);
       const size = 192;
       const canvas = document.createElement("canvas");

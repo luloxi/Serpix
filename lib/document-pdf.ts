@@ -13,7 +13,7 @@ export const DISCLAIMER = "Comprobante interno · no es una factura fiscal (ARCA
 
 const hexToRgb = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
-/** The v5 logo (thick ouroboros + $ on black) as a single-color mark: brightness becomes the amount of accent over white. */
+/** The v7 logo (thick ouroboros + $ on black) as a single-color mark: brightness becomes the amount of accent over white. */
 export function tintLogo(rgbOverBlack: Uint8Array, accentHex: string): Uint8Array {
   const [r, g, b] = hexToRgb(accentHex);
   const out = new Uint8Array(rgbOverBlack.length);

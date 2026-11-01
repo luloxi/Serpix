@@ -49,10 +49,10 @@ test("manifest ordering is deterministic and the manifest does not list itself",
 
 test("verified paths cover static prefixes and first-party scripts", () => {
   assert.equal(isVerifiedPath("/_next/static/chunks/a.js"), true);
-  assert.equal(isVerifiedPath("/icons/icon-192.v5.png"), true);
+  assert.equal(isVerifiedPath("/icons/icon-192.v7.png"), true);
   assert.equal(isVerifiedPath("/vendor/sql.wasm"), true);
   assert.equal(isVerifiedPath("/sw.js"), true);
-  assert.equal(isVerifiedPath("/manifest-v5.webmanifest"), true);
+  assert.equal(isVerifiedPath("/manifest-v7.webmanifest"), true);
   assert.equal(isVerifiedPath("/theme-init.js"), true);
   assert.equal(isVerifiedPath("/theme-init.js/"), false);
   assert.equal(isVerifiedPath("/public/theme-init.js"), false);

@@ -16,7 +16,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <img className="auth-brand-icon" src="/icons/icon-192.v5.png" alt="" width="88" height="88" />
+        <img className="auth-brand-icon" src="/icons/icon-192.v7.png" alt="" width="88" height="88" />
         <p className="eyebrow">SERPIX</p>
         <h1>Te invitaron a Serpix</h1>
         {invitesPaused ? <p className="auth-copy">{PAUSED_COPY}</p> : session ? <InviteAccept code={code} /> : (

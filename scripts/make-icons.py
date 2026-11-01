@@ -1,10 +1,10 @@
-"""Genera los íconos de public/icons desde brand/serpix-logo-master.v5.png (ouroboros grueso, $ amarillo).
+"""Genera los íconos de public/icons desde brand/serpix-logo-master.v7.png (ouroboros grueso, $ naranja (#e2781b)).
 Solo redimensiona y optimiza (paleta de 256 colores); no redibuja el logo. También recorta el anillo (sin el $) para el botón +.
-Requiere Pillow. Si cambian los archivos, subir el sufijo de versión (.v5) en app/, public/ y el manifiesto."""
+Requiere Pillow. Si cambian los archivos, subir el sufijo de versión (.v7) en app/, public/ y el manifiesto."""
 import os
 from PIL import Image, ImageDraw
 
-SRC = Image.open("brand/serpix-logo-master.v5.png").convert("RGB")
+SRC = Image.open("brand/serpix-logo-master.v7.png").convert("RGB")
 OUT = "public/icons"
 os.makedirs(OUT, exist_ok=True)
 
@@ -14,14 +14,12 @@ def png(name, size, colors=None):
         im = im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG)
     im.save(f"{OUT}/{name}", optimize=True)
 
-png("serpix-32.v5.png", 32)
-png("serpix-48.v5.png", 48)
-png("apple-touch-icon-180.v5.png", 180, 256)
-png("icon-192.v5.png", 192, 256)
-png("icon-512.v5.png", 512, 256)
-png("logo-128.v5.png", 128, 256)
-ico = [SRC.resize((s, s), Image.LANCZOS) for s in (16, 32, 48)]
-ico[2].save(f"{OUT}/favicon.v5.ico", sizes=[(16, 16), (32, 32), (48, 48)], append_images=ico[:2])
+png("serpix-48.v7.png", 48)
+png("apple-touch-icon-180.v7.png", 180, 256)
+png("icon-192.v7.png", 192, 256)
+png("icon-512.v7.png", 512, 256)
+png("logo-128.v7.png", 128, 256)
+# Favicon de pestaña (transparente, recortado, $ grande): python3 scripts/make-tab-favicon.py brand/serpix-logo-master.v7.png public/icons v7 --dollar
 
 # Anillo del botón +: el master sin el $ (centro en negro), recortado justo alrededor de la cabeza.
 CX, CY, HOLE, HALF = 511.9, 513.1, 250, 388
