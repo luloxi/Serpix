@@ -60,3 +60,18 @@
 :root[data-theme="dark"] .text-button{color:var(--a2)!important}
 :root[data-theme] :is(.contact-avatar,.avatar-preview){background:linear-gradient(145deg,var(--accent),var(--a2));color:var(--on-accent)}
 :root[data-theme] .avatar{background:var(--brand-violet-soft);color:var(--brand-violet-ink)}
+
+/* Former hardcoded dark colors from globals.css, now tokens (same values, so no visual change) */
+:root[data-theme="dark"]{--dk-101722:#101722; --dk-111824:#111824; --dk-141722:#141722; --dk-171a24:#171a24; --dk-173b35:#173b35; --dk-17617d:#17617d; --dk-193b4b:#193b4b; --dk-202a3a:#202a3a; --dk-24394c:#24394c; --dk-252a38:#252a38; --dk-263247:#263247; --dk-292033:#292033; --dk-292333:#292333; --dk-302b4b:#302b4b; --dk-35283a:#35283a; --dk-382536:#382536; --dk-3a465b:#3a465b; --dk-41485b:#41485b; --dk-43283a:#43283a; --dk-453b20:#453b20; --dk-46536a:#46536a; --dk-48283b:#48283b; --dk-482a35:#482a35; --dk-493047:#493047; --dk-49546a:#49546a; --dk-4b2330:#4b2330; --dk-4b411d:#4b411d; --dk-50364e:#50364e; --dk-5ab5d8:#5ab5d8; --dk-735700:#735700; --dk-74c9f2:#74c9f2; --dk-8ce0c2:#8ce0c2; --dk-8fd3f0:#8fd3f0; --dk-a52f68:#a52f68; --dk-a9e6fb:#a9e6fb; --dk-aab5c8:#aab5c8; --dk-b0b8c9:#b0b8c9; --dk-b8ddfa:#b8ddfa; --dk-b9c4d5:#b9c4d5; --dk-c2c9d8:#c2c9d8; --dk-c99be0:#c99be0; --dk-c9c4ff:#c9c4ff; --dk-d3daea:#d3daea; --dk-d94f91:#d94f91; --dk-dff4fc:#dff4fc; --dk-e3e7f0:#e3e7f0; --dk-e5f7fd:#e5f7fd; --dk-e7edf7:#e7edf7; --dk-e8ebf3:#e8ebf3; --dk-ed78ad:#ed78ad; --dk-f3d26b:#f3d26b; --dk-f3d6e4:#f3d6e4; --dk-f4b4d2:#f4b4d2; --dk-fde8f1:#fde8f1; --dk-ff7a90:#ff7a90; --dk-ff8fc0:#ff8fc0; --dk-ff9aa8:#ff9aa8; --dk-ffabb4:#ffabb4; --dk-ffb3c1:#ffb3c1; --dk-ffb3d3:#ffb3d3; --dk-ffb4bd:#ffb4bd; --dk-ffc1dc:#ffc1dc; --dk-ffc1dd:#ffc1dd; --dk-ffc2dc:#ffc2dc; --dk-ffd43b:#ffd43b; --dk-ffd84a:#ffd84a; --dk-ffe08a:#ffe08a; --dk-ffe78a:#ffe78a; --dk-fff0f6:#fff0f6; --dk-fff3b8:#fff3b8; --dk-ffffff:#ffffff;}
+/* Profile chip (bottom nav / account menu): palette, not the purple gradient */
+:root[data-theme] .profile-avatar-fallback{background:linear-gradient(145deg,var(--accent),var(--a2));color:var(--on-accent)}
+:root[data-theme="light"] .profile-avatar-fallback{box-shadow:0 2px 8px rgb(120 90 70/12%)}
+:root[data-theme="dark"] .profile-avatar-fallback{box-shadow:0 0 8px color-mix(in srgb,var(--accent) 40%,transparent)}
+/* + FAB. Light: painted pastel button, no neon ring, no glow. Dark: ring kept, static soft glow, no animation. */
+:root[data-theme="light"] .add-trigger{background-color:var(--accent)!important;color:var(--on-accent)!important;filter:none!important;box-shadow:0 4px 14px rgb(120 90 70/18%),0 1px 3px rgb(120 90 70/10%)!important}
+:root[data-theme="light"] .add-trigger::after,:root[data-theme="light"] .add-trigger::before{display:none!important;animation:none!important}
+:root[data-theme="light"] .add-trigger:hover,:root[data-theme="light"] .add-trigger.is-open{background-color:color-mix(in oklab,var(--accent) 88%,#fff)!important;filter:none!important}
+:root[data-theme="dark"] .add-trigger::before{animation:none!important;background-color:var(--accent)!important;opacity:.45!important;transform:none!important;will-change:auto!important}
+:root[data-theme="dark"] .add-trigger{color:var(--warn)!important}
+@media(prefers-reduced-motion:reduce){:root[data-theme] .add-trigger,:root[data-theme] .add-trigger::before{animation:none!important;transition:none!important}}
+:root[data-theme] .add-trigger{cursor:pointer}
