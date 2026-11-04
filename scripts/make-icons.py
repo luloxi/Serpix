@@ -1,10 +1,10 @@
-"""Genera los íconos de public/icons desde brand/serpix-logo-master.v8.png (ouroboros grueso, $ en degradé amarillo #F6CD35 arriba -> naranja #E2781B abajo; vectorial en brand/serpix-logo.v8.svg).
+"""Genera los íconos de public/icons desde brand/garpen-logo-master.v8.png (ouroboros grueso, $ en degradé amarillo #F6CD35 arriba -> naranja #E2781B abajo; vectorial en brand/garpen-logo.v8.svg).
 Solo redimensiona y optimiza (paleta de 256 colores); no redibuja el logo. También recorta el anillo (sin el $) para el botón +.
-Requiere Pillow. Si cambian los archivos, subir el sufijo de versión (.v8) en app/, public/ y el manifiesto."""
+Requiere Pillow. Si cambian los archivos, subir el sufijo de versión en app/, public/ y el manifiesto (el badge es .v9; el resto de estos PNG sigue en .v8)."""
 import os
 from PIL import Image, ImageDraw
 
-SRC = Image.open("brand/serpix-logo-master.v8.png").convert("RGB")
+SRC = Image.open("brand/garpen-logo-master.v8.png").convert("RGB")
 OUT = "public/icons"
 os.makedirs(OUT, exist_ok=True)
 
@@ -14,12 +14,12 @@ def png(name, size, colors=None):
         im = im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG)
     im.save(f"{OUT}/{name}", optimize=True)
 
-png("serpix-48.v8.png", 48)
+png("garpen-48.v9.png", 48)
 png("apple-touch-icon-180.v8.png", 180, 256)
 png("icon-192.v8.png", 192, 256)
 png("icon-512.v8.png", 512, 256)
 png("logo-128.v8.png", 128, 256)
-# Favicon de pestaña (transparente, recortado, $ grande): python3 scripts/make-tab-favicon.py brand/serpix-logo-master.v8.png public/icons v8 --dollar
+# Favicon de pestaña (transparente, recortado, $ grande): python3 scripts/make-tab-favicon.py brand/garpen-logo-master.v8.png public/icons v8 --dollar
 
 # Anillo del botón +: el master sin el $ (centro en negro), recortado justo alrededor de la cabeza.
 CX, CY, HOLE, HALF = 511.9, 513.1, 250, 388

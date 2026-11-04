@@ -81,7 +81,7 @@ test("Spanish and English landing copy share a shape and avoid the blocked words
   assert.equal(landingCopy.es.enter, "Entrar con Google");
   assert.equal(landingCopy.es.inviteNote, "Si tenés una invitación, abrí el link que te pasaron.");
   assert.equal(landingCopy.es.inviteOnly, "Es gratis y solo se entra por invitación.");
-  assert.equal(landingCopy.es.limitsTitle, "Lo que Serpix no es");
+  assert.equal(landingCopy.es.limitsTitle, "Lo que Garpen no es");
   assert.match(landingCopy.es.limits.join(" "), /comprobante interno, no es factura ARCA/);
   assert.equal(landingCopy.es.license, "Código abierto (AGPL-3.0)");
   assert.equal(landingCopy.es.madeBy, "Hecho por Luciano");

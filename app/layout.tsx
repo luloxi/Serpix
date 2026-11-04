@@ -11,10 +11,10 @@ import "./luma-settings.css";
 import { E2eEngineSlot } from "./e2e-slot";
 
 export const metadata: Metadata = {
-  title: "Serpix — Tu espacio de trabajo",
+  title: "Garpen — Tu espacio de trabajo",
   description: "CRM, proyectos, tareas y finanzas en un solo espacio.",
-  applicationName: "Serpix",
-  manifest: "/manifest-v8.webmanifest",
+  applicationName: "Garpen",
+  manifest: "/manifest-v9.webmanifest",
   icons: {
     icon: [
       { url: "/icons/favicon.v8.ico", sizes: "any" },
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Serpix",
+    title: "Garpen",
   },
 };
 

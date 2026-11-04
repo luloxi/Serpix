@@ -66,7 +66,7 @@ const COMMON_PASSWORDS = [
   "clave", "clave123", "clave1234",
   "argentina", "bienvenido", "bienvenido1", "bienvenido12", "bienvenida",
   "temporal", "cambiame", "invitado", "usuario", "usuario123",
-  "serpix", "serpix123", "tequiero", "mariposa", "soleado", "amorcito",
+  "serpix", "serpix123", "garpen", "garpen123", "tequiero", "mariposa", "soleado", "amorcito",
   "111111", "000000", "123123", "654321",
   "football", "baseball", "sunshine", "shadow", "trustno1",
   "hola1234", "hola12345",

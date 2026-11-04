@@ -1,4 +1,4 @@
-# Serpix E2E encryption for invitees — specification (Phase C, v1)
+# Garpen E2E encryption for invitees — specification (Phase C, v1)
 
 Status: draft for architecture review (Vanellope). Not published. Admin (Luciano) stays in "server mode", unchanged.
 

@@ -1,4 +1,4 @@
-// Cuentix -> Serpix movement sync. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
+// Cuentix -> Garpen movement sync. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
 import type { D1Bound, D1Like } from "./finance.ts";
 
 export const MAX_SYNC_BODY_BYTES = 16 * 1024;

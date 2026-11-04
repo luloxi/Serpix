@@ -25,7 +25,7 @@ export type LandingCopy = {
 
 export const landingCopy: { es: LandingCopy; en: LandingCopy } = {
   es: {
-    title: "Serpix",
+    title: "Garpen",
     description: "Una herramienta gratis que Luciano armó para él y sus amigos.",
     inviteOnly: "Es gratis y solo se entra por invitación.",
     enter: "Entrar con Google",
@@ -40,7 +40,7 @@ export const landingCopy: { es: LandingCopy; en: LandingCopy } = {
       "Fotos de tickets",
       "Gastos recurrentes",
     ],
-    limitsTitle: "Lo que Serpix no es",
+    limitsTitle: "Lo que Garpen no es",
     limits: [
       "Los PDF son un comprobante interno, no es factura ARCA.",
       "No procesa pagos.",
@@ -52,7 +52,7 @@ export const landingCopy: { es: LandingCopy; en: LandingCopy } = {
     langLabel: "Cambiar a inglés",
   },
   en: {
-    title: "Serpix",
+    title: "Garpen",
     description: "A free tool Luciano built for himself and his friends.",
     inviteOnly: "It is free and entry is by invitation only.",
     enter: "Sign in with Google",
@@ -67,7 +67,7 @@ export const landingCopy: { es: LandingCopy; en: LandingCopy } = {
       "Ticket photos",
       "Recurring expenses",
     ],
-    limitsTitle: "What Serpix is not",
+    limitsTitle: "What Garpen is not",
     limits: [
       "PDFs are an internal receipt, not an ARCA invoice.",
       "It does not process payments.",

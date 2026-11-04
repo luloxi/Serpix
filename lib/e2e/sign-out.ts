@@ -1,7 +1,7 @@
 // Explicit sign-out order. pagehide does not call this: a reload may unlock from the device cache.
 
 export const DEVICE_WIPE_WARNING =
-  "No pudimos borrar la clave de este dispositivo: cerrá las otras pestañas de Serpix y reintentá";
+  "No pudimos borrar la clave de este dispositivo: cerrá las otras pestañas de Garpen y reintentá";
 
 export type SignOutSteps = {
   removePush: () => Promise<void>;

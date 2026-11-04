@@ -55,7 +55,7 @@ export default function InviteAccept({ code }: { code: string }) {
 
   return (
     <>
-      <p className="auth-copy">Si el enlace sigue vigente, aceptalo para entrar a Serpix.</p>
+      <p className="auth-copy">Si el enlace sigue vigente, aceptalo para entrar a Garpen.</p>
       <button type="button" className="primary-button invite-accept" onClick={() => void accept()} disabled={busy}>
         {busy ? "Aceptando…" : "Aceptar invitación"}
       </button>

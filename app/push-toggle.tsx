@@ -49,7 +49,7 @@ export default function PushToggle({ onMessage }: { onMessage: (m: string, kind:
     catch (e) { onMessage(e instanceof Error ? e.message : "No se pudo cambiar la notificación.", "error"); void refresh(); }
     finally { setBusy(false); }
   };
-  if (state === "unsupported") return <div className="profile-menu-item push-unsupported" title="Este navegador no soporta notificaciones push. En iPhone, instalá Serpix en la pantalla de inicio primero." aria-disabled="true"><BellOff size={18} /><span>Notificaciones no disponibles</span></div>;
+  if (state === "unsupported") return <div className="profile-menu-item push-unsupported" title="Este navegador no soporta notificaciones push. En iPhone, instalá Garpen en la pantalla de inicio primero." aria-disabled="true"><BellOff size={18} /><span>Notificaciones no disponibles</span></div>;
   const disabled = state === "denied" || state === "loading";
   const tip = state === "denied" ? "Bloqueadas en el navegador: habilitalas en los permisos del sitio" : state === "on" ? "Desactivar avisos de solicitudes en este dispositivo" : "Avisarme de nuevas solicitudes en este dispositivo";
   return <button type="button" className="profile-menu-item theme-menu-toggle" role="switch" aria-checked={state === "on"} disabled={disabled} title={tip} onClick={() => void click()}>{state === "on" ? <Bell size={18} /> : <BellOff size={18} />}<span>Notificaciones</span><span className={"theme-switch " + (state === "on" ? "on" : "")}><span /></span></button>;

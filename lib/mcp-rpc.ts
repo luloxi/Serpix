@@ -1,4 +1,4 @@
-// Serpix McpRpc. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
+// Garpen McpRpc. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
 import type { D1Like } from "./finance.ts";
 import { resolveOwner } from "./mailtox-link.ts";
 import { isDateKey } from "./recurring.ts";

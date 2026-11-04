@@ -8,7 +8,7 @@ import { homeQuery, homeTarget, landingLang, type HomeSearchParams } from "@/lib
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Serpix",
+  title: "Garpen",
   description: "Herramienta gratis que Luciano armó para él y sus amigos. Contactos, agenda, cuentas en ARS y USD, y comprobantes internos. Solo por invitación.",
 };
 

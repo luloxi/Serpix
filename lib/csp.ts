@@ -1,5 +1,5 @@
 /**
- * Strict Content-Security-Policy for Serpix.
+ * Strict Content-Security-Policy for Garpen.
  *
  * Pure string builder: the proxy (and the tests) pass the nonce and whether
  * this is a dev server. Production output never includes 'unsafe-eval' or ws:.

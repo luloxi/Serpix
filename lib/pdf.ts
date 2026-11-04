@@ -108,7 +108,7 @@ export class PdfDoc {
     obj(3, () => pushStr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
     obj(4, () => pushStr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"));
     const meta = (s: string) => "(" + winAnsi(s).map((b) => (b < 0x20 || b > 0x7e ? "\\" + b.toString(8).padStart(3, "0") : String.fromCharCode(b))).join("") + ")";
-    obj(5, () => pushStr(`<< /Title ${meta(this.info.title ?? "")} /Author ${meta(this.info.author ?? "")} /Producer (Serpix) >>`));
+    obj(5, () => pushStr(`<< /Title ${meta(this.info.title ?? "")} /Author ${meta(this.info.author ?? "")} /Producer (Garpen) >>`));
     this.images.forEach((img, i) => obj(imgBase + i, () => {
       const data = img.flate ?? img.rgb;
       pushStr(`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8${img.flate ? " /Filter /FlateDecode" : ""} /Length ${data.length} >>\nstream\n`);

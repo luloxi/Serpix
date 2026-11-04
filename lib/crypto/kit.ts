@@ -55,7 +55,7 @@ export function buildRecoveryKit(input: {
   const json = serializeWrap(wrap);
   const { display, stamp } = kitDate(input.createdAt);
   const text = [
-    "Serpix — kit de recuperación",
+    "Garpen — kit de recuperación",
     "============================",
     "",
     "Guardá este archivo en un lugar seguro (impreso, o en un pendrive que no uses",
@@ -77,7 +77,7 @@ export function buildRecoveryKit(input: {
     "-------------",
     `1. En un dispositivo nuevo, abrí ${input.appUrl} e ingresá con la contraseña`,
     "   de recuperación o con la passkey. La app usa la copia del servidor.",
-    "2. Este archivo no hace falta para eso. Serpix no guarda la contraseña: no",
+    "2. Este archivo no hace falta para eso. Garpen no guarda la contraseña: no",
     "   está en este archivo y nadie puede leerla por vos.",
     "",
     "ADVERTENCIA",
@@ -95,7 +95,7 @@ export function buildRecoveryKit(input: {
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Serpix — kit de recuperación</title>
+<title>Garpen — kit de recuperación</title>
 <style>
   body { font-family: Georgia, serif; max-width: 40rem; margin: 2rem auto; color: #1a1a1a; line-height: 1.45; }
   h1 { font-size: 1.6rem; }
@@ -104,13 +104,13 @@ export function buildRecoveryKit(input: {
 </style>
 </head>
 <body>
-<h1>Serpix — kit de recuperación</h1>
+<h1>Garpen — kit de recuperación</h1>
 <p>Guardá esta hoja en un lugar seguro. Es una copia de respaldo de la clave protegida con tu contraseña de recuperación. No es la contraseña y no contiene la clave de los datos. Sin la contraseña, no alcanza para leer nada.</p>
 <p>Hoy desbloqueás la cuenta con la contraseña de recuperación o con una passkey, desde la copia del servidor. Importar este archivo en la app todavía no está disponible. Conservalo como resguardo: sirve para una recuperación futura, cuando la app permita importarlo.</p>
 <p><strong>Cuenta:</strong> ${escapeHtml(input.email)}<br>
 <strong>Fecha:</strong> ${escapeHtml(display)}<br>
 <strong>Sitio:</strong> ${escapeHtml(input.appUrl)}</p>
-<p>En un dispositivo nuevo, abrí ${escapeHtml(input.appUrl)} e ingresá con la contraseña de recuperación o con la passkey. La app usa la copia del servidor. Este archivo no hace falta para eso. Serpix no guarda la contraseña: no está en este archivo y nadie puede leerla por vos.</p>
+<p>En un dispositivo nuevo, abrí ${escapeHtml(input.appUrl)} e ingresá con la contraseña de recuperación o con la passkey. La app usa la copia del servidor. Este archivo no hace falta para eso. Garpen no guarda la contraseña: no está en este archivo y nadie puede leerla por vos.</p>
 <div class="warn">
 <p><strong>Advertencia.</strong> Si perdés la passkey Y la contraseña de recuperación, los datos se pierden para siempre. Nadie puede recuperarlos, ni siquiera el administrador. No hay una copia sin cifrar y no hay una puerta trasera.</p>
 </div>
@@ -120,7 +120,7 @@ ${escapeHtml(WRAP_END)}</pre>
 </body>
 </html>
 `;
-  return { filename: `serpix-kit-recuperacion-${stamp}.txt`, text, html };
+  return { filename: `garpen-kit-recuperacion-${stamp}.txt`, text, html };
 }
 
 /** Pull the password wrap back out of a kit file (or the same markers copied from the printable page). */

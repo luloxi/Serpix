@@ -16,7 +16,7 @@ export default async function AdminPage() {
       <header className="workspace-header">
         <div>
           <p className="eyebrow">ADMINISTRACIÓN</p>
-          <h1>Accesos a Serpix</h1>
+          <h1>Accesos a Garpen</h1>
           <p>Administrá quién puede ingresar a tu espacio.</p>
         </div>
       </header>

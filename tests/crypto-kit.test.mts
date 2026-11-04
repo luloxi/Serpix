@@ -34,7 +34,7 @@ test("the kit is Spanish, dated in UTC, and holds only the password wrap", async
     passwordWrap: wrap,
     appUrl: "https://serpix.example",
   });
-  assert.equal(kit.filename, "serpix-kit-recuperacion-2026-10-31.txt");
+  assert.equal(kit.filename, "garpen-kit-recuperacion-2026-10-31.txt");
   assert.match(kit.text, /31 de octubre de 2026/);
   assert.match(kit.text, /ada&co@example.com/);
   assert.match(kit.text, /https:\/\/serpix\.example/);
@@ -63,7 +63,7 @@ test("the kit is Spanish, dated in UTC, and holds only the password wrap", async
     passwordWrap: wrap,
     appUrl: "https://serpix.example",
   });
-  assert.equal(nextDay.filename, "serpix-kit-recuperacion-2026-11-01.txt");
+  assert.equal(nextDay.filename, "garpen-kit-recuperacion-2026-11-01.txt");
   assert.match(nextDay.text, /1 de noviembre de 2026/);
 });
 

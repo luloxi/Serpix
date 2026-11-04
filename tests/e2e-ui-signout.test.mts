@@ -78,7 +78,7 @@ test("a failed wipe still ends the session and is not a silent success", async (
   assert.deepEqual(order, ["push", "vault", "fetch", "engine", "auth"]);
   assert.equal(result.deviceWipeFailed, true);
   assert.equal(signOutWarning(result), DEVICE_WIPE_WARNING);
-  assert.equal(DEVICE_WIPE_WARNING, "No pudimos borrar la clave de este dispositivo: cerrá las otras pestañas de Serpix y reintentá");
+  assert.equal(DEVICE_WIPE_WARNING, "No pudimos borrar la clave de este dispositivo: cerrá las otras pestañas de Garpen y reintentá");
 });
 
 test("the button captures the e2e session before any await and does not wipe on pagehide", () => {

@@ -18,6 +18,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { listContactsWithEmail, upsertContactByEmail } from "./lib/mailtox-link.ts";
 import { createContact, createEvent, createTask, listContacts, listEvents, listInquiries, listTasks, searchContacts, searchEvents, searchInquiries, searchTasks } from "./lib/mcp-rpc.ts";
 import { runLumaSyncForOwner } from "./lib/luma-settings.ts";
+import { legacyHostRedirect } from "./lib/legacy-host.ts";
 
 type Env = { DB: Parameters<typeof notifyOverdueInvoices>[0] & Parameters<typeof generateDue>[0] & Parameters<typeof purgeOrphanReceipts>[0] & Parameters<typeof runLumaSyncForOwner>[0]["DB"]; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; MAILTOX_LINK_OWNER_EMAIL?: string; MCP_OWNER_EMAIL?: string; LUMA_ICS_URL?: string; LUMA_SETTINGS_KEY?: string };
 type Ctx = { waitUntil(p: Promise<unknown>): void };
@@ -46,7 +47,7 @@ async function runDailyJobs(env: Env, now = new Date()) {
   }
 }
 
-/** Mailtox service binding. RPC only: this class is not mounted on the default HTTP handler. */
+/** Malito service binding. RPC only: this class is not mounted on the default HTTP handler. */
 export class MailtoxLink extends WorkerEntrypoint<Env> {
   async listContactsWithEmail(sinceCursor?: string | null) {
     return listContactsWithEmail(this.env.DB, this.env.MAILTOX_LINK_OWNER_EMAIL, sinceCursor);
@@ -106,6 +107,8 @@ export class McpRpc extends WorkerEntrypoint<Env> {
 
 const worker = {
   fetch(request: Request, env: unknown, ctx: unknown) {
+    const redirected = legacyHostRedirect(request);
+    if (redirected) return redirected;
     return handler.fetch(request, env, ctx);
   },
   async scheduled(event: { cron?: string }, env: Env, ctx: Ctx) {

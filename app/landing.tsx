@@ -5,7 +5,7 @@ import Link from "next/link";
 import { landingCopy, LANDING_LANG_STORAGE_KEY, type LandingLang } from "@/lib/landing-copy";
 import "./landing.css";
 
-const REPO = "https://github.com/luloxi/Serpix";
+const REPO = "https://github.com/luloxi/garpen";
 
 function storedLang(): LandingLang | null {
   try {

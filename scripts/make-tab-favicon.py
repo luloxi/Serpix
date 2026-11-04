@@ -1,7 +1,7 @@
 """Favicon de pestaña (escritorio): logo recortado al máximo, fondo transparente, sin cuadrado negro.
 Lee el master (logo sobre negro), pasa el negro a transparente (con los bordes sin halo oscuro), recorta al cuadrado justo
 y escribe favicon-32 (png) y favicon .ico (16/32/48). No toca los íconos Android/PWA ni el apple-touch (los genera make-icons.py).
-Con --dollar (Serpix) reemplaza el $ del centro por uno más grande y grueso (degradé amarillo arriba -> naranja abajo) para que se lea a 16/32 px.
+Con --dollar (Garpen) reemplaza el $ del centro por uno más grande y grueso (degradé amarillo arriba -> naranja abajo) para que se lea a 16/32 px.
 Uso: python3 scripts/make-tab-favicon.py <master.png|jpg> <out-dir> <sufijo, ej. v8> [--dollar]
 Requiere Pillow y numpy."""
 import sys

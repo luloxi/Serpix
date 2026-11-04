@@ -27,7 +27,7 @@ export default function LoginPage() {
     <main className="auth-screen">
       <section className="auth-card">
         <img className="auth-brand-icon" src="/icons/icon-192.v8.png" alt="" width="88" height="88" />
-        <h1>Serpix</h1>
+        <h1>Garpen</h1>
         <p className="auth-copy">Tu espacio de trabajo, relaciones y finanzas.</p>
         <button className="primary-button" onClick={signIn} disabled={loading}>
           {loading ? "Conectando con Google…" : "Continuar con Google"}

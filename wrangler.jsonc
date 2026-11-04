@@ -1,5 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Internal names stay on purpose: the Worker name, the D1 database, bindings and vars
+  // keep their serpix / MAILTOX_* / CUENTIX_* identifiers so existing data and other Workers keep working.
   "name": "serpix",
   "main": "worker.ts",
   "compatibility_date": "2026-10-30",
@@ -22,7 +24,7 @@
     "VAPID_PUBLIC_KEY": "BFUYqMDu8-xW7U64g_TaoIRf-dxjWybTTuIW0F4H-44QLVecap-EcYKwVQkYQ6n-U2DOtevfT4Fsdg1rWrf541o",
     // Cuentix pushes business movements only into this account (must be admin and approved).
     "CUENTIX_SYNC_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
-    // Mailtox reads and upserts contacts only for this account (must be admin and approved). Same owner as CUENTIX_SYNC_OWNER_EMAIL.
+    // Malito reads and upserts contacts only for this account (must be admin and approved). Same owner as CUENTIX_SYNC_OWNER_EMAIL. The var name stays.
     "MAILTOX_LINK_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
     // lulox-mcp calls the McpRpc entrypoint only for this account (must be admin and approved).
     "MCP_OWNER_EMAIL": "lucianoolivabianco@gmail.com",
@@ -33,5 +35,9 @@
   // "0 12 * * *" daily at 12:00 UTC = 09:00 America/Buenos_Aires: overdue-invoice push, due recurring movements, unattached-receipt purge, and the Luma sync.
   // "30 */6 * * *" runs only the Luma sync. The saved link (LUMA_SETTINGS_KEY) wins over the LUMA_ICS_URL secret; if both are missing the sync logs luma_sync_skipped.
   "triggers": { "crons": ["0 12 * * *", "30 */6 * * *"] },
+  "routes": [
+    { "pattern": "garpen.lulox.com.ar", "custom_domain": true },
+    { "pattern": "erp.lulox.com.ar", "custom_domain": true }
+  ],
   "observability": { "enabled": true }
 }

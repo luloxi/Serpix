@@ -3,7 +3,7 @@ import { PdfDoc, wrapText, helveticaMeasure, PAGE_W, PAGE_H, type Measure, type 
 import { formatNumber, typeLabel, lineTotalMinor, displayStatus, STATUS_LABEL, type DocType, type DocStatus, type DocCurrency } from "./documents.ts";
 
 /**
- * The single accent of the PDF (--brand-cyan). `brand` is the Serpix color (logo, rules); `ink` is the same hue darkened until it passes
+ * The single accent of the PDF (--brand-cyan). `brand` is the Garpen color (logo, rules); `ink` is the same hue darkened until it passes
  * WCAG AA (>= 4.5:1) on white, used for every piece of accent-colored text.
  */
 export const ACCENT = { brand: "#39c5ff", ink: "#007bae" } as const;

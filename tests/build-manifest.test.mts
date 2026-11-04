@@ -52,7 +52,7 @@ test("verified paths cover static prefixes and first-party scripts", () => {
   assert.equal(isVerifiedPath("/icons/icon-192.v8.png"), true);
   assert.equal(isVerifiedPath("/vendor/sql.wasm"), true);
   assert.equal(isVerifiedPath("/sw.js"), true);
-  assert.equal(isVerifiedPath("/manifest-v8.webmanifest"), true);
+  assert.equal(isVerifiedPath("/manifest-v9.webmanifest"), true);
   assert.equal(isVerifiedPath("/theme-init.js"), true);
   assert.equal(isVerifiedPath("/theme-init.js/"), false);
   assert.equal(isVerifiedPath("/public/theme-init.js"), false);

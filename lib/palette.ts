@@ -1,4 +1,4 @@
-// Brand tones: the four Serpix colors (pink, cyan, duck yellow and the violet midway between pink and cyan). One place decides which tone a month gets,
+// Brand tones: the four Garpen colors (pink, cyan, duck yellow and the violet midway between pink and cyan). One place decides which tone a month gets,
 // so a month always has the same color (October is always October's). CSS lives in brand.css (.tone-*).
 export const TONES = ["pink", "cyan", "yellow", "violet"] as const;
 export type Tone = (typeof TONES)[number];

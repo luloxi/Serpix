@@ -1,4 +1,4 @@
-// Mailtox -> Serpix contact sync. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
+// Malito -> Garpen contact sync. Pure logic (no Next.js or Cloudflare imports) so node:test can load it.
 import type { D1Like } from "./finance.ts";
 
 /** Keyset page size for listContactsWithEmail. */

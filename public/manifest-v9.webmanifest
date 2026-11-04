@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Serpix — Tu espacio de trabajo",
-  "short_name": "Serpix",
+  "name": "Garpen — Tu espacio de trabajo",
+  "short_name": "Garpen",
   "description": "CRM, proyectos, tareas y finanzas en un solo espacio.",
   "start_url": "/dashboard",
   "scope": "/",

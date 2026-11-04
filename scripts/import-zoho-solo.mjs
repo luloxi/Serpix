@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Idempotent, additive import of a Zoho Solo JSON export into Serpix (D1).
+// Idempotent, additive import of a Zoho Solo JSON export into Garpen (D1).
 // Usage: node scripts/import-zoho-solo.mjs <export.json> <user-email> [--apply] [--db serpix-production]
 // Default is a dry run that prints the SQL. Only INSERTs guarded by NOT EXISTS (owner + name/title);
 // nothing is updated or deleted. The export file stays out of git.

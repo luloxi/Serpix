@@ -1,17 +1,17 @@
 import { betterAuth } from "better-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-const APP_URL = "https://erp.lulox.com.ar";
+const APP_URL = "https://garpen.lulox.com.ar";
 export const ADMIN_EMAIL = "lucianoolivabianco@gmail.com";
 
 export async function getAuth() {
   const { env } = await getCloudflareContext({ async: true });
 
   return betterAuth({
-    appName: "Serpix",
+    appName: "Garpen",
     baseURL: APP_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [APP_URL],
+    trustedOrigins: ["https://garpen.lulox.com.ar", "https://erp.lulox.com.ar"],
     database: env.DB,
     socialProviders: {
       google: {

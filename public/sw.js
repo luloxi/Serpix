@@ -3,14 +3,14 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { body: event.data?.text() || "Tenés una novedad en Serpix." };
+    data = { body: event.data?.text() || "Tenés una novedad en Garpen." };
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "Serpix", {
+    self.registration.showNotification(data.title || "Garpen", {
       body: data.body || "Tenés una novedad en tu espacio de trabajo.",
       icon: "/icons/icon-192.v8.png",
-      badge: "/icons/serpix-48.v8.png",
+      badge: "/icons/garpen-48.v9.png",
       tag: data.tag || undefined,
       data: { url: data.url || "/" },
     })

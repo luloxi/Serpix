@@ -240,7 +240,7 @@ export async function registerPasskey(options: RegisterPasskeyOptions): Promise<
   try {
     created = await options.credentials.create({
       publicKey: {
-        rp: { id: options.rpId, name: options.rpName ?? "Serpix" },
+        rp: { id: options.rpId, name: options.rpName ?? "Garpen" },
         user: { id: userIdBytes, name: options.userName, displayName: options.userName },
         challenge: copyBytes(options.challenge),
         pubKeyCredParams: [

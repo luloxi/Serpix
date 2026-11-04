@@ -184,7 +184,7 @@ h2>.swr-status{margin:0 0 0 8px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
 
-/* Serpix: accesibilidad, notificaciones y temas */
+/* Garpen: accesibilidad, notificaciones y temas */
 :root{
   --accent:#d94f91;
   --accent-dark:#b93476;
@@ -346,7 +346,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 
 
-/* Serpix floating add button and compact brand icon */
+/* Garpen floating add button and compact brand icon */
 .logo .brand-mark{overflow:hidden;display:grid;place-items:center;background:transparent}
 .logo .brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
 .logo .brand-mark.small{width:38px;height:38px;border-radius:12px;box-shadow:none}
@@ -365,7 +365,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(prefers-reduced-motion:reduce){.add-trigger{transition:none}}
 
 
-/* Serpix: mobile-first floating create action, brand and deterministic themes */
+/* Garpen: mobile-first floating create action, brand and deterministic themes */
 .auth-brand-icon{display:block;width:112px;height:112px;object-fit:contain;margin:0 auto 28px;filter:drop-shadow(0 12px 18px rgba(217,79,145,.18))}
 .add-menu-wrap{
   position:fixed!important;z-index:60;right:24px;bottom:26px;top:auto;
@@ -469,7 +469,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(prefers-reduced-motion:reduce){.add-trigger{transition:none}}
 
 
-/* Serpix identity lockup */
+/* Garpen identity lockup */
 .auth-brand-lockup{display:flex;flex-direction:column;align-items:center;gap:14px;margin:0 auto 20px}
 .auth-brand-lockup .auth-brand-icon{display:block;width:112px;height:112px;object-fit:contain}
 .auth-brand-lockup>span{font:800 34px/1 Manrope, sans-serif;letter-spacing:-1.5px;color:var(--text,#172033)}

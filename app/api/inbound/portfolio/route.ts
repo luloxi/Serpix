@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const MAX_BODY = 12_000;
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
-// Portfolio contact form -> Serpix. Called by the portfolio Worker (Service Binding), authenticated with the shared secret.
+// Portfolio contact form -> Garpen. Called by the portfolio Worker (Service Binding), authenticated with the shared secret.
 // Anything wrong (no/wrong secret, bad body, too big, too many) is rejected before touching the database.
 export async function POST(request: Request) {
   const { env, ctx } = await getCloudflareContext({ async: true });
