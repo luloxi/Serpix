@@ -75,3 +75,5 @@
 :root[data-theme="dark"] .add-trigger{color:var(--warn)!important}
 @media(prefers-reduced-motion:reduce){:root[data-theme] .add-trigger,:root[data-theme] .add-trigger::before{animation:none!important;transition:none!important}}
 :root[data-theme] .add-trigger{cursor:pointer}
+/* Former hardcoded dark rgba() colors from globals.css (same values) */
+:root[data-theme="dark"]{--dkr-0-0-0-22:rgba(0,0,0,.22);--dkr-0-0-0-28:rgba(0,0,0,.28);--dkr-0-0-0-62:rgba(0,0,0,.62);--dkr-0-0-0-68:rgba(0,0,0,.68);--dkr-17-23-34-98:rgba(17,23,34,.98);--dkr-237-120-173-10:rgba(237,120,173,.10);--dkr-237-120-173-62:rgba(237,120,173,.62);--dkr-255-255-255-97:rgba(255,255,255,.97);--dkr-27-30-41-96:rgba(27,30,41,.96);--dkr-27-30-41-97:rgba(27,30,41,.97);}
