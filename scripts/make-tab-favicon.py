@@ -1,14 +1,15 @@
 """Favicon de pestaña (escritorio): logo recortado al máximo, fondo transparente, sin cuadrado negro.
 Lee el master (logo sobre negro), pasa el negro a transparente (con los bordes sin halo oscuro), recorta al cuadrado justo
 y escribe favicon-32 (png) y favicon .ico (16/32/48). No toca los íconos Android/PWA ni el apple-touch (los genera make-icons.py).
-Con --dollar (Serpix) reemplaza el $ del centro por uno más grande y grueso para que se lea a 16/32 px.
-Uso: python3 scripts/make-tab-favicon.py <master.png|jpg> <out-dir> <sufijo, ej. v7> [--dollar]
+Con --dollar (Serpix) reemplaza el $ del centro por uno más grande y grueso (degradé amarillo arriba -> naranja abajo) para que se lea a 16/32 px.
+Uso: python3 scripts/make-tab-favicon.py <master.png|jpg> <out-dir> <sufijo, ej. v8> [--dollar]
 Requiere Pillow y numpy."""
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ORANGE = (0xE2, 0x78, 0x1B)
+YELLOW = (0xF6, 0xCD, 0x35)
 FONT = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 
 
@@ -53,7 +54,7 @@ def bold_dollar(im, hole=530, fill=0.82):
     """Borra el $ naranja del master y dibuja uno mas grande y grueso, centrado en el agujero del anillo."""
     a = np.asarray(im.convert("RGB")).copy()
     r, g, b = [a[..., i].astype(float) for i in range(3)]
-    m = (r > 150) & (g > 60) & (g < 180) & (b < 90) & (r > g * 1.3)
+    m = (r > 150) & (g > 60) & (b < 100) & (r > g * 1.1)  # $ amarillo->naranja
     ys, xs = np.where(m)
     cx, cy = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2
     wipe = Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(9))
@@ -68,7 +69,11 @@ def bold_dollar(im, hole=530, fill=0.82):
     g2 = g2.resize((int(g2.width * k), int(g2.height * k)), Image.LANCZOS)
     full = Image.new("L", (W * S, W * S), 0)
     full.paste(g2, (int(cx * S - g2.width / 2), int(cy * S - g2.height / 2)))
-    base.paste(Image.new("RGB", (W, W), ORANGE), (0, 0), full.resize((W, W), Image.LANCZOS))
+    small = full.resize((W, W), Image.LANCZOS)
+    top, bot = small.getbbox()[1], small.getbbox()[3]
+    t = np.clip((np.arange(W) - top) / max(bot - top, 1), 0, 1)[:, None, None]
+    grad = np.array(YELLOW, float) * (1 - t) + np.array(ORANGE, float) * t  # degradé vertical: amarillo arriba, naranja abajo
+    base.paste(Image.fromarray(np.broadcast_to(grad, (W, W, 3)).astype(np.uint8), "RGB"), (0, 0), small)
     return base
 
 
