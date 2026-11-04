@@ -1,0 +1,62 @@
+/* Paleta lulox (2026-11-04, /workspace/style/paleta-lulox.md): pastel pintado en claro, neón con brillo leve en oscuro.
+   Loaded last: only remaps color tokens (the brand layer reads --brand-*), plus paper grain / glow. No layout.
+   Mapping: brand pink -> --accent, violet -> --a2, cyan -> --a3, yellow -> --warn. Logos and app icons are not touched. */
+:root,:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#FBF8F4;--surface:#FFFFFF;--text:#2B2A33;--ink:#2B2A33;--muted:#6E6B7B;--border:#ECE6EF;--line:#ECE6EF;
+  --accent:#F4A99B;--a2:#B8A9F0;--a3:#9ED9CC;--sky:#A9D4F5;--ok:#8FD3A8;--warn:#F6D68A;--err:#F2A0A8;
+  --brand-pink:var(--accent);--brand-violet:var(--a2);--brand-cyan:var(--a3);--brand-yellow:var(--warn);
+  --brand-pink-soft:rgb(244 169 155/.22);--brand-violet-soft:rgb(184 169 240/.24);--brand-cyan-soft:rgb(158 217 204/.26);--brand-yellow-soft:rgb(246 214 138/.28);
+  --brand-pink-mid:rgb(244 169 155/.5);--brand-violet-mid:rgb(184 169 240/.5);--brand-cyan-mid:rgb(158 217 204/.55);--brand-yellow-mid:rgb(246 214 138/.6);
+  /* AA text versions of the pastels (>= 4.9:1 on --bg and on the soft fills) */
+  --brand-pink-ink:#7A544D;--brand-violet-ink:#5C5478;--brand-cyan-ink:#47615B;--brand-yellow-ink:#6E603E;
+  --accent-dark:var(--brand-pink-ink);--focus-ring:var(--a2);
+  --on-brand:#2B2A33;--on-accent:#2B2A33;
+  --prio-urgent:#E0707B;--prio-high:#EE9A7E;--prio-normal:#E8BF5A;--prio-low:#6FC08E;
+  --shadow:0 2px 12px rgb(120 90 70/8%);
+  --paper:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0B0B12;--surface:#15151F;--text:#F2F1F7;--ink:#F2F1F7;--muted:#9A98AE;--border:#26263A;--line:#26263A;
+  --accent:#FF4FD8;--a2:#00E5FF;--a3:#B6FF3B;--sky:#7C5CFF;--ok:#39FF88;--warn:#FFE14D;--err:#FF4D6D;
+  --brand-pink:var(--accent);--brand-violet:var(--a2);--brand-cyan:var(--a3);--brand-yellow:var(--warn);
+  --brand-pink-soft:rgb(255 79 216/.14);--brand-violet-soft:rgb(0 229 255/.12);--brand-cyan-soft:rgb(182 255 59/.12);--brand-yellow-soft:rgb(255 225 77/.13);
+  --brand-pink-mid:rgb(255 79 216/.4);--brand-violet-mid:rgb(0 229 255/.4);--brand-cyan-mid:rgb(182 255 59/.4);--brand-yellow-mid:rgb(255 225 77/.4);
+  --brand-pink-ink:#FF7BE2;--brand-violet-ink:var(--a2);--brand-cyan-ink:var(--a3);--brand-yellow-ink:var(--warn);
+  --accent-dark:var(--brand-pink-ink);--focus-ring:var(--a2);
+  --on-brand:#0B0B12;--on-accent:#0B0B12;
+  --prio-urgent:#FF4D6D;--prio-high:#FF8A4D;--prio-normal:#FFE14D;--prio-low:#39FF88;
+  --shadow:none;--paper:none;
+  --glow:0 0 10px color-mix(in srgb,var(--accent) 45%,transparent);
+}
+/* Surfaces: painted paper in light, flat night in dark */
+:root[data-theme] html,:root[data-theme] body{background-color:var(--bg)}
+:root[data-theme="light"] body{background:var(--paper),radial-gradient(ellipse at 80% -10%,rgb(244 169 155/.16),transparent 40%),radial-gradient(ellipse at 0% 100%,rgb(158 217 204/.14),transparent 45%),var(--bg)!important;color:var(--ink)}
+:root[data-theme="dark"] body{background:radial-gradient(ellipse at 80% -10%,rgb(255 79 216/.08),transparent 38%),var(--bg)!important;color:var(--ink)}
+:root[data-theme="light"] :is(.panel,.stat-card,.home-panel,.contact-card,.inq-card,.task-card,.activity-card,.home-kpi,.note-reader,.editor-modal,.auth-card,.welcome){background:var(--paper),var(--surface)!important;box-shadow:var(--shadow)!important}
+:root[data-theme] ::selection{background:var(--brand-pink-soft);color:var(--ink)}
+/* Main button: peach + dark text in light; magenta with a soft glow in dark (no animation) */
+:root[data-theme="light"] .primary-button{background:var(--accent)!important;color:var(--on-accent)!important;box-shadow:0 2px 12px rgb(120 90 70/12%)!important}
+:root[data-theme="light"] .primary-button:hover:not(:disabled){background:color-mix(in oklab,var(--accent) 88%,#fff)!important}
+:root[data-theme="dark"] .primary-button{background:var(--accent)!important;color:var(--on-accent)!important;box-shadow:var(--glow)!important}
+:root[data-theme="dark"] .primary-button:hover:not(:disabled){background:color-mix(in oklab,var(--accent) 85%,#fff)!important}
+:root[data-theme="dark"] :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{box-shadow:0 0 10px color-mix(in srgb,var(--a2) 45%,transparent)}
+:root[data-theme="dark"] .nav-item.active svg{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--nav,var(--accent)) 50%,transparent))}
+:root[data-theme] .luma-settings button.primary{color:var(--on-accent)}
+:root[data-theme] .error-message{color:var(--brand-pink-ink)}
+:root[data-theme="light"] .error-message{color:#9B3B45}
+:root[data-theme="dark"] .error-message{color:var(--err)}
+:root[data-theme] .positive{color:var(--brand-cyan-ink)}
+:root[data-theme="dark"] .positive{color:var(--ok)}
+:root[data-theme] .negative{color:#9B3B45}
+:root[data-theme="dark"] .negative{color:var(--err)}
+@media(prefers-reduced-motion:reduce){:root[data-theme] .primary-button{transition:none}}
+/* Clickable = pointer, disabled = not-allowed */
+:root[data-theme] :is(button,[role="button"],a[href],summary,select,label[for]):not(:disabled){cursor:pointer}
+:root[data-theme] :is(button,[role="button"]):disabled,:root[data-theme] [aria-disabled="true"]{cursor:not-allowed}
+/* Hardcoded indigo/pink leftovers in globals.css, remapped to the palette */
+:root[data-theme] .text-button{color:var(--brand-pink-ink)!important}
+:root[data-theme="dark"] .text-button{color:var(--a2)!important}
+:root[data-theme] :is(.contact-avatar,.avatar-preview){background:linear-gradient(145deg,var(--accent),var(--a2));color:var(--on-accent)}
+:root[data-theme] .avatar{background:var(--brand-violet-soft);color:var(--brand-violet-ink)}

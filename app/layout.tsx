@@ -8,6 +8,7 @@ import "./gastos.css";
 import "./e2e.css";
 import "./contacts.css";
 import "./luma-settings.css";
+import "./paleta.css";
 import { E2eEngineSlot } from "./e2e-slot";
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080A12",
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#FBF8F4" }, { media: "(prefers-color-scheme: dark)", color: "#0B0B12" }],
   width: "device-width",
   initialScale: 1,
 };
