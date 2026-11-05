@@ -72,6 +72,14 @@ const ops: Op[] = [
     updated: "horas",
   },
   {
+    table: "note_media",
+    insert: (db) => db.prepare("INSERT INTO note_media (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)").run("row", "u", "image/jpeg", 4, "AAAA", 1),
+    update: (db) => db.prepare("UPDATE note_media SET mime = ? WHERE id = ?").run("image/png", "row"),
+    read: (db) => (db.prepare("SELECT mime AS v FROM note_media WHERE id = 'row'").get() as { v: string } | undefined)?.v,
+    inserted: "image/jpeg",
+    updated: "image/png",
+  },
+  {
     table: "receipts",
     insert: (db) => db.prepare("INSERT INTO receipts (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)").run("row", "u", "image/png", 4, "AAAA", 1),
     update: (db) => db.prepare("UPDATE receipts SET read_ok = ? WHERE id = ?").run(1, "row"),

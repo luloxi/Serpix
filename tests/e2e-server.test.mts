@@ -351,6 +351,7 @@ function seedLegacy(db: ReturnType<typeof openDb>["db"], table: (typeof LEGACY_T
   else if (table === "documents") db.prepare("INSERT INTO documents (id,user_id,doc_type,number,issue_date,currency,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").run("row", "ana", "invoice", 1, "2026-10-01", "ARS", "draft", 1, 1);
   else if (table === "time_entries") db.prepare("INSERT INTO time_entries (id,user_id,started_at,ended_at,duration_ms,created_at) VALUES (?,?,?,?,?,?)").run("row", "ana", 1, 2, 1, 1);
   else if (table === "receipts") db.prepare("INSERT INTO receipts (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)").run("row", "ana", "image/png", 4, "AAAA", 1);
+  else if (table === "note_media") db.prepare("INSERT INTO note_media (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)").run("row", "ana", "image/png", 4, "AAAA", 1);
   else if (table === "recurring_rules") db.prepare("INSERT INTO recurring_rules (id,user_id,account_id,kind,amount_minor,category,frequency,anchor_date,from_date,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").run("row", "ana", "bank-caja", "expense", 500, "Alquiler", "monthly", "2020-01-01", "2020-01-01", 1, 1);
   else if (table === "activities") db.prepare("INSERT INTO activities (id,user_id,kind,title,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("row", "ana", "note", "Nota", "2026-10-01T12:00:00.000Z", 1, 1);
   else if (table === "projects") db.prepare("INSERT INTO projects (id,user_id,name,created_at,updated_at) VALUES (?,?,?,?,?)").run("row", "ana", "Proyecto", 1, 1);

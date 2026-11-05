@@ -5,6 +5,7 @@ import { avatarChange } from "@/lib/avatar";
 import { ACCOUNTS_SQL, TX_VISIBLE } from "@/lib/finance";
 import { reconcileManual } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
+import { prepareActivityBody } from "@/lib/note-html";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +100,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
           const linked = await db.prepare("SELECT COUNT(*) AS count FROM contacts WHERE user_id=? AND id IN ("+placeholders+")").bind(userId,...contactIds).first<{count:number}>();
           if (Number(linked?.count||0)!==contactIds.length) return NextResponse.json({error:"Hay contactos inválidos"},{status:400});
         }
-        await db.prepare("INSERT INTO activities (id,user_id,kind,title,body,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(id,userId,kind,title,nullable(body.body,30000),occurredAt,now,now).run();
+        const prepared = prepareActivityBody(kind, body.body);
+        if (!prepared.ok) return NextResponse.json({ error: prepared.error }, { status: 400 });
+        await db.prepare("INSERT INTO activities (id,user_id,kind,title,body,occurred_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(id,userId,kind,title,prepared.value,occurredAt,now,now).run();
         for (const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id,user_id) VALUES (?,?,?)").bind(id,contactId,userId).run();
         break;
       }

@@ -13,6 +13,7 @@ test("generated local schema matches the migrations", () => {
   assert.match(LOCAL_SCHEMA_SQL, /met_event/);
   assert.match(LOCAL_SCHEMA_SQL, /met_event_at/);
   assert.match(LOCAL_SCHEMA_SQL, /met_note/);
+  assert.equal(LOCAL_SCHEMA_SQL.includes("note_media"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("luma_events"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("luma_settings"), false);
   assert.equal(LOCAL_SCHEMA_SQL.includes("encryption_mode"), false);

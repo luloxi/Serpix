@@ -8,6 +8,7 @@ import "./gastos.css";
 import "./e2e.css";
 import "./contacts.css";
 import "./luma-settings.css";
+import "./note-editor.css";
 import "./paleta.css";
 import { E2eEngineSlot } from "./e2e-slot";
 
