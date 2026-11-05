@@ -1,4 +1,4 @@
-/** Raised by the plaintext-write triggers (migrations 0016 and 0017). */
+/** Raised by the plaintext-write triggers (migrations 0016, 0017, and 0020). */
 export const E2E_PLAINTEXT_WRITE = "e2e_account_plaintext_write";
 
 /** SQLite extended result SQLITE_CONSTRAINT_TRIGGER. */

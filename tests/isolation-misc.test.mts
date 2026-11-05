@@ -35,6 +35,8 @@ const COVERED = [
   "integrations/cuentix/events/route.ts",
   "invites/redeem/route.ts",
   "luma-events/route.ts",
+  "note-media/route.ts",
+  "note-media/[id]/route.ts",
   "settings/luma/route.ts",
   "settings/luma/sync/route.ts",
   "push/subscribe/route.ts",
@@ -94,6 +96,8 @@ async function api() {
     e2eRecord: await import("../app/api/e2e/records/[collection]/[id]/route.ts"),
     e2eCounter: await import("../app/api/e2e/counter/route.ts"),
     e2eScan: await import("../app/api/e2e/scan-ai/route.ts"),
+    noteMediaPost: await import("../app/api/note-media/route.ts"),
+    noteMedia: await import("../app/api/note-media/[id]/route.ts"),
     luma: await import("../app/api/luma-events/route.ts"),
     lumaSettings: await import("../app/api/settings/luma/route.ts"),
     lumaSync: await import("../app/api/settings/luma/sync/route.ts"),
@@ -139,6 +143,9 @@ function hits(routes: Awaited<ReturnType<typeof api>>): Hit[] {
     { method: "POST", mod: routes.scan, url: base + "/api/receipts/scan" },
     { method: "GET", mod: routes.receipt, url: base + "/api/receipts/x", params: { id: "x" } },
     { method: "DELETE", mod: routes.receipt, url: base + "/api/receipts/x", params: { id: "x" } },
+    { method: "POST", mod: routes.noteMediaPost, url: base + "/api/note-media" },
+    { method: "GET", mod: routes.noteMedia, url: base + "/api/note-media/x", params: { id: "x" } },
+    { method: "DELETE", mod: routes.noteMedia, url: base + "/api/note-media/x", params: { id: "x" } },
     { method: "POST", mod: routes.cuentix, url: base + "/api/integrations/cuentix/events", json: {} },
     { method: "GET", mod: routes.rules, url: base + "/api/recurring" },
     { method: "PATCH", mod: routes.rule, url: base + "/api/recurring/x", params: { id: "x" }, json: { action: "pause" } },
@@ -278,6 +285,8 @@ test("B cannot read or touch A's inquiries, rules, receipts or push subscription
       call(routes.rule, "DELETE", base + "/api/recurring/" + ids.ruleA, { params: { id: ids.ruleA } }),
       call(routes.receipt, "GET", base + "/api/receipts/" + ids.receiptA, { params: { id: ids.receiptA } }),
       call(routes.receipt, "DELETE", base + "/api/receipts/" + ids.receiptA, { params: { id: ids.receiptA } }),
+      call(routes.noteMedia, "GET", base + "/api/note-media/" + ids.noteMediaA, { params: { id: ids.noteMediaA } }),
+      call(routes.noteMedia, "DELETE", base + "/api/note-media/" + ids.noteMediaA, { params: { id: ids.noteMediaA } }),
       call(routes.push, "DELETE", base + "/api/push/subscribe", { json: { endpoint: ids.pushA } }),
       call(routes.push, "POST", base + "/api/push/subscribe", { json: { endpoint: ids.pushA, keys: { p256dh: "C".repeat(87), auth: "D".repeat(22) } } }),
     ];
@@ -288,6 +297,9 @@ test("B cannot read or touch A's inquiries, rules, receipts or push subscription
     assertSame(db, before);
     const own = await call(routes.receipt, "GET", base + "/api/receipts/" + ids.receiptB, { params: { id: ids.receiptB } });
     assert.equal(own.status, 200);
+    const ownMedia = await call(routes.noteMedia, "GET", base + "/api/note-media/" + ids.noteMediaB, { params: { id: ids.noteMediaB } });
+    assert.equal(ownMedia.status, 200);
+    assertNoA(ownMedia.text);
   });
 });
 

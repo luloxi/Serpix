@@ -22,6 +22,8 @@ export const ids = {
   receiptA: "receipt-a",
   receiptB: "receipt-b",
   receiptBFree: "receipt-b-free",
+  noteMediaA: "note-media-a",
+  noteMediaB: "note-media-b",
   ruleA: "rule-a",
   ruleB: "rule-b",
   activityA: "activity-a",
@@ -39,7 +41,7 @@ export const ids = {
   pushB: "https://push.example.test/device-user-b",
 };
 
-const TABLES = ["user", "contacts", "projects", "tasks", "financial_accounts", "financial_transactions", "receipts", "recurring_rules", "activities", "activity_contacts", "inquiries", "push_subscriptions", "timer_state", "time_entries", "documents", "document_items", "document_time_entries", "contact_relationships", "session", "invites", "integration_nonces", "integration_tombstones", "user_keys", "records", "e2e_counters"];
+const TABLES = ["user", "contacts", "projects", "tasks", "financial_accounts", "financial_transactions", "receipts", "note_media", "recurring_rules", "activities", "activity_contacts", "inquiries", "push_subscriptions", "timer_state", "time_entries", "documents", "document_items", "document_time_entries", "contact_relationships", "session", "invites", "integration_nonces", "integration_tombstones", "user_keys", "records", "e2e_counters"];
 
 function userRow(db: DatabaseSync, id: string, name: string) {
   db.prepare("INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt,role,approvalStatus) VALUES (?,?,?,?,?,?,?,?)").run(id, name, id + "@test.local", 1, 1, 1, "user", "approved");
@@ -68,6 +70,9 @@ export function seedWorld() {
   receipt.run(ids.receiptA, A, ids.txA, "image/png", 8, "iVBORw0KGgo=", 0, 1);
   receipt.run(ids.receiptB, B, ids.txB, "image/png", 8, "iVBORw0KGgo=", 0, 2);
   receipt.run(ids.receiptBFree, B, null, "image/png", 8, "iVBORw0KGgo=", 0, 3);
+  const media = db.prepare("INSERT INTO note_media (id,user_id,mime,size,data,created_at) VALUES (?,?,?,?,?,?)");
+  media.run(ids.noteMediaA, A, "image/jpeg", 14, Buffer.from("A-SECRET-MEDIA").toString("base64"), 1);
+  media.run(ids.noteMediaB, B, "image/jpeg", 4, "bbbb", 2);
   const rule = db.prepare("INSERT INTO recurring_rules (id,user_id,account_id,contact_id,kind,amount_minor,category,description,frequency,anchor_date,status,from_date,generated_through,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
   rule.run(ids.ruleA, A, ids.accountA, ids.contactA, "expense", 500, "A-SECRET-RULE", "A-SECRET-RULE-DESC", "monthly", "2020-01-01", "active", "2020-01-01", "2099-12-31", 1, 1);
   rule.run(ids.ruleB, B, ids.accountB, ids.contactB, "expense", 500, "B-RULE", "regla b", "monthly", "2020-01-01", "active", "2020-01-01", "2099-12-31", 1, 1);
@@ -119,7 +124,7 @@ export function assertSame(db: DatabaseSync, before: string) {
   assert.fail("db changed in " + diffs.join(", ") + "\n" + diffs.map((key) => key + "\n before " + JSON.stringify(a[key]) + "\n after " + JSON.stringify(b[key])).join("\n"));
 }
 
-const MARKERS = ["A-SECRET", "A-POISON", "contact-a", "project-a", "task-a", "account-a", "tx-a", "receipt-a", "rule-a", "activity-a", "inquiry-a", "entry-a", "doc-a", "item-a", "item-poison", "user-a", "device-user-a"];
+const MARKERS = ["A-SECRET", "A-POISON", "contact-a", "project-a", "task-a", "account-a", "tx-a", "receipt-a", "note-media-a", "rule-a", "activity-a", "inquiry-a", "entry-a", "doc-a", "item-a", "item-poison", "user-a", "device-user-a"];
 
 export function assertNoA(body: unknown) {
   const text = typeof body === "string" ? body : JSON.stringify(body);

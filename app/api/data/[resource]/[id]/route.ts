@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { encryptedAccount, encryptedWriteResponse, legacyDataContext, unauthorized } from "@/lib/session";
 import { clearCounterpartLink, reconcileManual, unlinkTransaction } from "@/lib/cuentix-sync";
 import { createRuleForTransaction, generateDue, isDateKey, parseRecurrence, todayInBuenosAires } from "@/lib/recurring";
+import { prepareActivityBody } from "@/lib/note-html";
 import { attachReceipt, receiptLinkable } from "@/lib/receipts-db";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{res
           const linked=await db.prepare("SELECT COUNT(*) AS count FROM contacts WHERE user_id=? AND id IN ("+placeholders+")").bind(userId,...contactIds).first<{count:number}>();
           if(Number(linked?.count||0)!==contactIds.length) return NextResponse.json({error:"Hay contactos inválidos"},{status:400});
         }
-        result=await db.prepare("UPDATE activities SET kind=?,title=?,body=?,occurred_at=?,updated_at=? WHERE id=? AND user_id=?").bind(kind,title,nullable(b.body,30000),occurredAt,now,id,userId).run();
+        const prepared=prepareActivityBody(kind,b.body);
+        if(!prepared.ok) return NextResponse.json({error:prepared.error},{status:400});
+        result=await db.prepare("UPDATE activities SET kind=?,title=?,body=?,occurred_at=?,updated_at=? WHERE id=? AND user_id=?").bind(kind,title,prepared.value,occurredAt,now,id,userId).run();
         if(result.meta.changes){
           await db.prepare("DELETE FROM activity_contacts WHERE activity_id=? AND user_id=?").bind(id,userId).run();
           for(const contactId of contactIds) await db.prepare("INSERT INTO activity_contacts (activity_id,contact_id,user_id) VALUES (?,?,?)").bind(id,contactId,userId).run();
